@@ -1,7 +1,7 @@
 cmake_minimum_required( VERSION 3.2 )
 
 ## Specify a project name
-project(mpc)
+project(mpc++)
 
 set(CMAKE_BUILD_TYPE RELEASE)
 

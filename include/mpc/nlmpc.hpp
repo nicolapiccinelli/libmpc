@@ -13,8 +13,13 @@ template <std::size_t Tnx, std::size_t Tnu, std::size_t Tny, std::size_t Tph, st
 class NLMPC
 {
 public:
-    NLMPC() = delete;
+    NLMPC();
     NLMPC(bool hardConstraints, bool verbose = false)
+    {
+        init(hardConstraints, verbose);
+    }
+
+    void init(bool hardConstraints, bool verbose = false)
     {
         Logger::verbose = (int)verbose;
         dbg(Logger::INFO) << "Verbosity mode active" << std::endl;
