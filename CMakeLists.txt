@@ -37,11 +37,44 @@ if (OPENMP_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+add_library(mpc++ INTERFACE)
+target_link_libraries(mpc++ INTERFACE nlopt m)
+target_include_directories(mpc++ INTERFACE ${EIGEN3_INCLUDE_DIR})
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    "${PROJECT_BINARY_DIR}/mpc++ConfigVersion.cmake"
+    VERSION 0.1
+    COMPATIBILITY AnyNewerVersion
+)
+
+install(TARGETS mpc++
+    EXPORT mpc++Targets
+    LIBRARY DESTINATION lib COMPONENT Runtime
+    ARCHIVE DESTINATION lib COMPONENT Development
+    RUNTIME DESTINATION bin COMPONENT Runtime
+    PUBLIC_HEADER DESTINATION include COMPONENT Development
+    BUNDLE DESTINATION bin COMPONENT Runtime
+)
+
+include(CMakePackageConfigHelpers)
+configure_package_config_file(
+    "${PROJECT_SOURCE_DIR}/cmake/mpc++Config.cmake.in"
+    "${PROJECT_BINARY_DIR}/mpc++Config.cmake"
+    INSTALL_DESTINATION lib/cmake/mpc++
+)
+
+install(EXPORT mpc++Targets DESTINATION lib/cmake/mpc++)
+install(FILES "${PROJECT_BINARY_DIR}/mpc++ConfigVersion.cmake"
+              "${PROJECT_BINARY_DIR}/mpc++Config.cmake"
+        DESTINATION lib/cmake/mpc++)
+
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION /usr/local/include)
+
 ## Find all source files to be compiled into object files
 file(GLOB SOURCES src/*.cpp)
-
 add_executable(vanderpol test/vanderpol.cpp)
-target_link_libraries(vanderpol nlopt m)
+target_link_libraries(vanderpol mpc++)
 
 if(CMAKE_BUILD_TYPE MATCHES DEBUG)
     target_link_libraries(vanderpol ${PROJECT_SOURCE_DIR}/deps/stacktrace/libstacktrace.so)
