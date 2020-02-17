@@ -1,0 +1,3 @@
+[submodule "deps/stacktrace"]
+	path = deps/stacktrace
+	url = https://github.com/certik/stacktrace
