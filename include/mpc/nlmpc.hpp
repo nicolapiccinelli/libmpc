@@ -7,13 +7,11 @@
 
 #include <chrono>
 
-namespace mpc
-{
+namespace mpc {
 template <std::size_t Tnx, std::size_t Tnu, std::size_t Tny, std::size_t Tph, std::size_t Tch, std::size_t Tineq, std::size_t Teq>
-class NLMPC
-{
+class NLMPC {
 public:
-    NLMPC();
+    NLMPC() = default;
     NLMPC(bool hardConstraints, bool verbose = false)
     {
         init(hardConstraints, verbose);
@@ -121,7 +119,7 @@ private:
 
     ObjFunction<Tnx, Tnu, Tph, Tch> objFunc;
     ConFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq> conFunc;
-    Optimizer<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq> *opt;
+    Optimizer<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* opt;
     Common<Tnx, Tnu, Tph, Tch> mapping;
 };
 } // namespace mpc
