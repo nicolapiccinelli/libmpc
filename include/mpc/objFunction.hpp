@@ -38,7 +38,7 @@ public:
             computeJacobian(Xmat, Umat, c.value, e);
 
             int counter = 0;
-#pragma openmp parallel for
+            //#pragma omp parallel for
             for (size_t j = 0; j < (size_t)Jx.cols(); j++) {
                 for (size_t i = 0; i < (size_t)Jx.rows(); i++) {
                     c.grad[counter++] = Jx(i, j);
@@ -47,7 +47,7 @@ public:
 
             cvec<Tph * Tnu> JmvVectorized;
             int vec_counter = 0;
-#pragma openmp parallel for
+            //#pragma omp parallel for
             for (size_t j = 0; j < (size_t)Jmv.cols(); j++) {
                 for (size_t i = 0; i < (size_t)Jmv.rows(); i++) {
                     JmvVectorized[vec_counter++] = Jmv(i, j);
@@ -55,7 +55,7 @@ public:
             }
 
             cvec<Tch* Tnu> res = mapping.Iz2u.transpose() * JmvVectorized;
-#pragma openmp parallel for
+            //#pragma omp parallel for
             for (size_t j = 0; j < Tch * Tnu; j++) {
                 c.grad[counter++] = res[j];
             }
@@ -91,14 +91,14 @@ private:
         Jmv.setZero();
 
         mat<Tph + 1, Tnx> Xa = x0.cwiseAbs();
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < (size_t)Xa.rows(); i++) {
             for (size_t j = 0; j < (size_t)Xa.cols(); j++) {
                 Xa(i, j) = (Xa(i, j) < 1) ? 1 : Xa(i, j);
             }
         }
 
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph; i++) {
             for (size_t j = 0; j < Tnx; j++) {
                 int ix = i + 1;
@@ -112,14 +112,14 @@ private:
         }
 
         mat<Tph + 1, Tnu> Ua = u0.cwiseAbs();
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < (size_t)Ua.rows(); i++) {
             for (size_t j = 0; j < (size_t)Ua.cols(); j++) {
                 Ua(i, j) = (Ua(i, j) < 1) ? 1 : Ua(i, j);
             }
         }
 
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph - 1; i++) {
             // TODO support measured disturbaces
             for (size_t j = 0; j < Tnu; j++) {
@@ -134,7 +134,7 @@ private:
         }
 
         // TODO support measured disturbaces
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t j = 0; j < Tnu; j++) {
             int k = j;
             double du = dv * Ua(k, 0);

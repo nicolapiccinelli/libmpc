@@ -23,7 +23,7 @@ public:
         Xmat.setZero();
         Xmat.row(0) = x0.transpose();
         for (size_t i = 1; i < Tph + 1; i++) {
-            Xmat.row(i) = x.middleRows(((i-1) * Tnx), Tnx).transpose();
+            Xmat.row(i) = x.middleRows(((i - 1) * Tnx), Tnx).transpose();
             // TODO add rows scaling
         }
 

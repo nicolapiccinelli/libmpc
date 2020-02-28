@@ -11,6 +11,7 @@ public:
         INFO };
 
     static int verbose;
+    static std::string prefix;
     static level logLevel;
 
     Logger() = delete;
@@ -37,7 +38,7 @@ public:
     ~Logger()
     {
         if (verbose && logLevel <= cl) {
-            std::cout << "[NLMPC] " << s.str();
+            std::cout << "[NLMPC " << prefix << "] " << s.str();
         }
     }
 

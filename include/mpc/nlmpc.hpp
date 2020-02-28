@@ -43,12 +43,22 @@ public:
         return true;
     }
 
+    bool setLoggerPrefix(std::string prefix)
+    {
+        Logger::prefix = prefix;
+    }
+
     bool setSampleTime(const double ts)
     {
         dbg(Logger::DEEP) << "Setting sampling time to: " << ts << " sec(s)" << std::endl;
 
         auto res = conFunc.setContinuos(true, ts);
         return res;
+    }
+
+    void setTolerances(Parameters param)
+    {
+        opt->setTolerances(param);
     }
 
     bool setObjectiveFunction(const ObjFunHandle<Tph, Tnx, Tnu> handle)
@@ -82,14 +92,14 @@ public:
         return res;
     }
 
-    bool setIneqConFunction(const IConFunHandle<Tineq, Tph, Tnx, Tnu> handle, const cvec<Tineq> tol = cvec<Tineq>::Zero())
+    bool setIneqConFunction(const IConFunHandle<Tineq, Tph, Tnx, Tnu> handle, const cvec<Tineq> tol = cvec<Tineq>::Ones() * 1e-10)
     {
         auto res = conFunc.setIneqConstraintFunction(handle);
         opt->bindUserIneq(&conFunc, constraints_type::UINEQ, tol);
         return res;
     }
 
-    bool setEqConFunction(const EConFunHandle<Teq, Tph, Tnx, Tnu> handle, const cvec<Teq> tol = cvec<Teq>::Zero())
+    bool setEqConFunction(const EConFunHandle<Teq, Tph, Tnx, Tnu> handle, const cvec<Teq> tol = cvec<Teq>::Ones() * 1e-10)
     {
         auto res = conFunc.setEqConstraintFunction(handle);
         opt->bindUserEq(&conFunc, constraints_type::UEQ, tol);
@@ -105,6 +115,8 @@ public:
     {
         objFunc.setCurrentState(x0);
         conFunc.setCurrentState(x0);
+
+        dbg(Logger::INFO) << "Optimization step" << std::endl;
 
         auto start = std::chrono::steady_clock::now();
         Result<Tnu> res = opt->run(x0, lastU);

@@ -13,7 +13,12 @@ public:
     {
         inner_opt = new nlopt::opt(nlopt::LD_SLSQP, DecVarsSize);
         setDefaultBounds();
-        setTolerances();
+
+        Parameters p;
+        p.relative_ftol = 1e-10;
+        p.maximum_iteration = 100;
+        p.relative_xtol = 1e-10;
+        setTolerances(p);
 
         last_r.cmd.setZero();
     }
@@ -49,11 +54,11 @@ public:
         outputBounds = false;
     }
 
-    void setTolerances()
+    void setTolerances(Parameters param)
     {
-        inner_opt->set_ftol_rel(1e-10);
-        inner_opt->set_maxeval(100);
-        inner_opt->set_xtol_rel(1e-10);
+        inner_opt->set_ftol_rel(param.relative_ftol);
+        inner_opt->set_maxeval(param.maximum_iteration);
+        inner_opt->set_xtol_rel(param.relative_xtol);
 
         dbg(Logger::DEEP) << "Setting tolerances and stopping criterias" << std::endl;
     }

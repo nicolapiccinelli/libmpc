@@ -66,6 +66,9 @@ public:
         // Set MPC constraints
         getStateIneqConstraints();
 
+        c.value = cineq;
+        c.grad = Eigen::Map<cvec<StateIneqSize * DecVarsSize>>(Jcineq.data(), Jcineq.size());
+
         dbg(Logger::DEEP) << "State inequality constraints value:\n"
                           << std::setprecision(10) << c.value << std::endl;
         if (!hasGradient) {
@@ -75,9 +78,6 @@ public:
             dbg(Logger::DEEP) << "State inequality constraints gradient:\n"
                               << std::setprecision(10) << c.grad << std::endl;
         }
-
-        c.value = cineq;
-        c.grad = Eigen::Map<cvec<StateIneqSize * DecVarsSize>>(Jcineq.data(), Jcineq.size());
 
         return c;
     }
@@ -102,6 +102,9 @@ public:
             Jcineq_user.setZero();
         }
 
+        c.value = cineq_user;
+        c.grad = Eigen::Map<cvec<Tineq * DecVarsSize>>(Jcineq_user.data(), Jcineq_user.size());
+
         dbg(Logger::DEEP) << "User inequality constraints value:\n"
                           << std::setprecision(10) << c.value << std::endl;
         if (!hasGradient) {
@@ -111,9 +114,6 @@ public:
             dbg(Logger::DEEP) << "User inequality constraints gradient:\n"
                               << std::setprecision(10) << c.grad << std::endl;
         }
-
-        c.value = cineq_user;
-        c.grad = Eigen::Map<cvec<Tineq * DecVarsSize>>(Jcineq_user.data(), Jcineq_user.size());
 
         return c;
     }
@@ -186,6 +186,9 @@ public:
             Jceq_user.setZero();
         }
 
+        c.value = ceq_user;
+        c.grad = Eigen::Map<cvec<Tineq * DecVarsSize>>(Jceq_user.data(), Jceq_user.size());
+
         dbg(Logger::DEEP) << "User equality constraints value:\n"
                           << std::setprecision(10) << c.value << std::endl;
         if (!hasGradient) {
@@ -195,9 +198,6 @@ public:
             dbg(Logger::DEEP) << "User equality constraints gradient:\n"
                               << std::setprecision(10) << c.grad << std::endl;
         }
-
-        c.value = ceq_user;
-        c.grad = Eigen::Map<cvec<Tineq * DecVarsSize>>(Jceq_user.data(), Jceq_user.size());
 
         return c;
     }
@@ -218,13 +218,13 @@ private:
     void
     glueJacobian(mat<DecVarsSize, Tnc>& Jres, mat3<Tnc, Tnx, Tph> Jstate, mat3<Tnc, Tnu, Tph> Jmanvar, cvec<Tnc> Jcon)
     {
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph; i++) {
             Jres.middleRows(i * Tnx, Tnx) = Jstate[i].transpose();
         }
 
         mat<Tnc, Tph * Tnu> Jmanvar_mat;
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph; i++) {
             Jmanvar_mat.block(0, i * Tnu, Tnc, Tnu) = Jmanvar[i];
         }
@@ -245,16 +245,16 @@ private:
         Jceq.setZero();
 
         mat3<Tph * Tnx, Tnx, Tph> Jx;
-#pragma openmp parallel for
-        for (auto& m : Jx) {
-            m.setZero();
+        //#pragma omp parallel for
+        for (size_t i = 0; i < Jx.size(); i++) {
+            Jx[i].setZero();
         }
 
         // TODO support measured noise
         mat3<Tph * Tnx, Tnu, Tph> Jmv;
-#pragma openmp parallel for
-        for (auto& m : Jmv) {
-            m.setZero();
+        //#pragma omp parallel for
+        for (size_t i = 0; i < Jmv.size(); i++) {
+            Jmv[i].setZero();
         }
 
         cvec<Tph * Tnx> Je;
@@ -272,7 +272,7 @@ private:
 
         // TODO bind for continuos time
         if (ctime) {
-#pragma openmp parallel for
+            //#pragma omp parallel for
             for (size_t i = 0; i < Tph; i++) {
                 cvec<Tnu> uk = Umat.row(i).transpose();
                 cvec<Tnx> xk = Xmat.row(i).transpose();
@@ -303,7 +303,7 @@ private:
                 ic += Tnx;
             }
         } else {
-#pragma openmp parallel for
+            //#pragma omp parallel for
             for (size_t i = 0; i < Tph; i++) {
                 cvec<Tnu> uk = Umat.row(i).transpose();
                 cvec<Tnx> xk = Xmat.row(i).transpose();
@@ -340,13 +340,13 @@ private:
     {
         double dv = 1e-6;
 
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph; i++) {
             Jconx[i].setZero();
         }
 
         // TODO support measured disturbaces
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph; i++) {
             Jconmv[i].setZero();
         }
@@ -354,14 +354,14 @@ private:
         Jcone.setZero();
 
         mat<Tph + 1, Tnx> Xa = x0.cwiseAbs();
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < (size_t)Xa.rows(); i++) {
             for (size_t j = 0; j < (size_t)Xa.cols(); j++) {
                 Xa(i, j) = (Xa(i, j) < 1) ? 1 : Xa(i, j);
             }
         }
 
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph; i++) {
             for (size_t j = 0; j < Tnx; j++) {
                 int ix = i + 1;
@@ -375,14 +375,14 @@ private:
         }
 
         mat<Tph + 1, Tnu> Ua = u0.cwiseAbs();
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < (size_t)Ua.rows(); i++) {
             for (size_t j = 0; j < (size_t)Ua.cols(); j++) {
                 Ua(i, j) = (Ua(i, j) < 1) ? 1 : Ua(i, j);
             }
         }
 
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph - 1; i++) {
             // TODO support measured disturbaces
             for (size_t j = 0; j < Tnu; j++) {
@@ -397,7 +397,7 @@ private:
         }
 
         // TODO support measured disturbaces
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t j = 0; j < Tnu; j++) {
             int k = j;
             double du = dv * Ua(k, 0);
@@ -421,26 +421,26 @@ private:
     {
         double dv = 1e-6;
 
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph; i++) {
             Jconx[i].setZero();
         }
 
         // TODO support measured disturbaces
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph; i++) {
             Jconmv[i].setZero();
         }
 
         mat<Tph + 1, Tnx> Xa = x0.cwiseAbs();
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < (size_t)Xa.rows(); i++) {
             for (size_t j = 0; j < (size_t)Xa.cols(); j++) {
                 Xa(i, j) = (Xa(i, j) < 1) ? 1 : Xa(i, j);
             }
         }
 
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph; i++) {
             for (size_t j = 0; j < Tnx; j++) {
                 int ix = i + 1;
@@ -454,14 +454,14 @@ private:
         }
 
         mat<Tph + 1, Tnu> Ua = u0.cwiseAbs();
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < (size_t)Ua.rows(); i++) {
             for (size_t j = 0; j < (size_t)Ua.cols(); j++) {
                 Ua(i, j) = (Ua(i, j) < 1) ? 1 : Ua(i, j);
             }
         }
 
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tph - 1; i++) {
             // TODO support measured disturbaces
             for (size_t j = 0; j < Tnu; j++) {
@@ -476,7 +476,7 @@ private:
         }
 
         // TODO support measured disturbaces
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t j = 0; j < Tnu; j++) {
             int k = j;
             double du = dv * Ua(k, 0);
@@ -498,12 +498,12 @@ private:
         double dv = 1 - 6;
 
         cvec<Tnx> Xa = x0.cwiseAbs();
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tnx; i++) {
             Xa(i) = (Xa(i) < 1) ? 1 : Xa(i);
         }
 
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tnx; i++) {
             double dx = dv * Xa(i);
             x0(i) = x0(i) + dx;
@@ -514,12 +514,12 @@ private:
         }
 
         cvec<Tnu> Ua = u0.cwiseAbs();
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tnu; i++) {
             Ua(i) = (Ua(i) < 1) ? 1 : Ua(i);
         }
 
-#pragma openmp parallel for
+        //#pragma omp parallel for
         for (size_t i = 0; i < Tnu; i++) {
             // TODO support measured disturbaces
             int k = i;

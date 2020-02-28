@@ -34,6 +34,7 @@
 namespace mpc {
 
 int Logger::verbose = 0;
+std::string Logger::prefix = "";
 Logger::level Logger::logLevel = Logger::level::INFO;
 
 template <std::size_t M, std::size_t N>
@@ -66,6 +67,12 @@ struct Result {
     int retcode;
     double cost;
     cvec<Tnu> cmd;
+};
+
+struct Parameters {
+    double relative_ftol;
+    double relative_xtol;
+    int maximum_iteration;
 };
 
 enum constraints_type {
