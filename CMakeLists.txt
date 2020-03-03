@@ -3,40 +3,25 @@ cmake_minimum_required( VERSION 3.2 )
 ## Specify a project name
 project(mpc++)
 
-set(CMAKE_BUILD_TYPE RELEASE)
-
-## C++ compiler options
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++1z -Wfatal-errors")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -rdynamic")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-
 ## Load CMAKE configuration from environment variables
 set(CMAKE_MODULE_PATH $ENV{CMAKE_MODULE_PATH})
 set(CMAKE_PREFIX_PATH $ENV{CMAKE_PREFIX_PATH})                      
 
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-
+## Find Eigen3 to build the library
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
+## Include the Eigen3 library to the project
 include_directories(${EIGEN3_INCLUDE_DIR})
 include_directories(include)
 
-if(CMAKE_BUILD_TYPE MATCHES DEBUG)
-    include_directories(${PROJECT_SOURCE_DIR}/deps/stacktrace)
-    add_definitions(-Ddebug)
-endif()
-
+## On Apple system Eigen3 is not installed in the default path
+## so we include the installed path
 if(APPLE)
     include_directories(/usr/local/include)
     link_directories(/usr/local/lib/)
 endif()
 
-find_package(OpenMP)
-if (OPENMP_FOUND)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-endif()
-
+## Creating mpc++ interface library
 add_library(mpc++ INTERFACE)
 target_link_libraries(mpc++ INTERFACE nlopt m)
 target_include_directories(mpc++ INTERFACE ${EIGEN3_INCLUDE_DIR})
@@ -71,11 +56,22 @@ install(FILES "${PROJECT_BINARY_DIR}/mpc++ConfigVersion.cmake"
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION /usr/local/include)
 
-## Find all source files to be compiled into object files
-file(GLOB SOURCES src/*.cpp)
+## Testing area
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++1z -Wfatal-errors -g -O0 -rdynamic")
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
+
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
+
 add_executable(vanderpol test/vanderpol.cpp)
 target_link_libraries(vanderpol mpc++)
+target_compile_definitions(vanderpol PUBLIC debug)
 
-if(CMAKE_BUILD_TYPE MATCHES DEBUG)
-    target_link_libraries(vanderpol ${PROJECT_SOURCE_DIR}/deps/stacktrace/libstacktrace.so)
+if(NOT APPLE)
+    include_directories(${PROJECT_SOURCE_DIR}/deps/stacktrace)
+    add_library(stacktrace SHARED ${PROJECT_SOURCE_DIR}/deps/stacktrace/stacktrace.cpp)
+    set_property(TARGET stacktrace PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_link_libraries(vanderpol stacktrace bfd iberty)
 endif()
