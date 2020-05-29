@@ -12,16 +12,9 @@ template <std::size_t Tnx, std::size_t Tnu, std::size_t Tny, std::size_t Tph, st
 class NLMPC {
 public:
     NLMPC() = default;
-    NLMPC(bool hardConstraints, bool verbose = false)
-    {
-        init(hardConstraints, verbose);
-    }
 
-    void init(bool hardConstraints, bool verbose = false)
-    {
-        Logger::verbose = (int)verbose;
-        dbg(Logger::INFO) << "Verbosity mode active" << std::endl;
-
+    void initialize(bool hardConstraints)
+    {       
         objFunc.setMapping(mapping);
         conFunc.setMapping(mapping);
 
@@ -36,9 +29,8 @@ public:
         delete opt;
     };
 
-    bool setVerbosity(bool status, Logger::level l = Logger::INFO)
+    bool setLoggerLevel(Logger::level l)
     {
-        Logger::verbose = (int)status;
         Logger::logLevel = l;
         return true;
     }
@@ -63,6 +55,8 @@ public:
 
     bool setObjectiveFunction(const ObjFunHandle<Tph, Tnx, Tnu> handle)
     {
+        checkOrQuit();
+
         dbg(Logger::DEEP) << "Setting objective function handle" << std::endl;
 
         auto res = objFunc.setUserFunction(handle);
@@ -75,6 +69,8 @@ public:
 
     bool setStateSpaceFunction(const StateFunHandle<Tnx, Tnu> handle)
     {
+        checkOrQuit();
+
         dbg(Logger::DEEP) << "Setting state space function handle" << std::endl;
 
         auto res = conFunc.setStateSpaceFunction(handle);
@@ -94,6 +90,8 @@ public:
 
     bool setIneqConFunction(const IConFunHandle<Tineq, Tph, Tnx, Tnu> handle, const cvec<Tineq> tol = cvec<Tineq>::Ones() * 1e-10)
     {
+        checkOrQuit();
+
         auto res = conFunc.setIneqConstraintFunction(handle);
         opt->bindUserIneq(&conFunc, constraints_type::UINEQ, tol);
         return res;
@@ -101,6 +99,8 @@ public:
 
     bool setEqConFunction(const EConFunHandle<Teq, Tph, Tnx, Tnu> handle, const cvec<Teq> tol = cvec<Teq>::Ones() * 1e-10)
     {
+        checkOrQuit();
+
         auto res = conFunc.setEqConstraintFunction(handle);
         opt->bindUserEq(&conFunc, constraints_type::UEQ, tol);
         return res;
@@ -108,11 +108,15 @@ public:
 
     bool setOutputFunction(const OutFunHandle handle)
     {
+        checkOrQuit();
+
         return conFunc.setOutputFunction(handle);
     }
 
     Result<Tnu> step(const cvec<Tnx> x0, const cvec<Tnu> lastU)
     {
+        checkOrQuit();
+
         objFunc.setCurrentState(x0);
         conFunc.setCurrentState(x0);
 
@@ -127,7 +131,13 @@ public:
     }
 
 private:
-    double sampleTs;
+
+    inline void checkOrQuit(){
+        if (!opt){
+            dbg(Logger::ERROR) << RED << "MPC is not initialized, quitting..." << RESET << std::endl;
+            exit(-1);
+        }
+    }
 
     ObjFunction<Tnx, Tnu, Tph, Tch> objFunc;
     ConFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq> conFunc;

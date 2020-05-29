@@ -17,7 +17,8 @@
 
 #undef eigen_assert
 #define eigen_assert(x)                                      \
-    if (!(x)) {                                              \
+    if (!(x))                                                \
+    {                                                        \
         Teuchos::show_stacktrace();                          \
         throw(std::runtime_error("Eigen assertion failed")); \
     }
@@ -31,11 +32,8 @@
 
 #define dbg(x) Logger(x)
 
-namespace mpc {
-
-int Logger::verbose = 0;
-std::string Logger::prefix = "";
-Logger::level Logger::logLevel = Logger::level::INFO;
+namespace mpc
+{
 
 template <std::size_t M, std::size_t N>
 using mat = Eigen::Matrix<double, M, N>;
@@ -52,16 +50,17 @@ using rvec = Eigen::Matrix<double, 1, N>;
 template <std::size_t Tph, std::size_t Tnx, std::size_t Tnu>
 using ObjFunHandle = std::function<double(mat<Tph + 1, Tnx>, mat<Tph + 1, Tnu>, double)>;
 template <std::size_t Tcon, std::size_t Tph, std::size_t Tnx, std::size_t Tnu>
-using IConFunHandle = std::function<cvec<Tcon>(mat<Tph + 1, Tnx>, mat<Tph + 1, Tnu>, double)>;
+using IConFunHandle = std::function<void(cvec<Tcon>&, mat<Tph + 1, Tnx>, mat<Tph + 1, Tnu>, double)>;
 template <std::size_t Tcon, std::size_t Tph, std::size_t Tnx, std::size_t Tnu>
-using EConFunHandle = std::function<cvec<Tcon>(mat<Tph + 1, Tnx>, mat<Tph + 1, Tnu>)>;
+using EConFunHandle = std::function<void(cvec<Tcon>&, mat<Tph + 1, Tnx>, mat<Tph + 1, Tnu>)>;
 
 template <std::size_t Tnx, std::size_t Tnu>
-using StateFunHandle = std::function<cvec<Tnx>(cvec<Tnx>, cvec<Tnu>)>;
+using StateFunHandle = std::function<void(cvec<Tnx>&,cvec<Tnx>, cvec<Tnu>)>;
 using OutFunHandle = std::function<void(void)>;
 
 template <std::size_t Tnu>
-struct Result {
+struct Result
+{
     Result() = default;
 
     int retcode;
@@ -69,13 +68,15 @@ struct Result {
     cvec<Tnu> cmd;
 };
 
-struct Parameters {
+struct Parameters
+{
     double relative_ftol;
     double relative_xtol;
     int maximum_iteration;
 };
 
-enum constraints_type {
+enum constraints_type
+{
     INEQ,
     EQ,
     UINEQ,
