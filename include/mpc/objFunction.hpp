@@ -25,8 +25,7 @@ public:
 
     bool setUserFunction(const ObjFunHandle<Tph, Tnx, Tnu> handle)
     {
-        fuser = handle;
-        return true;
+        return fuser = handle, true;
     }
 
     Cost evaluate(cvec<DecVarsSize> x, bool hasGradient)

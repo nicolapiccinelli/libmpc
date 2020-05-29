@@ -21,9 +21,16 @@ if(APPLE)
     link_directories(/usr/local/lib/)
 endif()
 
+if(WIN32)
+    include_directories("../eigen")
+    include_directories("../nlopt/build")
+    include_directories("../nlopt/src/api")
+    link_directories("../nlopt/build/Release")
+endif()
+
 ## Creating mpc++ interface library
 add_library(mpc++ INTERFACE)
-target_link_libraries(mpc++ INTERFACE nlopt m)
+target_link_libraries(mpc++ INTERFACE nlopt)
 target_include_directories(mpc++ INTERFACE ${EIGEN3_INCLUDE_DIR})
 
 include(CMakePackageConfigHelpers)
@@ -57,7 +64,9 @@ install(FILES "${PROJECT_BINARY_DIR}/mpc++ConfigVersion.cmake"
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION /usr/local/include)
 
 ## Testing area
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++1z -Wfatal-errors -g -O0 -rdynamic")
+if(NOT WIN32)
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++1z -Wfatal-errors -g -O0 -rdynamic")
+endif()
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 
 find_package(OpenMP)
@@ -69,9 +78,13 @@ add_executable(vanderpol test/vanderpol.cpp)
 target_link_libraries(vanderpol mpc++ ${OpenMP_CXX_LIBRARIES})
 target_compile_definitions(vanderpol PUBLIC debug)
 
-if(NOT APPLE)
-    include_directories(${PROJECT_SOURCE_DIR}/deps/stacktrace)
-    add_library(stacktrace SHARED ${PROJECT_SOURCE_DIR}/deps/stacktrace/stacktrace.cpp)
-    set_property(TARGET stacktrace PROPERTY POSITION_INDEPENDENT_CODE ON)
-    target_link_libraries(vanderpol stacktrace bfd iberty)
-endif()
+add_executable(linearProblem test/linearProblem.cpp)
+target_link_libraries(linearProblem mpc++ ${OpenMP_CXX_LIBRARIES})
+target_compile_definitions(linearProblem PUBLIC debug)
+
+#if(NOT APPLE)
+#    include_directories(${PROJECT_SOURCE_DIR}/deps/stacktrace)
+#    add_library(stacktrace SHARED ${PROJECT_SOURCE_DIR}/deps/stacktrace/stacktrace.cpp)
+#    set_property(TARGET stacktrace PROPERTY POSITION_INDEPENDENT_CODE ON)
+#    target_link_libraries(vanderpol stacktrace bfd iberty)
+#endif()

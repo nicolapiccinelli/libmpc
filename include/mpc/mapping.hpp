@@ -3,6 +3,7 @@
 #include <mpc/mpc.hpp>
 
 namespace mpc {
+
 template <std::size_t Tnx, std::size_t Tnu, std::size_t Tph, std::size_t Tch>
 class Common {
 public:
@@ -11,7 +12,11 @@ public:
         computeMapping();
     }
 
-    void unwrapVector(const cvec<DecVarsSize> x, const cvec<Tnx> x0, mat<Tph + 1, Tnx>& Xmat, mat<Tph + 1, Tnu>& Umat, double& slack)
+    void unwrapVector(
+            const cvec<DecVarsSize> x,
+            const cvec<Tnx> x0, mat<Tph + 1, Tnx>& Xmat,
+            mat<Tph + 1, Tnu>& Umat,
+            double& slack)
     {
         cvec<Tnu* Tch> u_vec = x.middleRows(Tph * Tnx, Tnu * Tch);
 

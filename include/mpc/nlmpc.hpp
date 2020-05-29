@@ -8,25 +8,37 @@
 #include <chrono>
 
 namespace mpc {
-template <std::size_t Tnx, std::size_t Tnu, std::size_t Tny, std::size_t Tph, std::size_t Tch, std::size_t Tineq, std::size_t Teq>
+template <std::size_t Tnx,
+          std::size_t Tnu,
+          std::size_t Tny,
+          std::size_t Tph,
+          std::size_t Tch,
+          std::size_t Tineq,
+          std::size_t Teq>
 class NLMPC {
 public:
-    NLMPC() = default;
+    NLMPC()
+    {
+        opt = NULL;
+    };
 
     void initialize(bool hardConstraints)
     {       
+        // Why can't those be initialized in ObjFunction and ConFunction?
         objFunc.setMapping(mapping);
         conFunc.setMapping(mapping);
 
-        opt = new Optimizer<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>(hardConstraints);
+        // Do we really need to be able to change HardConstraints at runtime?
+        opt = new Optimizer<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>(hardConstraints);        
         opt->setMapping(mapping);
 
         dbg(Logger::INFO) << "Mapping assignment done" << std::endl;
-    }
+    } // Can this be initialized at construction?
 
     ~NLMPC()
     {
-        delete opt;
+        if(opt != NULL)
+            delete opt;
     };
 
     bool setLoggerLevel(Logger::level l)
@@ -46,7 +58,7 @@ public:
 
         auto res = conFunc.setContinuos(true, ts);
         return res;
-    }
+    } // Can this be initialized at construction?
 
     void setTolerances(Parameters param)
     {
@@ -75,6 +87,8 @@ public:
 
         auto res = conFunc.setStateSpaceFunction(handle);
 
+        dbg(Logger::DEEP) << "Binding state space constraints" << std::endl;
+
         cvec<StateIneqSize> ineq_tol;
         ineq_tol.setOnes();
         opt->bindIneq(&conFunc, constraints_type::INEQ, ineq_tol * 1e-10);
@@ -82,8 +96,6 @@ public:
         cvec<StateEqSize> eq_tol;
         eq_tol.setOnes();
         opt->bindEq(&conFunc, constraints_type::EQ, eq_tol * 1e-10);
-
-        dbg(Logger::DEEP) << "Binding state space constraints" << std::endl;
 
         return res;
     }
