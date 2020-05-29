@@ -89,7 +89,7 @@ public:
 
         // Add user defined constraints
         if (hasIneqConstraintFunction()) {
-            cineq_user = ieqUser(Xmat, Umat, e);
+            ieqUser(cineq_user, Xmat, Umat, e);
             mat3<Tineq, Tnx, Tph> Jieqx;
             mat3<Tineq, Tnu, Tph> Jieqmv;
             cvec<Tineq> Jie;
@@ -118,37 +118,13 @@ public:
         return c;
     }
 
-    // cvec<getIneqSize()> ctot;
-    // mat<PROB_SIZE, getIneqSize()> Jtot;
-
-    // ctot.middleRows(0, 0, (2 * Tph * Tny), 1) = cineq;
-    // ctot.middleRows((2 * Tph * Tny), 0, Tineq, 1) = cineq_user;
-    // Jtot.middleCols(0, 0, PROB_SIZE, 2 * Tph * Tny) = Jcineq;
-    // Jtot.middleCols(0, PROB_SIZE, 2 * Tph * Tny, Tineq) = Jcineq_user;
-
     Cost<StateEqSize> evaluateEq(cvec<DecVarsSize> x, bool hasGradient)
     {
         Cost<StateEqSize> c;
-        dbg(Logger::DEEP) << "x: " << std::endl
-                          << x << std::endl
-                          << "-----------------" << std::endl;
         mapping.unwrapVector(x, x0, Xmat, Umat, e);
-        dbg(Logger::DEEP) << "x0: " << std::endl
-                          << x0 << std::endl
-                          << "-----------------" << std::endl;
-        dbg(Logger::DEEP) << "Xmat: " << std::endl
-                          << Xmat << std::endl
-                          << "-----------------" << std::endl;
-        dbg(Logger::DEEP) << "Umat: " << std::endl
-                          << Umat << std::endl
-                          << "-----------------" << std::endl;
 
         // Set MPC constraints
         getStateEqConstraints(hasGradient);
-
-        dbg(Logger::DEEP) << "ceq: " << std::endl
-                          << ceq << std::endl
-                          << "-----------------" << std::endl;
 
         c.value = ceq;
         c.grad = Eigen::Map<cvec<StateEqSize * DecVarsSize>>(Jceq.data(), Jceq.size());
@@ -173,7 +149,7 @@ public:
 
         // Add user defined constraints
         if (hasEqConstraintFunction()) {
-            ceq_user = eqUser(Xmat, Umat);
+            eqUser(ceq_user, Xmat, Umat);
 
             mat3<Teq, Tnx, Tph> Jeqx;
             mat3<Teq, Tnu, Tph> Jeqmv;
@@ -201,17 +177,6 @@ public:
 
         return c;
     }
-
-    // cvec<getEqSize()> ctot;
-    // mat<PROB_SIZE, getEqSize()> Jtot;
-
-    // ctot.middleRows(0, 0, (Tph * Tnx), 1) = ceq;
-    // ctot.middleRows((Tph * Tnx), 0, Teq, 1) = ceq_user;
-    // Jtot.middleCols(0, 0, PROB_SIZE, Tph * Tnx) = Jceq;
-    // Jtot.middleCols(0, PROB_SIZE, Tph * Tnx, Teq) = Jceq;
-
-    // c.value = ctot;
-    // c.grad = Jtot.array();
 
 private:
     template <std::size_t Tnc>
@@ -279,8 +244,10 @@ private:
 
                 double h = ts / 2.0;
                 cvec<Tnx> xk1 = Xmat.row(i + 1).transpose();
-                cvec<Tnx> fk = fUser(xk, uk);
-                cvec<Tnx> fk1 = fUser(xk1, uk);
+                
+                cvec<Tnx> fk; fUser(fk, xk, uk);
+                cvec<Tnx> fk1; fUser(fk1, xk1, uk);
+
                 ceq.middleRows(ic, Tnx) = xk + (h * (fk + fk1)) - xk1;
                 // TODO support scaling
                 ceq.middleRows(ic, Tnx) = ceq.middleRows(ic, Tnx) / 1.0;
@@ -307,7 +274,9 @@ private:
             for (size_t i = 0; i < Tph; i++) {
                 cvec<Tnu> uk = Umat.row(i).transpose();
                 cvec<Tnx> xk = Xmat.row(i).transpose();
-                cvec<Tnx> xk1 = fUser(xk, uk);
+                
+                cvec<Tnx> xk1; fUser(xk1, xk, uk);
+                
                 ceq.middleRows(ic, Tnx) = Xmat.row(i + 1).transpose() - xk1;
                 // TODO support scaling
                 ceq.middleRows(ic, Tnx) = ceq.middleRows(ic, Tnx) / 1.0;
@@ -367,7 +336,7 @@ private:
                 int ix = i + 1;
                 double dx = dv * Xa(j, 0);
                 x0(ix, j) = x0(ix, j) + dx;
-                cvec<Tineq> f = ieqUser(x0, u0, e);
+                cvec<Tineq> f; ieqUser(f, x0, u0, e);
                 x0(ix, j) = x0(ix, j) - dx;
                 cvec<Tineq> df = (f - f0) / dx;
                 Jconx[i].col(j) = df;
@@ -389,7 +358,7 @@ private:
                 int k = j;
                 double du = dv * Ua(k, 0);
                 u0(i, k) = u0(i, k) + du;
-                cvec<Tineq> f = ieqUser(x0, u0, e);
+                cvec<Tineq> f; ieqUser(f, x0, u0, e);
                 u0(i, k) = u0(i, k) - du;
                 cvec<Tineq> df = (f - f0) / du;
                 Jconmv[i].col(j) = df;
@@ -403,7 +372,7 @@ private:
             double du = dv * Ua(k, 0);
             u0(Tph - 1, k) = u0(Tph - 1, k) + du;
             u0(Tph, k) = u0(Tph, k) + du;
-            cvec<Tineq> f = ieqUser(x0, u0, e);
+            cvec<Tineq> f; ieqUser(f, x0, u0, e);
             u0(Tph - 1, k) = u0(Tph - 1, k) - du;
             u0(Tph, k) = u0(Tph, k) - du;
             cvec<Tineq> df = (f - f0) / du;
@@ -412,8 +381,8 @@ private:
 
         double ea = fmax(1e-6, abs(e0));
         double de = ea * dv;
-        cvec<Tineq> f1 = ieqUser(x0, u0, e0 + de);
-        cvec<Tineq> f2 = ieqUser(x0, u0, e0 - de);
+        cvec<Tineq> f1; ieqUser(f1, x0, u0, e0 + de);
+        cvec<Tineq> f2; ieqUser(f2, x0, u0, e0 - de);
         Jcone = (f1 - f2) / (2 * de);
     }
 
@@ -446,7 +415,7 @@ private:
                 int ix = i + 1;
                 double dx = dv * Xa(j, 0);
                 x0(ix, j) = x0(ix, j) + dx;
-                cvec<Teq> f = eqUser(x0, u0);
+                cvec<Teq> f; eqUser(f, x0, u0);
                 x0(ix, j) = x0(ix, j) - dx;
                 cvec<Teq> df = (f - f0) / dx;
                 Jconx[i].col(j) = df;
@@ -468,7 +437,7 @@ private:
                 int k = j;
                 double du = dv * Ua(k, 0);
                 u0(i, k) = u0(i, k) + du;
-                cvec<Teq> f = eqUser(x0, u0);
+                cvec<Teq> f; eqUser(f, x0, u0);
                 u0(i, k) = u0(i, k) - du;
                 cvec<Teq> df = (f - f0) / du;
                 Jconmv[i].col(j) = df;
@@ -482,7 +451,7 @@ private:
             double du = dv * Ua(k, 0);
             u0(Tph - 1, k) = u0(Tph - 1, k) + du;
             u0(Tph, k) = u0(Tph, k) + du;
-            cvec<Teq> f = eqUser(x0, u0);
+            cvec<Teq> f; eqUser(f, x0, u0);
             u0(Tph - 1, k) = u0(Tph - 1, k) - du;
             u0(Tph, k) = u0(Tph, k) - du;
             cvec<Teq> df = (f - f0) / du;
@@ -507,7 +476,7 @@ private:
         for (size_t i = 0; i < Tnx; i++) {
             double dx = dv * Xa(i);
             x0(i) = x0(i) + dx;
-            cvec<Tnx> f = fUser(x0, u0);
+            cvec<Tnx> f; fUser(f, x0, u0);
             x0(i) = x0(i) - dx;
             cvec<Tnx> df = (f - f0) / dx;
             Jx.block(0, i, Tnx, 1) = df;
@@ -525,7 +494,7 @@ private:
             int k = i;
             double du = dv * Ua(k);
             u0(k) = u0(k) + du;
-            cvec<Tnx> f = fUser(x0, u0);
+            cvec<Tnx> f; fUser(f, x0, u0);
             u0(k) = u0(k) - du;
             cvec<Tnx> df = (f - f0) / du;
             Jmv.block(0, i, Tnx, 1) = df;

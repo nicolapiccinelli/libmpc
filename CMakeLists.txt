@@ -66,7 +66,7 @@ if (OPENMP_FOUND)
 endif()
 
 add_executable(vanderpol test/vanderpol.cpp)
-target_link_libraries(vanderpol mpc++)
+target_link_libraries(vanderpol mpc++ ${OpenMP_CXX_LIBRARIES})
 target_compile_definitions(vanderpol PUBLIC debug)
 
 if(NOT APPLE)
