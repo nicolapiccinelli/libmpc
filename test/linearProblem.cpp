@@ -27,10 +27,11 @@ int main(void)
             optsolver;
 
     optsolver.initialize(useHardConst);
-    optsolver.setLoggerLevel(mpc::Logger::level::NONE);
+    optsolver.setLoggerLevel(mpc::Logger::NONE);
     optsolver.setSampleTime(ts);
 
-    auto stateEq = [](
+    auto stateEq =
+            [](
             mpc::cvec<num_states>& dx,
             mpc::cvec<num_states> x,
             mpc::cvec<num_inputs> u)
@@ -38,27 +39,29 @@ int main(void)
         dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
         dx[1] = x[0];
     };
-    optsolver.setStateSpaceFunction(stateEq);
 
-    auto objEq = [](
-            mpc::mat<pred_hor + 1, num_states> x,
-            mpc::mat<pred_hor + 1, num_inputs> u,
-            double e)
+    optsolver.setStateSpaceFunction(stateEq);
+    optsolver.setObjectiveFunction(
+                [](
+                mpc::mat<pred_hor + 1, num_states> x,
+                mpc::mat<pred_hor + 1, num_inputs> u,
+                double e)
     {
         return x.array().square().sum() + u.array().square().sum();
-    };
-    optsolver.setObjectiveFunction(objEq);
+    });
 
-    auto conEq = [ineq_c](
-            mpc::cvec<ineq_c>& in_con,
-            mpc::mat<pred_hor + 1, num_states> x,
-            mpc::mat<pred_hor + 1, num_inputs> u,
-            double e)
+    optsolver.setIneqConFunction(
+                [ineq_c](
+                mpc::cvec<ineq_c>& in_con,
+                mpc::mat<pred_hor + 1, num_states> x,
+                mpc::mat<pred_hor + 1, num_inputs> u,
+                double e)
     {
         for (size_t i = 0; i < ineq_c; i++)
+        {
             in_con[i] = u(i, 0) - 0.5;
-    };
-    optsolver.setIneqConFunction(conEq);
+        }
+    });
 
 
     mpc::cvec<num_states> modelX, modeldX;

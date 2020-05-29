@@ -2,6 +2,9 @@
 
 #include <mpc/mapping.hpp>
 #include <mpc/mpc.hpp>
+#include <mpc/conFunction.hpp>
+#include <mpc/objFunction.hpp>
+#include <mpc/logger.hpp>
 #include <nlopt.hpp>
 
 namespace mpc {
@@ -69,16 +72,25 @@ public:
             inner_opt->set_min_objective(Optimizer::nloptObjFunWrapper, objFunc);
             return true;
         } catch (const std::exception& e) {
-            dbg(Logger::DEEP) << "Unable to bind objective function: " << e.what() << std::endl;
+            dbg(Logger::DEEP) << "Unable to bind objective function: "
+                              << e.what() << std::endl;
             return false;
         }
     }
 
-    bool bindIneq(ConFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* conFunc, constraints_type type, const cvec<StateIneqSize> tol)
+    bool bindIneq(
+            ConFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* conFunc,
+            constraints_type type,
+            const cvec<StateIneqSize> tol)
     {
         try {
             if (outputBounds) {
-                inner_opt->add_inequality_mconstraint(Optimizer::nloptIneqConFunWrapper, conFunc, std::vector<double>(tol.data(), tol.data() + tol.rows() * tol.cols()));
+                inner_opt->add_inequality_mconstraint(
+                            Optimizer::nloptIneqConFunWrapper,
+                            conFunc,
+                            std::vector<double>(
+                                tol.data(),
+                                tol.data() + tol.rows() * tol.cols()));
                 dbg(Logger::DEEP) << "Adding state defined inequality constraints" << std::endl;
             } else {
                 dbg(Logger::DEEP) << "State inequality constraints skipped" << std::endl;
@@ -91,10 +103,18 @@ public:
         }
     }
 
-    bool bindEq(ConFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* conFunc, constraints_type type, const cvec<StateEqSize> tol)
+    bool bindEq(
+            ConFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* conFunc,
+            constraints_type type,
+            const cvec<StateEqSize> tol)
     {
         try {
-            inner_opt->add_equality_mconstraint(Optimizer::nloptEqConFunWrapper, conFunc, std::vector<double>(tol.data(), tol.data() + tol.rows() * tol.cols()));
+            inner_opt->add_equality_mconstraint(
+                        Optimizer::nloptEqConFunWrapper,
+                        conFunc,
+                        std::vector<double>(
+                            tol.data(),
+                            tol.data() + tol.rows() * tol.cols()));
             dbg(Logger::DEEP) << "Adding state defined equality constraints" << std::endl;
             return true;
         } catch (const std::exception& e) {
@@ -104,10 +124,18 @@ public:
         }
     }
 
-    bool bindUserIneq(ConFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* conFunc, constraints_type type, const cvec<Tineq> tol)
+    bool bindUserIneq(
+            ConFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* conFunc,
+            constraints_type type,
+            const cvec<Tineq> tol)
     {
         try {
-            inner_opt->add_inequality_mconstraint(Optimizer::nloptUserIneqConFunWrapper, conFunc, std::vector<double>(tol.data(), tol.data() + tol.rows() * tol.cols()));
+            inner_opt->add_inequality_mconstraint(
+                        Optimizer::nloptUserIneqConFunWrapper,
+                        conFunc,
+                        std::vector<double>(
+                            tol.data(),
+                            tol.data() + tol.rows() * tol.cols()));
             dbg(Logger::DEEP) << "Adding user inequality constraints" << std::endl;
             return true;
         } catch (const std::exception& e) {
@@ -117,10 +145,18 @@ public:
         }
     }
 
-    bool bindUserEq(ConFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* conFunc, constraints_type type, const cvec<Teq> tol)
+    bool bindUserEq(
+            ConFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* conFunc,
+            constraints_type type,
+            const cvec<Teq> tol)
     {
         try {
-            inner_opt->add_equality_mconstraint(Optimizer::nloptUserEqConFunWrapper, conFunc, std::vector<double>(tol.data(), tol.data() + tol.rows() * tol.cols()));
+            inner_opt->add_equality_mconstraint(
+                        Optimizer::nloptUserEqConFunWrapper,
+                        conFunc,
+                        std::vector<double>(
+                            tol.data(),
+                            tol.data() + tol.rows() * tol.cols()));
             dbg(Logger::DEEP) << "Adding user equality constraints" << std::endl;
             return true;
         } catch (const std::exception& e) {
@@ -130,7 +166,9 @@ public:
         }
     }
 
-    Result<Tnu> run(const cvec<Tnx> x0, const cvec<Tnu> u0)
+    Result<Tnu> run(
+            const cvec<Tnx> x0,
+            const cvec<Tnu> u0)
     {
         Result<Tnu> r;
 
