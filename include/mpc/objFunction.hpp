@@ -64,13 +64,13 @@ public:
 
         // TODO support scaling
 
-        dbg(Logger::DEEP) << "(" << niteration << ") Objective function value: \n"
+        Logger::instance().log(Logger::log_type::DEBUG) << "(" << niteration << ") Objective function value: \n"
                           << std::setprecision(10) << c.value << std::endl;
         if (!hasGradient) {
-            dbg(Logger::DEEP) << "(" << niteration << ") Gradient not currectly used"
+            Logger::instance().log(Logger::log_type::DEBUG) << "(" << niteration << ") Gradient not currectly used"
                               << std::endl;
         } else {
-            dbg(Logger::DEEP) << "(" << niteration << ") Objective function gradient: \n"
+            Logger::instance().log(Logger::log_type::DEBUG) << "(" << niteration << ") Objective function gradient: \n"
                               << std::setprecision(10) << c.grad << std::endl;
         }
 
