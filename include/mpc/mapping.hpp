@@ -18,11 +18,14 @@ public:
             mat<Tph + 1, Tnu>& Umat,
             double& slack)
     {
-        cvec<Tnu* Tch> u_vec = x.middleRows(Tph * Tnx, Tnu * Tch);
+        cvec<Tnu * Tch> u_vec = x.middleRows(Tph * Tnx, Tnu * Tch);
 
         mat<Tph + 1, Tnu> Umv;
+        cvec<Tph * Tnu> tmp_mult = Iz2u * u_vec;
+        mat<Tnu, Tph> tmp_mapped = Eigen::Map<mat<Tnu, Tph>>(tmp_mult.data());
+        
         Umv.setZero();
-        Umv.middleRows(0, Tph) = Iz2u * u_vec;
+        Umv.middleRows(0, Tph) = tmp_mapped.transpose();
         Umv.row(Tph) = Umv.row(Tph - 1);
 
         Xmat.setZero();
