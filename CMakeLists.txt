@@ -64,8 +64,10 @@ install(FILES "${PROJECT_BINARY_DIR}/mpc++ConfigVersion.cmake"
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION /usr/local/include)
 
 ## Testing area
+enable_testing()
+
 if(NOT WIN32)
-    set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++1z -Wfatal-errors -g -O0 -rdynamic")
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++1z -Wfatal-errors -g -O0")
 endif()
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 
@@ -74,17 +76,21 @@ if (OPENMP_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-add_executable(vanderpol test/vanderpol.cpp)
-target_link_libraries(vanderpol mpc++ ${OpenMP_CXX_LIBRARIES})
-target_compile_definitions(vanderpol PUBLIC debug)
+find_package(Catch2 REQUIRED)
 
-add_executable(linearProblem test/linearProblem.cpp)
-target_link_libraries(linearProblem mpc++ ${OpenMP_CXX_LIBRARIES})
-target_compile_definitions(linearProblem PUBLIC debug)
+add_executable(tests test/basic.cpp test/vanderpol.cpp)
+include_directories(test/include)
+target_link_libraries(tests mpc++ Catch2::Catch2 ${OpenMP_CXX_LIBRARIES})
+target_compile_definitions(tests PUBLIC debug)
 
-#if(NOT APPLE)
-#    include_directories(${PROJECT_SOURCE_DIR}/deps/stacktrace)
-#    add_library(stacktrace SHARED ${PROJECT_SOURCE_DIR}/deps/stacktrace/stacktrace.cpp)
-#    set_property(TARGET stacktrace PROPERTY POSITION_INDEPENDENT_CODE ON)
-#    target_link_libraries(vanderpol stacktrace bfd iberty)
-#endif()
+include(CTest)
+include(Catch)
+catch_discover_tests(tests)
+
+if(LINUX)
+    set(CMAKE_CXX_FLAGS "-rdynamic")
+    include_directories(${PROJECT_SOURCE_DIR}/deps/stacktrace)
+    add_library(stacktrace SHARED ${PROJECT_SOURCE_DIR}/deps/stacktrace/stacktrace.cpp)
+    set_property(TARGET stacktrace PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_link_libraries(tests stacktrace bfd iberty)
+endif()
