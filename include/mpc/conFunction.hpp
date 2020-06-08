@@ -163,7 +163,7 @@ public:
         }
 
         c.value = ceq_user;
-        c.grad = Eigen::Map<cvec<Tineq * DecVarsSize>>(Jceq_user.data(), Jceq_user.size());
+        c.grad = Eigen::Map<cvec<Teq * DecVarsSize>>(Jceq_user.data(), Jceq_user.size());
 
         Logger::instance().log(Logger::log_type::DEBUG) << "User equality constraints value:\n"
                           << std::setprecision(10) << c.value << std::endl;
