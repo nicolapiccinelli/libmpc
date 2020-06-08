@@ -30,8 +30,6 @@
 #define StateEqSize (Tph * Tnx)
 #define StateIneqSize (2 * Tph * Tny)
 
-#define dbg(x) Logger(x)
-
 namespace mpc
 {
 

@@ -69,13 +69,13 @@ public:
         c.value = cineq;
         c.grad = Eigen::Map<cvec<StateIneqSize * DecVarsSize>>(Jcineq.data(), Jcineq.size());
 
-        dbg(Logger::DEEP) << "State inequality constraints value:\n"
+        Logger::instance().log(Logger::log_type::DEBUG) << "State inequality constraints value:\n"
                           << std::setprecision(10) << c.value << std::endl;
         if (!hasGradient) {
-            dbg(Logger::DEEP) << "Gradient state inequality constraints not currectly used"
+            Logger::instance().log(Logger::log_type::DEBUG) << "Gradient state inequality constraints not currectly used"
                               << std::endl;
         } else {
-            dbg(Logger::DEEP) << "State inequality constraints gradient:\n"
+            Logger::instance().log(Logger::log_type::DEBUG) << "State inequality constraints gradient:\n"
                               << std::setprecision(10) << c.grad << std::endl;
         }
 
@@ -105,13 +105,13 @@ public:
         c.value = cineq_user;
         c.grad = Eigen::Map<cvec<Tineq * DecVarsSize>>(Jcineq_user.data(), Jcineq_user.size());
 
-        dbg(Logger::DEEP) << "User inequality constraints value:\n"
+        Logger::instance().log(Logger::log_type::DEBUG) << "User inequality constraints value:\n"
                           << std::setprecision(10) << c.value << std::endl;
         if (!hasGradient) {
-            dbg(Logger::DEEP) << "Gradient user inequality constraints not currectly used"
+            Logger::instance().log(Logger::log_type::DEBUG) << "Gradient user inequality constraints not currectly used"
                               << std::endl;
         } else {
-            dbg(Logger::DEEP) << "User inequality constraints gradient:\n"
+            Logger::instance().log(Logger::log_type::DEBUG) << "User inequality constraints gradient:\n"
                               << std::setprecision(10) << c.grad << std::endl;
         }
 
@@ -129,13 +129,13 @@ public:
         c.value = ceq;
         c.grad = Eigen::Map<cvec<StateEqSize * DecVarsSize>>(Jceq.data(), Jceq.size());
 
-        dbg(Logger::DEEP) << "State equality constraints value:\n"
+        Logger::instance().log(Logger::log_type::DEBUG) << "State equality constraints value:\n"
                           << std::setprecision(10) << c.value << std::endl;
         if (!hasGradient) {
-            dbg(Logger::DEEP) << "State equality constraints gradient not currectly used"
+            Logger::instance().log(Logger::log_type::DEBUG) << "State equality constraints gradient not currectly used"
                               << std::endl;
         } else {
-            dbg(Logger::DEEP) << "State equality constraints gradient:\n"
+            Logger::instance().log(Logger::log_type::DEBUG) << "State equality constraints gradient:\n"
                               << std::setprecision(10) << c.grad << std::endl;
         }
 
@@ -165,13 +165,13 @@ public:
         c.value = ceq_user;
         c.grad = Eigen::Map<cvec<Tineq * DecVarsSize>>(Jceq_user.data(), Jceq_user.size());
 
-        dbg(Logger::DEEP) << "User equality constraints value:\n"
+        Logger::instance().log(Logger::log_type::DEBUG) << "User equality constraints value:\n"
                           << std::setprecision(10) << c.value << std::endl;
         if (!hasGradient) {
-            dbg(Logger::DEEP) << "Gradient user equality constraints not currectly used"
+            Logger::instance().log(Logger::log_type::DEBUG) << "Gradient user equality constraints not currectly used"
                               << std::endl;
         } else {
-            dbg(Logger::DEEP) << "User equality constraints gradient:\n"
+            Logger::instance().log(Logger::log_type::DEBUG) << "User equality constraints gradient:\n"
                               << std::setprecision(10) << c.grad << std::endl;
         }
 

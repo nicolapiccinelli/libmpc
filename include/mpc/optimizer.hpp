@@ -63,7 +63,7 @@ public:
         inner_opt->set_maxeval(param.maximum_iteration);
         inner_opt->set_xtol_rel(param.relative_xtol);
 
-        dbg(Logger::DEEP) << "Setting tolerances and stopping criterias" << std::endl;
+        Logger::instance().log(Logger::log_type::DEBUG) << "Setting tolerances and stopping criterias" << std::endl;
     }
 
     bool bind(ObjFunction<Tnx, Tnu, Tph, Tch>* objFunc)
@@ -72,7 +72,7 @@ public:
             inner_opt->set_min_objective(Optimizer::nloptObjFunWrapper, objFunc);
             return true;
         } catch (const std::exception& e) {
-            dbg(Logger::DEEP) << "Unable to bind objective function: "
+            Logger::instance().log(Logger::log_type::DEBUG) << "Unable to bind objective function: "
                               << e.what() << std::endl;
             return false;
         }
@@ -91,13 +91,13 @@ public:
                             std::vector<double>(
                                 tol.data(),
                                 tol.data() + tol.rows() * tol.cols()));
-                dbg(Logger::DEEP) << "Adding state defined inequality constraints" << std::endl;
+                Logger::instance().log(Logger::log_type::DEBUG) << "Adding state defined inequality constraints" << std::endl;
             } else {
-                dbg(Logger::DEEP) << "State inequality constraints skipped" << std::endl;
+                Logger::instance().log(Logger::log_type::DEBUG) << "State inequality constraints skipped" << std::endl;
             }
             return true;
         } catch (const std::exception& e) {
-            dbg(Logger::DEEP) << "Unable to bind constraints function\n"
+            Logger::instance().log(Logger::log_type::DEBUG) << "Unable to bind constraints function\n"
                               << e.what() << '\n';
             return false;
         }
@@ -115,10 +115,10 @@ public:
                         std::vector<double>(
                             tol.data(),
                             tol.data() + tol.rows() * tol.cols()));
-            dbg(Logger::DEEP) << "Adding state defined equality constraints" << std::endl;
+            Logger::instance().log(Logger::log_type::DEBUG) << "Adding state defined equality constraints" << std::endl;
             return true;
         } catch (const std::exception& e) {
-            dbg(Logger::DEEP) << "Unable to bind constraints function\n"
+            Logger::instance().log(Logger::log_type::DEBUG) << "Unable to bind constraints function\n"
                               << e.what() << '\n';
             return false;
         }
@@ -136,10 +136,10 @@ public:
                         std::vector<double>(
                             tol.data(),
                             tol.data() + tol.rows() * tol.cols()));
-            dbg(Logger::DEEP) << "Adding user inequality constraints" << std::endl;
+            Logger::instance().log(Logger::log_type::DEBUG) << "Adding user inequality constraints" << std::endl;
             return true;
         } catch (const std::exception& e) {
-            dbg(Logger::DEEP) << "Unable to bind constraints function\n"
+            Logger::instance().log(Logger::log_type::DEBUG) << "Unable to bind constraints function\n"
                               << e.what() << '\n';
             return false;
         }
@@ -157,10 +157,10 @@ public:
                         std::vector<double>(
                             tol.data(),
                             tol.data() + tol.rows() * tol.cols()));
-            dbg(Logger::DEEP) << "Adding user equality constraints" << std::endl;
+            Logger::instance().log(Logger::log_type::DEBUG) << "Adding user equality constraints" << std::endl;
             return true;
         } catch (const std::exception& e) {
-            dbg(Logger::DEEP) << "Unable to bind constraints function\n"
+            Logger::instance().log(Logger::log_type::DEBUG) << "Unable to bind constraints function\n"
                               << e.what() << '\n';
             return false;
         }
@@ -210,12 +210,12 @@ public:
             r.cost = inner_opt->last_optimum_value();
             r.retcode = inner_opt->last_optimize_result();
 
-            dbg(Logger::INFO) << "Optimization end after: "
+            Logger::instance().log(Logger::log_type::INFO) << "Optimization end after: "
                               << inner_opt->get_numevals()
                               << " evaluation steps" << std::endl;
-            dbg(Logger::INFO) << "Optimization end with code: "
+            Logger::instance().log(Logger::log_type::INFO) << "Optimization end with code: "
                               << r.retcode << std::endl;
-            dbg(Logger::INFO) << "Optimization end with cost: "
+            Logger::instance().log(Logger::log_type::INFO) << "Optimization end with cost: "
                               << r.cost << std::endl;
 
             mat<Tph + 1, Tnx> Xmat;
@@ -223,13 +223,13 @@ public:
 
             mapping.unwrapVector(opt_vector, x0, Xmat, Umat, curr_slack);
 
-            dbg(Logger::DEEP) << "Optimal predicted state vector\n"
+            Logger::instance().log(Logger::log_type::DEBUG) << "Optimal predicted state vector\n"
                               << Xmat << std::endl;
-            dbg(Logger::DEEP) << "Optimal predicted output vector\n"
+            Logger::instance().log(Logger::log_type::DEBUG) << "Optimal predicted output vector\n"
                               << Umat << std::endl;
             r.cmd = Umat.row(0);
         } catch (const std::exception& e) {
-            dbg(Logger::INFO) << "No optimal solution found: " << e.what() << std::endl;
+            Logger::instance().log(Logger::log_type::INFO) << "No optimal solution found: " << e.what() << std::endl;
             r.cmd = last_r.cmd;
             r.retcode = -1;
         }

@@ -32,7 +32,7 @@ public:
         opt = new Optimizer<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>(hardConstraints);        
         opt->setMapping(mapping);
 
-        dbg(Logger::INFO) << "Mapping assignment done" << std::endl;
+        Logger::instance().log(Logger::log_type::INFO) << "Mapping assignment done" << std::endl;
     } // Can this be initialized at construction?
 
     ~NLMPC()
@@ -41,20 +41,21 @@ public:
             delete opt;
     };
 
-    bool setLoggerLevel(Logger::level l)
+    bool setLoggerLevel(Logger::log_level l)
     {
-        Logger::logLevel = l;
+        Logger::instance().setLevel(l);
         return true;
     }
 
     bool setLoggerPrefix(std::string prefix)
     {
-        Logger::prefix = prefix;
+        Logger::instance().setPrefix(prefix);
+        return true;
     }
 
     bool setSampleTime(const double ts)
     {
-        dbg(Logger::DEEP) << "Setting sampling time to: " << ts << " sec(s)" << std::endl;
+        Logger::instance().log(Logger::log_type::DEBUG) << "Setting sampling time to: " << ts << " sec(s)" << std::endl;
 
         auto res = conFunc.setContinuos(true, ts);
         return res;
@@ -69,11 +70,11 @@ public:
     {
         checkOrQuit();
 
-        dbg(Logger::DEEP) << "Setting objective function handle" << std::endl;
+        Logger::instance().log(Logger::log_type::DEBUG) << "Setting objective function handle" << std::endl;
 
         auto res = objFunc.setUserFunction(handle);
 
-        dbg(Logger::DEEP) << "Binding objective function handle" << std::endl;
+        Logger::instance().log(Logger::log_type::DEBUG) << "Binding objective function handle" << std::endl;
 
         opt->bind(&objFunc);
         return res;
@@ -83,11 +84,11 @@ public:
     {
         checkOrQuit();
 
-        dbg(Logger::DEEP) << "Setting state space function handle" << std::endl;
+        Logger::instance().log(Logger::log_type::DEBUG) << "Setting state space function handle" << std::endl;
 
         auto res = conFunc.setStateSpaceFunction(handle);
 
-        dbg(Logger::DEEP) << "Binding state space constraints" << std::endl;
+        Logger::instance().log(Logger::log_type::DEBUG) << "Binding state space constraints" << std::endl;
 
         cvec<StateIneqSize> ineq_tol;
         ineq_tol.setOnes();
@@ -132,13 +133,13 @@ public:
         objFunc.setCurrentState(x0);
         conFunc.setCurrentState(x0);
 
-        dbg(Logger::INFO) << "Optimization step" << std::endl;
+        Logger::instance().log(Logger::log_type::INFO) << "Optimization step" << std::endl;
 
         auto start = std::chrono::steady_clock::now();
         Result<Tnu> res = opt->run(x0, lastU);
         auto stop = std::chrono::steady_clock::now();
 
-        dbg(Logger::INFO) << "Optimization step duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() << " (ms)" << std::endl;
+        Logger::instance().log(Logger::log_type::INFO) << "Optimization step duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() << " (ms)" << std::endl;
         return res;
     }
 
@@ -146,7 +147,7 @@ private:
 
     inline void checkOrQuit(){
         if (!opt){
-            dbg(Logger::ERROR) << RED << "MPC is not initialized, quitting..." << RESET << std::endl;
+            Logger::instance().log(Logger::log_type::ERROR) << RED << "MPC is not initialized, quitting..." << RESET << std::endl;
             exit(-1);
         }
     }
