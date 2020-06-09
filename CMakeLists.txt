@@ -78,14 +78,21 @@ endif()
 
 find_package(Catch2 REQUIRED)
 
-add_executable(tests test/basic.cpp test/vanderpol.cpp)
+add_executable(test_lib test/test_main.cpp test/test_constraints.cpp test/test_logger.cpp test/test_common.cpp test/test_objective.cpp)
 include_directories(test/include)
-target_link_libraries(tests mpc++ Catch2::Catch2 ${OpenMP_CXX_LIBRARIES})
-target_compile_definitions(tests PUBLIC debug)
+target_link_libraries(test_lib mpc++ Catch2::Catch2 ${OpenMP_CXX_LIBRARIES})
+target_compile_definitions(test_lib PUBLIC debug)
+
+add_executable(test_cases test/test_main.cpp test/test_vanderpol.cpp)
+include_directories(test/include)
+target_link_libraries(test_cases mpc++ Catch2::Catch2 ${OpenMP_CXX_LIBRARIES})
+target_compile_definitions(test_cases PUBLIC debug)
 
 include(CTest)
 include(Catch)
-catch_discover_tests(tests)
+
+catch_discover_tests(test_lib)
+catch_discover_tests(test_cases)
 
 if(LINUX)
     set(CMAKE_CXX_FLAGS "-rdynamic")
