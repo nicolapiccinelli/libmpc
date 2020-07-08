@@ -1,6 +1,6 @@
 # libmpc++
 Dependecies:
-- `binutils`
+- `binutils-dev`
 - `nlopt`
 - `eigen`
 
