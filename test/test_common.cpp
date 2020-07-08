@@ -1,55 +1,74 @@
 #include "basic.hpp"
 #include <catch2/catch.hpp>
 
-TEMPLATE_TEST_CASE_SIG("Checking mapping dimensions", "[mapping][template]",
-                       ((int Tnx, int Tnu, int Tph, int Tch), Tnx, Tnu, Tph, Tch), 
-                       (1, 1, 1, 1), (5, 1, 1, 1), (5, 3, 1, 1), 
-                       (5, 3, 7, 1), (5, 3, 7, 4), (5, 3, 7, 7))
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("Checking mapping dimensions"),
+    MPC_TEST_TAGS("[mapping][template]"),
+    ((int Tnx, int Tnu, int Tph, int Tch), Tnx, Tnu, Tph, Tch), 
+    (1, 1, 1, 1), (5, 1, 1, 1), (5, 3, 1, 1), 
+    (5, 3, 7, 1), (5, 3, 7, 4), (5, 3, 7, 7))
 {
-    mpc::Common<Tnx, Tnu, Tph, Tch> mapping;
+    static constexpr int Tny = 1;
+    static constexpr int Tineq = 1;
+    static constexpr int Teq = 1;
 
-    REQUIRE(mapping.Iz2u.rows() == Tph * Tnu);
-    REQUIRE(mapping.Iz2u.cols() == Tch * Tnu);
+    mpc::Mapping<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> mapping;
 
-    REQUIRE(mapping.Iu2z.rows() == Tch * Tnu);
-    REQUIRE(mapping.Iu2z.cols() == Tph * Tnu);
+    mapping.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
 
-    REQUIRE(mapping.Sz2u.rows() == Tnu);
-    REQUIRE(mapping.Sz2u.cols() == Tnu);
+    REQUIRE(mapping.Iz2u().rows() == Tph * Tnu);
+    REQUIRE(mapping.Iz2u().cols() == Tch * Tnu);
 
-    REQUIRE(mapping.Su2z.rows() == Tnu);
-    REQUIRE(mapping.Su2z.cols() == Tnu);
+    REQUIRE(mapping.Iu2z().rows() == Tch * Tnu);
+    REQUIRE(mapping.Iu2z().cols() == Tph * Tnu);
+    
+    REQUIRE(mapping.Sz2u().rows() == Tnu);
+    REQUIRE(mapping.Sz2u().cols() == Tnu);
+
+    REQUIRE(mapping.Su2z().rows() == Tnu);
+    REQUIRE(mapping.Su2z().cols() == Tnu);
 }
 
-TEMPLATE_TEST_CASE_SIG("Checking vector unwrapping", "[mapping][template]",
-                       ((int Tnx, int Tnu, int Tph, int Tch), Tnx, Tnu, Tph, Tch),
-                       (1, 1, 1, 1), (5, 1, 1, 1), (5, 3, 1, 1),
-                       (5, 3, 7, 1), (5, 3, 7, 4), (5, 3, 7, 7))
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("Checking vector unwrapping"), 
+    MPC_TEST_TAGS("[mapping][template]"),
+    ((int Tnx, int Tnu, int Tph, int Tch), Tnx, Tnu, Tph, Tch),
+    (1, 1, 1, 1), (5, 1, 1, 1), (5, 3, 1, 1),
+    (5, 3, 7, 1), (5, 3, 7, 4), (5, 3, 7, 7))
 {
-    mpc::Common<Tnx, Tnu, Tph, Tch> mapping;
+    static constexpr int Tny = 1;
+    static constexpr int Tineq = 1;
+    static constexpr int Teq = 1;
+
+    mpc::Mapping<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> mapping;
+    mapping.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
 
     // input decision variables vector
-    mpc::cvec<DecVarsSize> x;
-    mpc::cvec<Tnx> x0;
-    for (size_t i = 0; i < x.rows() ; i++)
+    mpc::cvec<MPC_DYNAMIC_TEST_VAR((mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize)))> x;
+    x.resize(mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize));
+    for (int i = 0; i < x.rows() ; i++)
     {
         x[i] = i;
     }
 
-    for (size_t i = 0; i < x0.rows(); i++)
+    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> x0;
+    x0.resize(Tnx);
+    for (int i = 0; i < x0.rows(); i++)
     {
         x0[i] = -i - 1;
     }
 
     // unwrapped components
-    mpc::mat<Tph + 1, Tnx> Xmat;
-    mpc::mat<Tph + 1, Tnu> Umat;
+    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)> Xmat;
+    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> Umat;
+    Xmat.resize(Tph + 1, Tnx);
+    Umat.resize(Tph + 1, Tnu);
     double e;
     mapping.unwrapVector(x, x0, Xmat, Umat, e);
 
     // check row by row Xmat with the respected mock values
     REQUIRE(x0.transpose() == Xmat.row(0));
-    for (size_t i = 1; i < Tph + 1; i++)
+    for (int i = 1; i < Tph + 1; i++)
     {
         REQUIRE(x.middleRows((i - 1) * Tnx, Tnx).transpose() == Xmat.row(i));
     }
@@ -58,7 +77,7 @@ TEMPLATE_TEST_CASE_SIG("Checking vector unwrapping", "[mapping][template]",
     // once the control horizon ended the last optimal command
     // is replicated to fill the prediction horizon
     int u_index = 0;
-    for (size_t i = 0; i < Tph + 1; i++)
+    for (int i = 0; i < Tph + 1; i++)
     {
         if (i < Tch)
         {
@@ -69,5 +88,5 @@ TEMPLATE_TEST_CASE_SIG("Checking vector unwrapping", "[mapping][template]",
     }
 
     // check slack value
-    REQUIRE(x[x.size() - 1] == e);
+    REQUIRE(x(x.size() - 1) == e);
 }

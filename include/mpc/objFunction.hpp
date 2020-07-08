@@ -1,162 +1,247 @@
 #pragma once
 
 #include <mpc/baseFunction.hpp>
-#include <mpc/mpc.hpp>
 
 namespace mpc {
-template <std::size_t Tnx, std::size_t Tnu, std::size_t Tph, std::size_t Tch>
-class ObjFunction : public BaseFunction<Tnx, Tnu, Tph, Tch> {
+    template<
+        int Tnx,
+        int Tnu,
+        int Tny,
+        int Tph,
+        int Tch,
+        int Tineq,
+        int Teq>
+class ObjFunction :
+        public BaseFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>
+{
+    using BaseFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_mapping;
+    using BaseFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_x0;
+    using BaseFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_Xmat;
+    using BaseFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_Umat;
+    using BaseFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_e;
+    using BaseFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_niteration;
 
-    using BaseFunction<Tnx, Tnu, Tph, Tch>::mapping;
-    using BaseFunction<Tnx, Tnu, Tph, Tch>::x0;
-    using BaseFunction<Tnx, Tnu, Tph, Tch>::Xmat;
-    using BaseFunction<Tnx, Tnu, Tph, Tch>::Umat;
-    using BaseFunction<Tnx, Tnu, Tph, Tch>::e;
-    using BaseFunction<Tnx, Tnu, Tph, Tch>::niteration;
+    using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_initialize;
+    using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_checkOrQuit;
+    using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize;
+    using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::GetSize;
+
+    using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_dimensions;
 
 public:
-    struct Cost {
+    struct Cost
+    {
         double value;
-        cvec<DecVarsSize> grad;
+        cvec<AssignSize(sizeEnum::DecVarsSize)> grad;
     };
 
     ObjFunction() = default;
+
     ~ObjFunction() = default;
 
-    bool setUserFunction(const ObjFunHandle<Tph, Tnx, Tnu> handle)
+    void initialize(
+        int tnx, int tnu, int tny,
+        int tph, int tch,
+        int tineq, int teq)
     {
-        return fuser = handle, true;
+        _initialize(tnx, tnu, tny, tph, tch, tineq, teq);
+
+        _x0.resize(_dimensions.tnx);
+        _Xmat.resize(GetSize(sizeEnum::TphPlusOne), _dimensions.tnx);
+        _Umat.resize(GetSize(sizeEnum::TphPlusOne), _dimensions.tnu);
+        _Jx.resize(_dimensions.tnx, _dimensions.tph);
+        _Jmv.resize(_dimensions.tnu, _dimensions.tph);
+
+        _Je = 0;
     }
 
-    Cost evaluate(cvec<DecVarsSize> x, bool hasGradient)
+    bool setUserFunction(
+            const typename BaseFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::ObjFunHandle handle)
     {
+        _checkOrQuit();
+        return _fuser = handle, true;
+    }
+
+    Cost evaluate(
+            cvec<AssignSize(sizeEnum::DecVarsSize)> x,
+            bool hasGradient)
+    {
+        _checkOrQuit();
+
         Cost c;
-        mapping.unwrapVector(x, x0, Xmat, Umat, e);
-        c.value = fuser(Xmat, Umat, e);
-        if (hasGradient) {
-            computeJacobian(Xmat, Umat, c.value, e);
+        c.grad.resize(GetSize(sizeEnum::DecVarsSize));
+
+        _mapping.unwrapVector(x, _x0, _Xmat, _Umat, _e);
+        c.value = _fuser(_Xmat, _Umat, _e);
+
+        if (hasGradient)
+        {
+            _computeJacobian(_Xmat, _Umat, c.value, _e);
 
             int counter = 0;
+
             //#pragma omp parallel for
-            for (size_t j = 0; j < (size_t)Jx.cols(); j++) {
-                for (size_t i = 0; i < (size_t)Jx.rows(); i++) {
-                    c.grad[counter++] = Jx(i, j);
+            for (int j = 0; j < (int)_Jx.cols(); j++)
+            {
+                for (int i = 0; i < (int)_Jx.rows(); i++)
+                {
+                    c.grad(counter++) = _Jx(i, j);
                 }
             }
 
-            cvec<Tph * Tnu> JmvVectorized;
+            static cvec<AssignSize(sizeEnum::InputPredictionSize)> JmvVectorized;
+            JmvVectorized.resize(GetSize(sizeEnum::InputPredictionSize));
+
             int vec_counter = 0;
             //#pragma omp parallel for
-            for (size_t j = 0; j < (size_t)Jmv.cols(); j++) {
-                for (size_t i = 0; i < (size_t)Jmv.rows(); i++) {
-                    JmvVectorized[vec_counter++] = Jmv(i, j);
+            for (int j = 0; j < (int)_Jmv.cols(); j++)
+            {
+                for (int i = 0; i < (int)_Jmv.rows(); i++)
+                {
+                    JmvVectorized(vec_counter++) = _Jmv(i, j);
                 }
             }
 
-            cvec<Tch* Tnu> res = mapping.Iz2u.transpose() * JmvVectorized;
+            static cvec<AssignSize(sizeEnum::InputEqSize)> res;
+            res = _mapping.Iz2u().transpose() * JmvVectorized;
             //#pragma omp parallel for
-            for (size_t j = 0; j < Tch * Tnu; j++) {
-                c.grad[counter++] = res[j];
+            for (int j = 0; j < _dimensions.tch * _dimensions.tnu; j++)
+            {
+                c.grad(counter++) = res(j);
             }
 
-            c.grad[DecVarsSize - 1] = Je;
+            c.grad(GetSize(sizeEnum::DecVarsSize) - 1) = _Je;
         }
 
         // TODO support scaling
 
-        Logger::instance().log(Logger::log_type::DEBUG) << "(" << niteration << ") Objective function value: \n"
-                          << std::setprecision(10) << c.value << std::endl;
-        if (!hasGradient) {
-            Logger::instance().log(Logger::log_type::DEBUG) << "(" << niteration << ") Gradient not currectly used"
-                              << std::endl;
-        } else {
-            Logger::instance().log(Logger::log_type::DEBUG) << "(" << niteration << ") Objective function gradient: \n"
-                              << std::setprecision(10) << c.grad << std::endl;
+        Logger::instance().log(Logger::log_type::DEBUG) 
+            << "(" 
+            << _niteration 
+            << ") Objective function value: \n"
+            << std::setprecision(10) 
+            << c.value 
+            << std::endl;
+        if (!hasGradient) 
+        {
+            Logger::instance().log(Logger::log_type::DEBUG) 
+                << "(" 
+                << _niteration 
+                << ") Gradient not currectly used"
+                << std::endl;
+        } 
+        else 
+        {
+            Logger::instance().log(Logger::log_type::DEBUG) 
+                << "(" 
+                << _niteration 
+                << ") Objective function gradient: \n"
+                << std::setprecision(10) 
+                << c.grad 
+                << std::endl;
         }
 
         // debug information
-        niteration++;
+        _niteration++;
 
         return c;
     }
 
 private:
-    void computeJacobian(mat<Tph + 1, Tnx> x0, mat<Tph + 1, Tnu> u0, double f0, double e0)
+    void _computeJacobian(
+            mat<AssignSize(sizeEnum::TphPlusOne), Tnx> x0,
+            mat<AssignSize(sizeEnum::TphPlusOne), Tnu> u0,
+            double f0,
+            double e0)
     {
         double dv = 1e-6;
 
-        Jx.setZero();
+        _Jx.setZero();
         // TODO support measured disturbaces
-        Jmv.setZero();
+        _Jmv.setZero();
 
-        mat<Tph + 1, Tnx> Xa = x0.cwiseAbs();
+        static mat<AssignSize(sizeEnum::TphPlusOne), Tnx> Xa;
+        Xa = x0.cwiseAbs();
+
         //#pragma omp parallel for
-        for (size_t i = 0; i < (size_t)Xa.rows(); i++) {
-            for (size_t j = 0; j < (size_t)Xa.cols(); j++) {
+        for (int i = 0; i < Xa.rows(); i++)
+        {
+            for (int j = 0; j < Xa.cols(); j++)
+            {
                 Xa(i, j) = (Xa(i, j) < 1) ? 1 : Xa(i, j);
             }
         }
 
         //#pragma omp parallel for
-        for (size_t i = 0; i < Tph; i++) {
-            for (size_t j = 0; j < Tnx; j++) {
+        for (int i = 0; i < _dimensions.tph; i++)
+        {
+            for (int j = 0; j < _dimensions.tnx; j++)
+            {
                 int ix = i + 1;
                 double dx = dv * Xa(j, 0);
                 x0(ix, j) = x0(ix, j) + dx;
-                double f = fuser(x0, u0, e0);
+                double f = _fuser(x0, u0, e0);
                 x0(ix, j) = x0(ix, j) - dx;
                 double df = (f - f0) / dx;
-                Jx(j, i) = df;
+                _Jx(j, i) = df;
             }
         }
 
-        mat<Tph + 1, Tnu> Ua = u0.cwiseAbs();
+        static mat<AssignSize(sizeEnum::TphPlusOne), Tnu> Ua;
+        Ua = u0.cwiseAbs();
+
         //#pragma omp parallel for
-        for (size_t i = 0; i < (size_t)Ua.rows(); i++) {
-            for (size_t j = 0; j < (size_t)Ua.cols(); j++) {
+        for (int i = 0; i < Ua.rows(); i++)
+        {
+            for (int j = 0; j < Ua.cols(); j++)
+            {
                 Ua(i, j) = (Ua(i, j) < 1) ? 1 : Ua(i, j);
             }
         }
 
         //#pragma omp parallel for
-        for (size_t i = 0; i < Tph - 1; i++) {
+        for (int i = 0; i < _dimensions.tph - 1; i++)
+        {
             // TODO support measured disturbaces
-            for (size_t j = 0; j < Tnu; j++) {
+            for (int j = 0; j < _dimensions.tnu; j++)
+            {
                 int k = j;
                 double du = dv * Ua(k, 0);
                 u0(i, k) = u0(i, k) + du;
-                double f = fuser(x0, u0, e0);
+                double f = _fuser(x0, u0, e0);
                 u0(i, k) = u0(i, k) - du;
                 double df = (f - f0) / du;
-                Jmv(j, i) = df;
+                _Jmv(j, i) = df;
             }
         }
 
         // TODO support measured disturbaces
         //#pragma omp parallel for
-        for (size_t j = 0; j < Tnu; j++) {
+        for (int j = 0; j < _dimensions.tnu; j++)
+        {
             int k = j;
             double du = dv * Ua(k, 0);
-            u0(Tph - 1, k) = u0(Tph - 1, k) + du;
-            u0(Tph, k) = u0(Tph, k) + du;
-            double f = fuser(x0, u0, e0);
-            u0(Tph - 1, k) = u0(Tph - 1, k) - du;
-            u0(Tph, k) = u0(Tph, k) - du;
+            u0(_dimensions.tph - 1, k) = u0(_dimensions.tph - 1, k) + du;
+            u0(_dimensions.tph, k) = u0(_dimensions.tph, k) + du;
+            double f = _fuser(x0, u0, e0);
+            u0(_dimensions.tph - 1, k) = u0(_dimensions.tph - 1, k) - du;
+            u0(_dimensions.tph, k) = u0(_dimensions.tph, k) - du;
             double df = (f - f0) / du;
-            Jmv(j, Tph - 1) = df;
+            _Jmv(j, _dimensions.tph - 1) = df;
         }
 
         double ea = fmax(1e-6, abs(e0));
         double de = ea * dv;
-        double f1 = fuser(x0, u0, e0 + de);
-        double f2 = fuser(x0, u0, e0 - de);
-        Je = (f1 - f2) / (2 * de);
+        double f1 = _fuser(x0, u0, e0 + de);
+        double f2 = _fuser(x0, u0, e0 - de);
+        _Je = (f1 - f2) / (2 * de);
     }
 
-    ObjFunHandle<Tph, Tnx, Tnu> fuser = nullptr;
+    typename BaseFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::ObjFunHandle _fuser = nullptr;
 
-    mat<Tnx, Tph> Jx;
-    mat<Tnu, Tph> Jmv;
-    double Je;
+    mat<Tnx, Tph> _Jx;
+    mat<Tnu, Tph> _Jmv;
+
+    double _Je;
 };
 } // namespace mpc
