@@ -713,7 +713,7 @@ namespace mpc
             Jx.setZero();
             Jmv.setZero();
 
-            double dv = 1 - 6;
+            double dv = 1e-6;
 
             static cvec<Tnx> Xa;
             Xa = x0.cwiseAbs();
