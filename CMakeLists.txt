@@ -140,6 +140,7 @@ catch_discover_tests(test_logger)
 
 set(MPC_TEST_CASES_SOURCES
     "test/test_main.cpp" 
+    "test/test_discrete_lti_siso.cpp"
     "test/test_vanderpol.cpp")
 
 add_executable(test_cases_dynamic ${MPC_TEST_CASES_SOURCES})
