@@ -17,11 +17,12 @@ template<
 class BaseFunction :
     public Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>
 {
-    using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize;
-    using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::GetSize;
-    using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_dimensions;
 
 public:
+
+    using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize;
+    using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_dimensions;
+
     BaseFunction() : Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>()
     {
         _e = 0;

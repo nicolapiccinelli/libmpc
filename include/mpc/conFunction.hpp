@@ -26,19 +26,19 @@ namespace mpc
         using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_dimensions;
 
     public:
-        template <int Tcon>
+        template <int Tcon=Eigen::Dynamic>
         struct Cost
         {
             cvec<Tcon> value;
             cvec<Tcon * AssignSize(sizeEnum::DecVarsSize)> grad;
         };
 
-        template <>
-        struct Cost<Eigen::Dynamic>
-        {
-            cvec<Eigen::Dynamic> value;
-            cvec<Eigen::Dynamic> grad;
-        };
+        // template <>
+        // struct Cost<Eigen::Dynamic>
+        // {
+        //     cvec<Eigen::Dynamic> value;
+        //     cvec<Eigen::Dynamic> grad;
+        // };
 
         ConFunction() : BaseFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>() {}
         ~ConFunction() = default;

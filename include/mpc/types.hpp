@@ -33,12 +33,6 @@ template <
     int N = Eigen::Dynamic>
     using mat = Eigen::Matrix<double, M, N>;
 
-//template <
-//    int M = Eigen::Dynamic,
-//    int N = Eigen::Dynamic,
-//    int K = Eigen::Dynamic>
-//    using mat3 = std::array<Eigen::Matrix<double, M, N>, K>;
-
 template <
     int N = Eigen::Dynamic>
     using cvec = Eigen::Matrix<double, N, 1>;
