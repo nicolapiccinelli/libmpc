@@ -22,6 +22,7 @@ namespace mpc
         using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_initialize;
         using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_checkOrQuit;
         using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize;
+        using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::MultiplySize;
         using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::GetSize;
         using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_dimensions;
 
@@ -30,15 +31,8 @@ namespace mpc
         struct Cost
         {
             cvec<Tcon> value;
-            cvec<Tcon * AssignSize(sizeEnum::DecVarsSize)> grad;
+            cvec<MultiplySize(Tcon, AssignSize(sizeEnum::DecVarsSize))> grad;
         };
-
-        // template <>
-        // struct Cost<Eigen::Dynamic>
-        // {
-        //     cvec<Eigen::Dynamic> value;
-        //     cvec<Eigen::Dynamic> grad;
-        // };
 
         ConFunction() : BaseFunction<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>() {}
         ~ConFunction() = default;
@@ -543,7 +537,7 @@ namespace mpc
                 for (int j = 0; j < _dimensions.tnx; j++)
                 {
                     int ix = i + 1;
-                    double dx = dv * Xa(j, 0);
+                    double dx = dv * Xa.array()(j);
                     x0(ix, j) = x0(ix, j) + dx;
                     static cvec<Tineq> f;
                     f.resize(_dimensions.tineq);
@@ -572,7 +566,7 @@ namespace mpc
                 for (int j = 0; j < _dimensions.tnu; j++)
                 {
                     int k = j;
-                    double du = dv * Ua(k, 0);
+                    double du = dv * Ua.array()(k);
                     u0(i, k) = u0(i, k) + du;
                     static cvec<Tineq> f;
                     f.resize(_dimensions.tineq);
@@ -588,7 +582,7 @@ namespace mpc
             for (int j = 0; j < _dimensions.tnu; j++)
             {
                 int k = j;
-                double du = dv * Ua(k, 0);
+                double du = dv * Ua.array()(k);
                 u0(_dimensions.tph - 1, k) = u0(_dimensions.tph - 1, k) + du;
                 u0(_dimensions.tph, k) = u0(_dimensions.tph, k) + du;
                 static cvec<Tineq> f;
@@ -642,7 +636,7 @@ namespace mpc
                 for (int j = 0; j < _dimensions.tnx; j++)
                 {
                     int ix = i + 1;
-                    double dx = dv * Xa(j, 0);
+                    double dx = dv * Xa.array()(j);
                     x0(ix, j) = x0(ix, j) + dx;
                     static cvec<Teq> f;
                     f.resize(_dimensions.teq);
@@ -672,7 +666,7 @@ namespace mpc
                 for (int j = 0; j < _dimensions.tnu; j++)
                 {
                     int k = j;
-                    double du = dv * Ua(k, 0);
+                    double du = dv * Ua.array()(k);
                     u0(i, k) = u0(i, k) + du;
                     static cvec<Teq> f;
                     f.resize(_dimensions.teq);
@@ -689,7 +683,7 @@ namespace mpc
             for (int j = 0; j < _dimensions.tnu; j++)
             {
                 int k = j;
-                double du = dv * Ua(k, 0);
+                double du = dv * Ua.array()(k);
                 u0(_dimensions.tph - 1, k) = u0(_dimensions.tph - 1, k) + du;
                 u0(_dimensions.tph, k) = u0(_dimensions.tph, k) + du;
                 static cvec<Teq> f;

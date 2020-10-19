@@ -48,10 +48,4 @@ TEMPLATE_TEST_CASE_SIG(
 
     auto c = objFunc.evaluate(x, false);
     REQUIRE(c.value == 65730.0);
-
-    // mpc::cvec<MPC_DYNAMIC_TEST_VAR((mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize)))> abs_diff;
-    // abs_diff.resize(mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize));
-    // abs_diff = (c.grad - expectedGrad);
-    // abs_diff = abs_diff.array().abs();
-    // REQUIRE(abs_diff.maxCoeff() <= 1e-10);
 }

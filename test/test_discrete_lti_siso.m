@@ -2,13 +2,16 @@ close all;
 clear all;
 
 % Trivial unstable discrete LTI SISO model
-A = 1.5;
-B = 1;
-C = 1;
-D = 0;
+A = [1 0; ...
+     1 1];
+B = [1; ...
+     0];
+C = [0 1];
+D = [0];
 
 Ts = 0.1;
-x0 = 10;
+x0 = [10; ...
+      0 ];
 u0 = 0;
 y0 = 0;
 
@@ -21,8 +24,8 @@ maxIterations = 10000;
 objEq = @(X,U,e,data) sum(sum(X.^2)) + sum(sum(U.^2));
 
 % Inequality (<=) constraint function
-% conIneq = @(X,U,e,data) [U - 0.5; -U - 7];
-conIneq = @(X,U,e,data) 0;
+conIneq = @(X,U,e,data) [U - 0.5; -U - 7];
+% conIneq = @(X,U,e,data) 0;
 
 % Equality (==) constraint function
 conEq = @(X,U,data) 0;
@@ -30,9 +33,6 @@ conEq = @(X,U,data) 0;
 Tnx = size(A,2);
 Tnu = size(B,2);
 Tny = size(C,1);
-
-
-
 
 nlobj = nlmpc(Tnx, Tny, Tnu);
 nlobj.Ts = Ts;
@@ -84,22 +84,45 @@ X = X(1:i,:);
 
 t = (1:size(X, 1)) * Ts;
 
-figure();
+figure('name', 'Matlab');
 
-subplot(3,1,1);
+subplot(2,3,1);
 plot(t, X);
-title('State evolution');
+title('Matlab State evolution');
 xlabel('Time (s)');
 ylabel('State');
 
-subplot(3,1,2);
+subplot(2,3,2);
 plot(t, U);
-title('Input evolution');
+title('Matlab Input evolution');
 xlabel('Time (s)');
 ylabel('Input');
 
-subplot(3,1,3);
+subplot(2,3,3);
 plot(t, Y);
-title('Output evolution');
+title('Matlab Output evolution');
+xlabel('Time (s)');
+ylabel('Output');
+
+lib_t = dlmread('../t.txt');
+lib_y = dlmread('../y.txt');
+lib_u = dlmread('../u.txt');
+lib_x = dlmread('../x.txt');
+
+subplot(2,3,4);
+plot(lib_t, lib_x');
+title('Lib State evolution');
+xlabel('Time (s)');
+ylabel('State');
+
+subplot(2,3,5);
+plot(lib_t, lib_u');
+title('Lib Input evolution');
+xlabel('Time (s)');
+ylabel('Input');
+
+subplot(2,3,6);
+plot(lib_t, lib_y');
+title('Lib Output evolution');
 xlabel('Time (s)');
 ylabel('Output');

@@ -178,7 +178,7 @@ private:
             for (int j = 0; j < _dimensions.tnx; j++)
             {
                 int ix = i + 1;
-                double dx = dv * Xa(j, 0);
+                double dx = dv * Xa.array()(j);
                 x0(ix, j) = x0(ix, j) + dx;
                 double f = _fuser(x0, u0, e0);
                 x0(ix, j) = x0(ix, j) - dx;
@@ -206,7 +206,7 @@ private:
             for (int j = 0; j < _dimensions.tnu; j++)
             {
                 int k = j;
-                double du = dv * Ua(k, 0);
+                double du = dv * Ua.array()(k);
                 u0(i, k) = u0(i, k) + du;
                 double f = _fuser(x0, u0, e0);
                 u0(i, k) = u0(i, k) - du;
@@ -220,7 +220,7 @@ private:
         for (int j = 0; j < _dimensions.tnu; j++)
         {
             int k = j;
-            double du = dv * Ua(k, 0);
+            double du = dv * Ua.array()(k);
             u0(_dimensions.tph - 1, k) = u0(_dimensions.tph - 1, k) + du;
             u0(_dimensions.tph, k) = u0(_dimensions.tph, k) + du;
             double f = _fuser(x0, u0, e0);

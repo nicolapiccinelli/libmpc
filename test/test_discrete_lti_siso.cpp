@@ -1,21 +1,22 @@
 #include "basic.hpp"
 #include <catch2/catch.hpp>
 
+#include <iostream>
+#include <fstream>
+
 int DiscreteLtiSiso()
 {
-    constexpr int Tnx = 1;
+    constexpr int Tnx = 2;
     constexpr int Tnu = 1;
     constexpr int Tny = 1;
     constexpr int Tph = 10;
     constexpr int Tch = 5;
-    constexpr int Tineq = (Tph + 1)*2;
+    constexpr int Tineq = (Tph + 1) * 2;
     constexpr int Teq = 0;
 
+    bool saveData = false;
     int maxIterations = 10000;
-
     double ts = 0.1;
-
-    bool useHardConst = false;
 
     mpc::NLMPC<MPC_DYNAMIC_TEST_VARS(
         Tnx, Tnu, Tny,
@@ -24,19 +25,26 @@ int DiscreteLtiSiso()
         optsolver;
 
     optsolver.initialize(
-        useHardConst,
+        true,
         Tnx, Tnu, Tny,
         Tph, Tch,
         Tineq, Teq);
     optsolver.setLoggerLevel(mpc::Logger::log_level::NORMAL);
     optsolver.setSampleTime(ts);
+    
+    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tnx), MPC_DYNAMIC_TEST_VAR(Tnx)> A(Tnx, Tnx);
+    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tnx), MPC_DYNAMIC_TEST_VAR(Tnu)> B(Tnx, Tnu);
+    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tny), MPC_DYNAMIC_TEST_VAR(Tnx)> C(Tny, Tnx);
+    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tny), MPC_DYNAMIC_TEST_VAR(Tnu)> D(Tny, Tnu);
+    
+    A << 1, 0,
+         1, 1;
+    B << 1,
+         0;
+    C << 0, 1;
+    D << 0;
 
-    double A = 1.5;
-    double B = 1;
-    double C = 1;
-    double D = 0;
-
-    auto stateEq = [&](
+    auto stateEq = [=](
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)>& dx,
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> x,
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnu)> u)
@@ -45,7 +53,7 @@ int DiscreteLtiSiso()
     };
     optsolver.setStateSpaceFunction(stateEq);
 
-    auto outEq = [&](
+    auto outEq = [=](
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tny)>& y,
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> x,
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnu)> u)
@@ -53,7 +61,7 @@ int DiscreteLtiSiso()
         y = C*x + D*u; 
     };
 
-    auto objEq = [&](
+    auto objEq = [](
         mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)> x,
         mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> u,
         double e)
@@ -62,7 +70,7 @@ int DiscreteLtiSiso()
     };
     optsolver.setObjectiveFunction(objEq);
 
-    auto conIneq = [&](
+    auto conIneq = [=](
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tineq)>& ineq,
         mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)> x,
         mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> u,
@@ -71,27 +79,46 @@ int DiscreteLtiSiso()
         for (int i = 0; i <= Tph; i++)
         {
             ineq(i) = u(i) - 0.5;
-            ineq(i+Tph+1) = -u(i) - 7;
+            ineq(i + (Tph + 1)) = -u(i) - 7;
         }
     };
     optsolver.setIneqConFunction(conIneq);
 
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> modelX;
-    modelX.resize(Tnx);
-    modelX(0) = 10;
+    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> modelX(Tnx);
+    modelX << 10,
+              0;
 
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnu)> modelU;
-    modelU.resize(Tnu);
-    modelU(0) = 0;
+    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnu)> modelU(Tnu);
+    modelU << 0;
 
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnu)> modelY;
-    modelY.resize(Tny);
-    modelY(0) = 0;
+    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tny)> modelY(Tny);
+    modelY << 0;
 
     auto r = optsolver.getLastResult();
 
-    for (int i=1; i<maxIterations; i++) 
+    std::ofstream yFile;
+    std::ofstream xFile;
+    std::ofstream uFile;
+    std::ofstream tFile;
+
+    if(saveData)
     {
+        yFile.open("y.txt");
+        xFile.open("x.txt");
+        uFile.open("u.txt");
+        tFile.open("t.txt");
+    }
+
+    for (int i=0; i<maxIterations; i++) 
+    {
+        if(saveData)
+        {
+            yFile << modelY.transpose() << std::endl;
+            xFile << modelX.transpose() << std::endl;
+            uFile << modelU.transpose() << std::endl;
+            tFile << (double)i * ts << std::endl;
+        }
+
         r = optsolver.step(modelX, modelU);
 
         modelU = r.cmd;
@@ -104,6 +131,13 @@ int DiscreteLtiSiso()
         }
     }
 
+    if(saveData)
+    {
+        yFile.close();
+        xFile.close();
+        uFile.close();
+        tFile.close();
+    }
     return 0;
 }
 

@@ -1,0 +1,89 @@
+if(UNIX)
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++17 -Wfatal-errors -Werror=return-type -g -O0")
+endif()
+
+if(WIN32)
+    set(CMAKE_CXX_FLAGS "/std:c++17")
+endif()
+
+set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
+
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
+
+find_package(Catch2 REQUIRED)
+include_directories(include)
+
+# for Linux, BSD, Solaris, Minix
+if(UNIX AND NOT APPLE)
+    set(CMAKE_CXX_FLAGS "-rdynamic")
+    include_directories("${PROJECT_SOURCE_DIR}/deps/stacktrace")
+    add_library(stacktrace SHARED "${PROJECT_SOURCE_DIR}/deps/stacktrace/stacktrace.cpp")
+    set_property(TARGET stacktrace PROPERTY POSITION_INDEPENDENT_CODE ON)
+endif()
+
+include(CTest)
+include(Catch)
+
+set(MPC_LINK_LIB 
+    "mpc++" 
+    "Catch2::Catch2" 
+    ${OpenMP_CXX_LIBRARIES})
+
+set(MPC_TEST_LIB_SOURCES
+    "test_constraints.cpp" 
+    "test_common.cpp"
+    "test_objective.cpp"
+    "test_main.cpp")
+
+add_executable(test_lib_dynamic ${MPC_TEST_LIB_SOURCES})
+target_link_libraries(test_lib_dynamic ${MPC_LINK_LIB})
+target_compile_definitions(test_lib_dynamic PUBLIC debug)
+target_compile_definitions(test_lib_dynamic PUBLIC MPC_DYNAMIC)
+catch_discover_tests(test_lib_dynamic)
+
+add_executable(test_lib_static ${MPC_TEST_LIB_SOURCES})
+target_link_libraries(test_lib_static ${MPC_LINK_LIB})
+target_compile_definitions(test_lib_static PUBLIC debug)
+catch_discover_tests(test_lib_static)
+
+set(MPC_TEST_LOGGER_SOURCES
+"test_logger.cpp" 
+"test_main.cpp")
+
+add_executable(test_logger ${MPC_TEST_LOGGER_SOURCES})
+target_link_libraries(test_logger ${MPC_LINK_LIB})
+target_compile_definitions(test_logger PUBLIC debug)
+catch_discover_tests(test_logger)
+
+set(MPC_TEST_CASES_SOURCES
+    "test_main.cpp" 
+    "test_discrete_lti_siso.cpp"
+    "test_vanderpol.cpp")
+
+add_executable(test_cases_dynamic ${MPC_TEST_CASES_SOURCES})
+target_link_libraries(test_cases_dynamic ${MPC_LINK_LIB})
+target_compile_definitions(test_cases_dynamic PUBLIC debug)
+target_compile_definitions(test_cases_dynamic PUBLIC MPC_DYNAMIC)
+catch_discover_tests(test_cases_dynamic)
+
+add_executable(test_cases_static ${MPC_TEST_CASES_SOURCES})
+target_link_libraries(test_cases_static ${MPC_LINK_LIB})
+target_compile_definitions(test_cases_static PUBLIC debug)
+catch_discover_tests(test_cases_static)
+
+# for Linux, BSD, Solaris, Minix
+if(UNIX AND NOT APPLE)
+    set(MPC_TEST_UNIX_LINK_LIB
+        "stacktrace" 
+        "bfd" 
+        "iberty")
+
+    target_link_libraries(test_lib_dynamic ${MPC_TEST_UNIX_LINK_LIB})
+    target_link_libraries(test_lib_static ${MPC_TEST_UNIX_LINK_LIB})
+    target_link_libraries(test_cases_dynamic ${MPC_TEST_UNIX_LINK_LIB})
+    target_link_libraries(test_cases_static ${MPC_TEST_UNIX_LINK_LIB})
+    target_link_libraries(test_logger ${MPC_TEST_UNIX_LINK_LIB})
+endif()
