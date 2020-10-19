@@ -1,6 +1,8 @@
 {
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "files.associations": {
-        "*.rh": "cpp"
+        "*.rh": "cpp",
+        "core": "cpp",
+        "deque": "cpp"
     }
 }

@@ -93,6 +93,18 @@ namespace mpc
             }            
         }
 
+        static inline constexpr int MultiplySize(int sizeA, int sizeB)
+        {
+            if(sizeA > Eigen::Dynamic && sizeB > Eigen::Dynamic)
+            {
+                return sizeA * sizeB;
+            }
+            else
+            {
+                return Eigen::Dynamic;
+            }
+        }
+
         static inline constexpr int AssignSize(sizeEnum size)
         {
             switch (size)
@@ -100,52 +112,52 @@ namespace mpc
             case sizeEnum::StateEqSize:
                 return getDim(
                     Tnx * Tph,
-                    Tnx > 0 && Tph > 0);
+                    Tnx > Eigen::Dynamic && Tph > Eigen::Dynamic);
                 break;
             case sizeEnum::StateIneqSize:
                 return getDim(
                     2 * Tph * Tny,
-                    Tph > 0 && Tny > 0);
+                    Tph > Eigen::Dynamic && Tny > Eigen::Dynamic);
                 break;
             case sizeEnum::TphPlusOne:
                 return getDim(
                     Tph + 1,
-                    Tph > 0);
+                    Tph > Eigen::Dynamic);
                 break;
             case sizeEnum::InputEqSize:
                 return getDim(
                     Tnu * Tch,
-                    Tnu > 0 && Tch > 0);
+                    Tnu > Eigen::Dynamic && Tch > Eigen::Dynamic);
                 break;
             case sizeEnum::InputPredictionSize:
                 return getDim(
                     Tph * Tnu,
-                    Tph > 0 && Tnu > 0);
+                    Tph > Eigen::Dynamic && Tnu > Eigen::Dynamic);
                 break;
             case sizeEnum::DecVarsSize:
                 return getDim(
                     AssignSize(sizeEnum::StateEqSize) + AssignSize(sizeEnum::InputEqSize) + 1,
-                    AssignSize(sizeEnum::StateEqSize) > 0 && AssignSize(sizeEnum::InputEqSize) > 0);
+                    AssignSize(sizeEnum::StateEqSize) > Eigen::Dynamic && AssignSize(sizeEnum::InputEqSize) > Eigen::Dynamic);
                 break;
             case sizeEnum::StateIneqCostSize:
                 return getDim(
                     AssignSize(sizeEnum::StateIneqSize) * AssignSize(sizeEnum::DecVarsSize),
-                    AssignSize(sizeEnum::StateIneqSize) > 0 && AssignSize(sizeEnum::DecVarsSize) > 0);
+                    AssignSize(sizeEnum::StateIneqSize) > Eigen::Dynamic && AssignSize(sizeEnum::DecVarsSize) > Eigen::Dynamic);
                 break;
             case sizeEnum::UserIneqCostSize:
                 return getDim(
                     Tineq * AssignSize(sizeEnum::DecVarsSize),
-                    Tineq > 0 && AssignSize(sizeEnum::DecVarsSize) > 0);
+                    Tineq > Eigen::Dynamic && AssignSize(sizeEnum::DecVarsSize) > Eigen::Dynamic);
                 break;
             case sizeEnum::StateEqCostSize:
                 return getDim(
                     AssignSize(sizeEnum::StateEqSize) * AssignSize(sizeEnum::DecVarsSize),
-                    AssignSize(sizeEnum::StateEqSize) > 0 && AssignSize(sizeEnum::DecVarsSize) > 0);
+                    AssignSize(sizeEnum::StateEqSize) > Eigen::Dynamic && AssignSize(sizeEnum::DecVarsSize) > Eigen::Dynamic);
                 break;
             case sizeEnum::UserEqCostSize:
                 return getDim(
                     Teq * AssignSize(sizeEnum::DecVarsSize),
-                    Teq > 0 && AssignSize(sizeEnum::DecVarsSize) > 0);
+                    Teq > Eigen::Dynamic && AssignSize(sizeEnum::DecVarsSize) > Eigen::Dynamic);
                 break;
             default:
                 return 0;

@@ -43,9 +43,9 @@ template <
 
 struct Parameters
 {
-    double relative_ftol;
-    double relative_xtol;
-    int maximum_iteration;
+    double relative_ftol = 1e-10;
+    double relative_xtol = 1e-10;
+    int maximum_iteration = 100;
 };
 
 enum constraints_type

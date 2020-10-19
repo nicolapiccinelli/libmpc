@@ -42,9 +42,6 @@ public:
         setDefaultBounds();
 
         Parameters p;
-        p.relative_ftol = 1e-10;
-        p.maximum_iteration = 100;
-        p.relative_xtol = 1e-10;
         setTolerances(p);
 
         _last_r.cmd.resize(_dimensions.tnu);
