@@ -365,7 +365,7 @@ private:
         for (size_t i = 0; i < Tph; i++) {
             for (size_t j = 0; j < Tnx; j++) {
                 int ix = i + 1;
-                double dx = dv * Xa(j, 0);
+                double dx = dv * Xa.array()(j);
                 x0(ix, j) = x0(ix, j) + dx;
                 cvec<Tineq> f = ieqUser(x0, u0, e);
                 x0(ix, j) = x0(ix, j) - dx;
@@ -387,7 +387,7 @@ private:
             // TODO support measured disturbaces
             for (size_t j = 0; j < Tnu; j++) {
                 int k = j;
-                double du = dv * Ua(k, 0);
+                double du = dv * Ua.array()(k);
                 u0(i, k) = u0(i, k) + du;
                 cvec<Tineq> f = ieqUser(x0, u0, e);
                 u0(i, k) = u0(i, k) - du;
@@ -400,7 +400,7 @@ private:
         //#pragma omp parallel for
         for (size_t j = 0; j < Tnu; j++) {
             int k = j;
-            double du = dv * Ua(k, 0);
+            double du = dv * Ua.array()(k);
             u0(Tph - 1, k) = u0(Tph - 1, k) + du;
             u0(Tph, k) = u0(Tph, k) + du;
             cvec<Tineq> f = ieqUser(x0, u0, e);
@@ -444,7 +444,7 @@ private:
         for (size_t i = 0; i < Tph; i++) {
             for (size_t j = 0; j < Tnx; j++) {
                 int ix = i + 1;
-                double dx = dv * Xa(j, 0);
+                double dx = dv * Xa.array()(j);
                 x0(ix, j) = x0(ix, j) + dx;
                 cvec<Teq> f = eqUser(x0, u0);
                 x0(ix, j) = x0(ix, j) - dx;
@@ -466,7 +466,7 @@ private:
             // TODO support measured disturbaces
             for (size_t j = 0; j < Tnu; j++) {
                 int k = j;
-                double du = dv * Ua(k, 0);
+                double du = dv * Ua.array()(k);
                 u0(i, k) = u0(i, k) + du;
                 cvec<Teq> f = eqUser(x0, u0);
                 u0(i, k) = u0(i, k) - du;
@@ -479,7 +479,7 @@ private:
         //#pragma omp parallel for
         for (size_t j = 0; j < Tnu; j++) {
             int k = j;
-            double du = dv * Ua(k, 0);
+            double du = dv * Ua.array()(k);
             u0(Tph - 1, k) = u0(Tph - 1, k) + du;
             u0(Tph, k) = u0(Tph, k) + du;
             cvec<Teq> f = eqUser(x0, u0);
