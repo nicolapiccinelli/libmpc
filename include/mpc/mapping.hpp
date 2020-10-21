@@ -13,11 +13,16 @@ public:
 
     void unwrapVector(const cvec<DecVarsSize> x, const cvec<Tnx> x0, mat<Tph + 1, Tnx>& Xmat, mat<Tph + 1, Tnu>& Umat, double& slack)
     {
-        cvec<Tnu* Tch> u_vec = x.middleRows(Tph * Tnx, Tnu * Tch);
+        cvec<Tnu * Tch> u_vec = x.middleRows(Tph * Tnx, Tnu * Tch);
+
+        cvec<Tnu * Tph> tmp_mult;
+        tmp_mult = Iz2u * u_vec;
+        mat<Tnu, Tph> tmp_mapped;
+        tmp_mapped = Eigen::Map<mat<Tnu, Tph>>(tmp_mult.data(), Tnu, Tph);
 
         mat<Tph + 1, Tnu> Umv;
         Umv.setZero();
-        Umv.middleRows(0, Tph) = Iz2u * u_vec;
+        Umv.middleRows(0, Tph) = tmp_mapped.transpose();
         Umv.row(Tph) = Umv.row(Tph - 1);
 
         Xmat.setZero();

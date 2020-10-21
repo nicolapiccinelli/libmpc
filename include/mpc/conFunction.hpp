@@ -187,7 +187,7 @@ public:
         }
 
         c.value = ceq_user;
-        c.grad = Eigen::Map<cvec<Tineq * DecVarsSize>>(Jceq_user.data(), Jceq_user.size());
+        c.grad = Eigen::Map<cvec<Teq * DecVarsSize>>(Jceq_user.data(), Jceq_user.size());
 
         dbg(Logger::DEEP) << "User equality constraints value:\n"
                           << std::setprecision(10) << c.value << std::endl;
@@ -495,7 +495,7 @@ private:
         Jx.setZero();
         Jmv.setZero();
 
-        double dv = 1 - 6;
+        double dv = 1e-6;
 
         cvec<Tnx> Xa = x0.cwiseAbs();
         //#pragma omp parallel for
