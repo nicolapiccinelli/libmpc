@@ -89,7 +89,7 @@ public:
                 }
             }
 
-            static cvec<AssignSize(sizeEnum::InputPredictionSize)> JmvVectorized;
+            cvec<AssignSize(sizeEnum::InputPredictionSize)> JmvVectorized;
             JmvVectorized.resize(GetSize(sizeEnum::InputPredictionSize));
 
             int vec_counter = 0;
@@ -102,7 +102,7 @@ public:
                 }
             }
 
-            static cvec<AssignSize(sizeEnum::InputEqSize)> res;
+            cvec<AssignSize(sizeEnum::InputEqSize)> res;
             res = _mapping.Iz2u().transpose() * JmvVectorized;
             //#pragma omp parallel for
             for (int j = 0; j < _dimensions.tch * _dimensions.tnu; j++)
@@ -160,7 +160,7 @@ private:
         // TODO support measured disturbaces
         _Jmv.setZero();
 
-        static mat<AssignSize(sizeEnum::TphPlusOne), Tnx> Xa;
+        mat<AssignSize(sizeEnum::TphPlusOne), Tnx> Xa;
         Xa = x0.cwiseAbs();
 
         //#pragma omp parallel for
@@ -187,7 +187,7 @@ private:
             }
         }
 
-        static mat<AssignSize(sizeEnum::TphPlusOne), Tnu> Ua;
+        mat<AssignSize(sizeEnum::TphPlusOne), Tnu> Ua;
         Ua = u0.cwiseAbs();
 
         //#pragma omp parallel for

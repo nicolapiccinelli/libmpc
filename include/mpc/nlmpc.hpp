@@ -84,7 +84,7 @@ namespace mpc
             return res;
         } // Can this be initialized at construction?
 
-        void setTolerances(const Parameters param)
+        void setOptimizerParameters(const Parameters param)
         {
             _checkOrQuit();
             _opt->setTolerances(param);
@@ -108,70 +108,59 @@ namespace mpc
             return res;
         }
 
-        bool setStateSpaceFunction(const typename Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::StateFunHandle handle)
+        bool setStateSpaceFunction(const typename Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::StateFunHandle handle, 
+            const float ineq_tol = 1e-10, 
+            const float eq_tol = 1e-10)
         {
             _checkOrQuit();
+
+            static cvec<AssignSize(sizeEnum::StateIneqSize)> ineq_tol_vec;
+            ineq_tol_vec.resize(GetSize(sizeEnum::StateIneqSize));
+            ineq_tol_vec.setOnes();
+
+            static cvec<AssignSize(sizeEnum::StateEqSize)> eq_tol_vec;
+            eq_tol_vec.resize(GetSize(sizeEnum::StateEqSize));
+            eq_tol_vec.setOnes();
 
             Logger::instance().log(Logger::log_type::DEBUG) 
                 << "Setting state space function handle" 
                 << std::endl;
 
-            auto res = _conFunc.setStateSpaceFunction(handle);
+            bool res = _conFunc.setStateSpaceFunction(handle);
 
             Logger::instance().log(Logger::log_type::DEBUG) 
                 << "Binding state space constraints" 
                 << std::endl;
 
-            static cvec<AssignSize(sizeEnum::StateIneqSize)> ineq_tol;
-            ineq_tol.resize(GetSize(sizeEnum::StateIneqSize));
-            ineq_tol.setOnes();
-            
-            _opt->bindIneq(&_conFunc, constraints_type::INEQ, ineq_tol * 1e-10);
-
-            static cvec<AssignSize(sizeEnum::StateEqSize)> eq_tol;
-            eq_tol.resize(GetSize(sizeEnum::StateEqSize));
-            eq_tol.setOnes();
-
-            _opt->bindEq(&_conFunc, constraints_type::EQ, eq_tol * 1e-10);
+            res = res & _opt->bindIneq(&_conFunc, constraints_type::INEQ, ineq_tol_vec * ineq_tol);
+            res = res & _opt->bindEq(&_conFunc, constraints_type::EQ, eq_tol_vec * eq_tol);
 
             return res;
         }
 
         bool setIneqConFunction(
-            const typename Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::IConFunHandle handle)
-        {
-            static cvec<Tineq> tol;
-            tol = cvec<Tineq>::Ones(_dimensions.tineq) * 1e-10;
-            return setIneqConFunction(handle, tol);            
-        }
-
-        bool setIneqConFunction(
-            const typename Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::IConFunHandle handle,
-            const cvec<Tineq> tol)
+            const typename Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::IConFunHandle handle, const float tol = 1e-10)
         {
             _checkOrQuit();
+
+            cvec<Tineq> tol_vec;
+            tol_vec = cvec<Tineq>::Ones(_dimensions.tineq);
 
             auto res = _conFunc.setIneqConstraintFunction(handle);
-            _opt->bindUserIneq(&_conFunc, constraints_type::UINEQ, tol);
+            _opt->bindUserIneq(&_conFunc, constraints_type::UINEQ, tol_vec * tol);
             return res;
         }
 
         bool setEqConFunction(
-            const typename Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::EConFunHandle handle)
-        {
-            static cvec<Teq> tol;
-            tol = cvec<Tineq>::Ones(_dimensions.teq) * 1e-10;
-            return setEqConFunction(handle, tol);
-        }
-
-        bool setEqConFunction(
-            const typename Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::EConFunHandle handle,
-            const cvec<Teq> tol)
+            const typename Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::EConFunHandle handle, const float tol = 1e-10)
         {
             _checkOrQuit();
 
+            cvec<Teq> tol_vec;
+            tol_vec = cvec<Teq>::Ones(_dimensions.teq);
+
             auto res = _conFunc.setEqConstraintFunction(handle);
-            _opt->bindUserEq(&_conFunc, constraints_type::UEQ, tol);
+            _opt->bindUserEq(&_conFunc, constraints_type::UEQ, tol_vec * tol);
             return res;
         }
 
