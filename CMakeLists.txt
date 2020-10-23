@@ -16,13 +16,13 @@ if(APPLE)
 endif()
 
 if(WIN32)
-    include_directories(
-        "../eigen"
-        "../nlopt/include"
-        "../Catch2/build")
+include_directories(
+    "../eigen"
+    "../nlopt/include"
+    "../Catch2/build")
     link_directories("../nlopt/bin")
 endif()
-
+    
 ## Find Eigen3 to build the library
 find_package (Eigen3 REQUIRED NO_MODULE)
 
@@ -30,8 +30,8 @@ find_package (Eigen3 REQUIRED NO_MODULE)
 # set(EIGEN3_INCLUDE_DIR ../eigen)
 include_directories(${EIGEN3_INCLUDE_DIR})
 include_directories("include")
-
-set(MPC_INCLUDE_DIR "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>/include/mpc/")
+    
+set(MPC_INCLUDE_DIR "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>/include/mpc")
 file(GLOB MPC_HEADERS "${MPC_INCLUDE_DIR}/*")
 
 ## Creating mpc++ interface library
@@ -63,15 +63,12 @@ configure_package_config_file(
     INSTALL_DESTINATION "lib/cmake/mpc++"
 )
 
-install(EXPORT mpc++Targets 
-    DESTINATION "lib/cmake/mpc++")
-install(FILES 
-    "${PROJECT_BINARY_DIR}/mpc++ConfigVersion.cmake"
-    "${PROJECT_BINARY_DIR}/mpc++Config.cmake"
-    DESTINATION "lib/cmake/mpc++")
+install(EXPORT mpc++Targets DESTINATION "lib/cmake/mpc++")
+install(FILES "${PROJECT_BINARY_DIR}/mpc++ConfigVersion.cmake"
+              "${PROJECT_BINARY_DIR}/mpc++Config.cmake"
+        DESTINATION "lib/cmake/mpc++")
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/" 
-    DESTINATION "/usr/local/include")
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/" DESTINATION "include")
 
 ## Adding test subdirectory
 enable_testing()

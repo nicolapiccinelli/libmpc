@@ -27,7 +27,7 @@ namespace mpc
         using Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::_dimensions;
 
     public:
-        template <int Tcon=Eigen::Dynamic>
+        template <int Tcon = Eigen::Dynamic>
         struct Cost
         {
             cvec<Tcon> value;
@@ -114,29 +114,29 @@ namespace mpc
             // Set MPC constraints
             _getStateIneqConstraints();
 
-            static Cost<AssignSize(sizeEnum::StateIneqSize)> c;
+            Cost<AssignSize(sizeEnum::StateIneqSize)> c;
             c.value = _cineq;
             c.grad = Eigen::Map<cvec<AssignSize(sizeEnum::StateIneqCostSize)>>(
                 _Jcineq.data(),
                 _Jcineq.size());
 
-            Logger::instance().log(Logger::log_type::DEBUG) 
+            Logger::instance().log(Logger::log_type::DEBUG)
                 << "State inequality constraints value:\n"
-                << std::setprecision(10) 
-                << c.value 
+                << std::setprecision(10)
+                << c.value
                 << std::endl;
             if (!hasGradient)
             {
-                Logger::instance().log(Logger::log_type::DEBUG) 
+                Logger::instance().log(Logger::log_type::DEBUG)
                     << "Gradient state inequality constraints not currectly used"
                     << std::endl;
             }
             else
             {
-                Logger::instance().log(Logger::log_type::DEBUG) 
+                Logger::instance().log(Logger::log_type::DEBUG)
                     << "State inequality constraints gradient:\n"
-                    << std::setprecision(10) 
-                    << c.grad 
+                    << std::setprecision(10)
+                    << c.grad
                     << std::endl;
             }
 
@@ -156,13 +156,13 @@ namespace mpc
             {
                 _ieqUser(_cineq_user, _Xmat, _Umat, _e);
 
-                static mat<Tineq, AssignSize(sizeEnum::StateEqSize)> Jieqx;
+                mat<Tineq, AssignSize(sizeEnum::StateEqSize)> Jieqx;
                 Jieqx.resize(_dimensions.tineq, GetSize(sizeEnum::StateEqSize));
 
-                static mat<Tineq, AssignSize(sizeEnum::InputPredictionSize)> Jieqmv;
+                mat<Tineq, AssignSize(sizeEnum::InputPredictionSize)> Jieqmv;
                 Jieqmv.resize(_dimensions.tineq, GetSize(sizeEnum::InputPredictionSize));
 
-                static cvec<Tineq> Jie;
+                cvec<Tineq> Jie;
                 Jie.resize(_dimensions.tineq);
 
                 _computeUserIneqJacobian(
@@ -188,29 +188,29 @@ namespace mpc
                 _Jcineq_user.setZero();
             }
 
-            static Cost<Tineq> c;
+            Cost<Tineq> c;
             c.value = _cineq_user;
             c.grad = Eigen::Map<cvec<AssignSize(sizeEnum::UserIneqCostSize)>>(
                 _Jcineq_user.data(),
                 _Jcineq_user.size());
 
-            Logger::instance().log(Logger::log_type::DEBUG) 
+            Logger::instance().log(Logger::log_type::DEBUG)
                 << "User inequality constraints value:\n"
-                << std::setprecision(10) 
-                << c.value 
+                << std::setprecision(10)
+                << c.value
                 << std::endl;
             if (!hasGradient)
             {
-                Logger::instance().log(Logger::log_type::DEBUG) 
-                << "Gradient user inequality constraints not currently used"
-                << std::endl;
+                Logger::instance().log(Logger::log_type::DEBUG)
+                    << "Gradient user inequality constraints not currently used"
+                    << std::endl;
             }
             else
             {
-                Logger::instance().log(Logger::log_type::DEBUG) 
+                Logger::instance().log(Logger::log_type::DEBUG)
                     << "User inequality constraints gradient:\n"
-                    << std::setprecision(10) 
-                    << c.grad 
+                    << std::setprecision(10)
+                    << c.grad
                     << std::endl;
             }
 
@@ -227,29 +227,29 @@ namespace mpc
             // Set MPC constraints
             _getStateEqConstraints(hasGradient);
 
-            static Cost<AssignSize(sizeEnum::StateEqSize)> c;
+            Cost<AssignSize(sizeEnum::StateEqSize)> c;
             c.value = _ceq;
             c.grad = Eigen::Map<cvec<AssignSize(sizeEnum::StateEqCostSize)>>(
                 _Jceq.data(),
                 _Jceq.size());
 
-            Logger::instance().log(Logger::log_type::DEBUG) 
+            Logger::instance().log(Logger::log_type::DEBUG)
                 << "State equality constraints value:\n"
-                << std::setprecision(10) 
-                << c.value 
+                << std::setprecision(10)
+                << c.value
                 << std::endl;
             if (!hasGradient)
             {
-                Logger::instance().log(Logger::log_type::DEBUG) 
+                Logger::instance().log(Logger::log_type::DEBUG)
                     << "State equality constraints gradient not currectly used"
                     << std::endl;
             }
             else
             {
-                Logger::instance().log(Logger::log_type::DEBUG) 
+                Logger::instance().log(Logger::log_type::DEBUG)
                     << "State equality constraints gradient:\n"
-                    << std::setprecision(10) 
-                    << c.grad 
+                    << std::setprecision(10)
+                    << c.grad
                     << std::endl;
             }
 
@@ -268,10 +268,10 @@ namespace mpc
             {
                 _eqUser(_ceq_user, _Xmat, _Umat);
 
-                static mat<Teq, AssignSize(sizeEnum::StateEqSize)> Jeqx;
+                mat<Teq, AssignSize(sizeEnum::StateEqSize)> Jeqx;
                 Jeqx.resize(_dimensions.teq, GetSize(sizeEnum::StateEqSize));
 
-                static mat<Teq, AssignSize(sizeEnum::InputPredictionSize)> Jeqmv;
+                mat<Teq, AssignSize(sizeEnum::InputPredictionSize)> Jeqmv;
                 Jeqmv.resize(_dimensions.teq, GetSize(sizeEnum::InputPredictionSize));
 
                 _computeUserEqJacobian(
@@ -295,29 +295,29 @@ namespace mpc
                 _Jceq_user.setZero();
             }
 
-            static Cost<Teq> c;
+            Cost<Teq> c;
             c.value = _ceq_user;
-            c.grad = Eigen::Map<cvec<mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(sizeEnum::UserEqCostSize)>>(
+            c.grad = Eigen::Map<cvec<AssignSize(sizeEnum::UserEqCostSize)>>(
                 _Jceq_user.data(),
                 _Jceq_user.size());
 
-            Logger::instance().log(Logger::log_type::DEBUG) 
+            Logger::instance().log(Logger::log_type::DEBUG)
                 << "User equality constraints value:\n"
-                << std::setprecision(10) 
-                << c.value 
+                << std::setprecision(10)
+                << c.value
                 << std::endl;
             if (!hasGradient)
             {
-                Logger::instance().log(Logger::log_type::DEBUG) 
+                Logger::instance().log(Logger::log_type::DEBUG)
                     << "Gradient user equality constraints not currectly used"
                     << std::endl;
             }
             else
             {
-                Logger::instance().log(Logger::log_type::DEBUG) 
+                Logger::instance().log(Logger::log_type::DEBUG)
                     << "User equality constraints gradient:\n"
-                    << std::setprecision(10) 
-                    << c.grad 
+                    << std::setprecision(10)
+                    << c.grad
                     << std::endl;
             }
 
@@ -340,7 +340,7 @@ namespace mpc
                     Jstate.middleCols(i * _dimensions.tnx, _dimensions.tnx).transpose();
             }
 
-            static mat<Tnc, AssignSize(sizeEnum::InputPredictionSize)> Jmanvar_mat;
+            mat<Tnc, AssignSize(sizeEnum::InputPredictionSize)> Jmanvar_mat;
             Jmanvar_mat.resize(Jres.cols(), GetSize(sizeEnum::InputPredictionSize));
 
             //#pragma omp parallel for
@@ -367,27 +367,27 @@ namespace mpc
             _ceq.setZero();
             _Jceq.setZero();
 
-            static mat<AssignSize(sizeEnum::StateEqSize), AssignSize(sizeEnum::StateEqSize)> Jx;
+            mat<AssignSize(sizeEnum::StateEqSize), AssignSize(sizeEnum::StateEqSize)> Jx;
             Jx.resize(GetSize(sizeEnum::StateEqSize), GetSize(sizeEnum::StateEqSize));
             Jx.setZero();
 
             // TODO support measured noise
-            static mat<AssignSize(sizeEnum::StateEqSize), AssignSize(sizeEnum::InputPredictionSize)> Jmv;
+            mat<AssignSize(sizeEnum::StateEqSize), AssignSize(sizeEnum::InputPredictionSize)> Jmv;
             Jmv.resize(GetSize(sizeEnum::StateEqSize), GetSize(sizeEnum::InputPredictionSize));
             Jmv.setZero();
 
-            static cvec<AssignSize(sizeEnum::StateEqSize)> Je;
+            cvec<AssignSize(sizeEnum::StateEqSize)> Je;
             Je.resize(GetSize(sizeEnum::StateEqSize));
             Je.setZero();
 
             int ic = 0;
 
-            static mat<Tnx, Tnx> Ix;
+            mat<Tnx, Tnx> Ix;
             Ix.resize(_dimensions.tnx, _dimensions.tnx);
             Ix.setIdentity(_dimensions.tnx, _dimensions.tnx);
 
             // TODO support scaling
-            static mat<Tnx, Tnx> Sx, Tx;
+            mat<Tnx, Tnx> Sx, Tx;
             Sx.resize(_dimensions.tnx, _dimensions.tnx);
             Tx.resize(_dimensions.tnx, _dimensions.tnx);
             Sx.setIdentity(_dimensions.tnx, _dimensions.tnx);
@@ -399,21 +399,21 @@ namespace mpc
                 //#pragma omp parallel for
                 for (int i = 0; i < _dimensions.tph; i++)
                 {
-                    static cvec<Tnu> uk;
+                    cvec<Tnu> uk;
                     uk = _Umat.row(i).transpose();
-                    static cvec<Tnx> xk; 
+                    cvec<Tnx> xk;
                     xk = _Xmat.row(i).transpose();
 
                     double h = _ts / 2.0;
-                    static cvec<Tnx> xk1; 
+                    cvec<Tnx> xk1;
                     xk1 = _Xmat.row(i + 1).transpose();
 
-                    static cvec<Tnx> fk;
+                    cvec<Tnx> fk;
                     fk.resize(_dimensions.tnx);
 
                     _fUser(fk, xk, uk);
 
-                    static cvec<Tnx> fk1;
+                    cvec<Tnx> fk1;
                     fk1.resize(_dimensions.tnx);
 
                     _fUser(fk1, xk1, uk);
@@ -424,31 +424,31 @@ namespace mpc
 
                     if (hasGradient)
                     {
-                        static mat<Tnx, Tnx> Ak;
+                        mat<Tnx, Tnx> Ak;
                         Ak.resize(_dimensions.tnx, _dimensions.tnx);
 
-                        static mat<Tnx, Tnu> Bk;
+                        mat<Tnx, Tnu> Bk;
                         Bk.resize(_dimensions.tnx, _dimensions.tnu);
 
                         _computeStateEqJacobian(Ak, Bk, fk, xk, uk);
 
-                        static mat<Tnx, Tnx> Ak1;
+                        mat<Tnx, Tnx> Ak1;
                         Ak1.resize(_dimensions.tnx, _dimensions.tnx);
 
-                        static mat<Tnx, Tnu> Bk1;
+                        mat<Tnx, Tnu> Bk1;
                         Bk1.resize(_dimensions.tnx, _dimensions.tnu);
 
                         _computeStateEqJacobian(Ak1, Bk1, fk1, xk1, uk);
 
                         if (i > 0)
                         {
-                            Jx.middleCols((i - 1) * _dimensions.tnx, _dimensions.tnx).middleRows(ic, _dimensions.tnx) = 
+                            Jx.middleCols((i - 1) * _dimensions.tnx, _dimensions.tnx).middleRows(ic, _dimensions.tnx) =
                                 Ix + (h * Sx * Ak * Tx);
                         }
 
-                        Jx.middleCols(i * _dimensions.tnx, _dimensions.tnx).middleRows(ic, _dimensions.tnx) = 
+                        Jx.middleCols(i * _dimensions.tnx, _dimensions.tnx).middleRows(ic, _dimensions.tnx) =
                             -Ix + (h * Sx * Ak1 * Tx);
-                        Jmv.middleCols(i * _dimensions.tnu, _dimensions.tnu).middleRows(ic, _dimensions.tnx) = 
+                        Jmv.middleCols(i * _dimensions.tnu, _dimensions.tnu).middleRows(ic, _dimensions.tnx) =
                             h * Sx * (Bk + Bk1);
                     }
 
@@ -460,12 +460,12 @@ namespace mpc
                 //#pragma omp parallel for
                 for (int i = 0; i < _dimensions.tph; i++)
                 {
-                    static cvec<Tnu> uk;
+                    cvec<Tnu> uk;
                     uk = _Umat.row(i).transpose();
-                    static cvec<Tnx> xk;
+                    cvec<Tnx> xk;
                     xk = _Xmat.row(i).transpose();
 
-                    static cvec<Tnx> xk1;
+                    cvec<Tnx> xk1;
                     xk1.resize(_dimensions.tnx);
 
                     _fUser(xk1, xk, uk);
@@ -476,10 +476,10 @@ namespace mpc
 
                     if (hasGradient)
                     {
-                        static mat<Tnx, Tnx> Ak;
+                        mat<Tnx, Tnx> Ak;
                         Ak.resize(_dimensions.tnx, _dimensions.tnx);
 
-                        static mat<Tnx, Tnu> Bk;
+                        mat<Tnx, Tnu> Bk;
                         Bk.resize(_dimensions.tnx, _dimensions.tnu);
 
                         _computeStateEqJacobian(Ak, Bk, xk1, xk, uk);
@@ -492,7 +492,7 @@ namespace mpc
                         {
                             Jx.middleCols((i - 1) * _dimensions.tnx, _dimensions.tnx).middleRows(ic, _dimensions.tnx) = -Ak;
                         }
-                        Jmv.middleCols(i * _dimensions.tnx, _dimensions.tnx).middleRows(ic, _dimensions.tnx) = -Bk;
+                        Jmv.middleCols(i * _dimensions.tnu, _dimensions.tnu).middleRows(ic, _dimensions.tnx) = -Bk;
                     }
 
                     ic += Tnx;
@@ -500,7 +500,9 @@ namespace mpc
             }
 
             if (hasGradient)
+            {
                 _glueJacobian<AssignSize(sizeEnum::StateEqSize)>(_Jceq, Jx, Jmv, Je);
+            }
         }
 
         void _computeUserIneqJacobian(
@@ -520,7 +522,7 @@ namespace mpc
 
             Jcone.setZero();
 
-            static mat<AssignSize(sizeEnum::TphPlusOne), Tnx> Xa;
+            mat<AssignSize(sizeEnum::TphPlusOne), Tnx> Xa;
             Xa = x0.cwiseAbs();
             //#pragma omp parallel for
             for (int i = 0; i < (int)Xa.rows(); i++)
@@ -539,17 +541,17 @@ namespace mpc
                     int ix = i + 1;
                     double dx = dv * Xa.array()(j);
                     x0(ix, j) = x0(ix, j) + dx;
-                    static cvec<Tineq> f;
+                    cvec<Tineq> f;
                     f.resize(_dimensions.tineq);
                     _ieqUser(f, x0, u0, _e);
                     x0(ix, j) = x0(ix, j) - dx;
-                    static cvec<Tineq> df;
+                    cvec<Tineq> df;
                     df = (f - f0) / dx;
                     Jconx.middleCols(i * _dimensions.tnx, _dimensions.tnx).col(j) = df;
                 }
             }
 
-            static mat<AssignSize(sizeEnum::TphPlusOne), Tnu> Ua;
+            mat<AssignSize(sizeEnum::TphPlusOne), Tnu> Ua;
             Ua = u0.cwiseAbs();
             //#pragma omp parallel for
             for (int i = 0; i < (int)Ua.rows(); i++)
@@ -568,11 +570,11 @@ namespace mpc
                     int k = j;
                     double du = dv * Ua.array()(k);
                     u0(i, k) = u0(i, k) + du;
-                    static cvec<Tineq> f;
+                    cvec<Tineq> f;
                     f.resize(_dimensions.tineq);
                     _ieqUser(f, x0, u0, _e);
                     u0(i, k) = u0(i, k) - du;
-                    static cvec<Tineq> df;
+                    cvec<Tineq> df;
                     df = (f - f0) / du;
                     Jconmv.middleCols(i * _dimensions.tnu, _dimensions.tnu).col(j) = df;
                 }
@@ -585,22 +587,22 @@ namespace mpc
                 double du = dv * Ua.array()(k);
                 u0(_dimensions.tph - 1, k) = u0(_dimensions.tph - 1, k) + du;
                 u0(_dimensions.tph, k) = u0(_dimensions.tph, k) + du;
-                static cvec<Tineq> f;
+                cvec<Tineq> f;
                 f.resize(_dimensions.tineq);
                 _ieqUser(f, x0, u0, _e);
                 u0(_dimensions.tph - 1, k) = u0(_dimensions.tph - 1, k) - du;
                 u0(_dimensions.tph, k) = u0(_dimensions.tph, k) - du;
-                static cvec<Tineq> df;
+                cvec<Tineq> df;
                 df = (f - f0) / du;
                 Jconmv.middleCols((_dimensions.tph - 1) * _dimensions.tnu, _dimensions.tnu).col(j) = df;
             }
 
             double ea = fmax(1e-6, abs(e0));
             double de = ea * dv;
-            static cvec<Tineq> f1;
+            cvec<Tineq> f1;
             f1.resize(_dimensions.tineq);
             _ieqUser(f1, x0, u0, e0 + de);
-            static cvec<Tineq> f2;
+            cvec<Tineq> f2;
             f2.resize(_dimensions.tineq);
             _ieqUser(f2, x0, u0, e0 - de);
             Jcone = (f1 - f2) / (2 * de);
@@ -619,7 +621,7 @@ namespace mpc
             // TODO support measured disturbaces
             Jconmv.setZero();
 
-            static mat<AssignSize(sizeEnum::TphPlusOne), Tnx> Xa;
+            mat<AssignSize(sizeEnum::TphPlusOne), Tnx> Xa;
             Xa = x0.cwiseAbs();
             //#pragma omp parallel for
             for (int i = 0; i < (int)Xa.rows(); i++)
@@ -638,17 +640,17 @@ namespace mpc
                     int ix = i + 1;
                     double dx = dv * Xa.array()(j);
                     x0(ix, j) = x0(ix, j) + dx;
-                    static cvec<Teq> f;
+                    cvec<Teq> f;
                     f.resize(_dimensions.teq);
                     _eqUser(f, x0, u0);
                     x0(ix, j) = x0(ix, j) - dx;
-                    static cvec<Teq> df;
+                    cvec<Teq> df;
                     df = (f - f0) / dx;
                     Jconx.middleCols(i * _dimensions.tnx, _dimensions.tnx).col(j) = df;
                 }
             }
 
-            static mat<AssignSize(sizeEnum::TphPlusOne), Tnu> Ua;
+            mat<AssignSize(sizeEnum::TphPlusOne), Tnu> Ua;
             Ua = u0.cwiseAbs();
             //#pragma omp parallel for
             for (int i = 0; i < (int)Ua.rows(); i++)
@@ -668,11 +670,11 @@ namespace mpc
                     int k = j;
                     double du = dv * Ua.array()(k);
                     u0(i, k) = u0(i, k) + du;
-                    static cvec<Teq> f;
+                    cvec<Teq> f;
                     f.resize(_dimensions.teq);
                     _eqUser(f, x0, u0);
                     u0(i, k) = u0(i, k) - du;
-                    static cvec<Teq> df;
+                    cvec<Teq> df;
                     df = (f - f0) / du;
                     Jconmv.middleCols(i * _dimensions.tnu, _dimensions.tnu).col(j) = df;
                 }
@@ -686,12 +688,12 @@ namespace mpc
                 double du = dv * Ua.array()(k);
                 u0(_dimensions.tph - 1, k) = u0(_dimensions.tph - 1, k) + du;
                 u0(_dimensions.tph, k) = u0(_dimensions.tph, k) + du;
-                static cvec<Teq> f;
+                cvec<Teq> f;
                 f.resize(_dimensions.teq);
                 _eqUser(f, x0, u0);
                 u0(_dimensions.tph - 1, k) = u0(_dimensions.tph - 1, k) - du;
                 u0(_dimensions.tph, k) = u0(_dimensions.tph, k) - du;
-                static cvec<Teq> df;
+                cvec<Teq> df;
                 df = (f - f0) / du;
                 Jconmv.middleCols((_dimensions.tph - 1) * _dimensions.tnu, _dimensions.tnu).col(j) = df;
             }
@@ -709,7 +711,7 @@ namespace mpc
 
             double dv = 1e-6;
 
-            static cvec<Tnx> Xa;
+            cvec<Tnx> Xa;
             Xa = x0.cwiseAbs();
             //#pragma omp parallel for
             for (int i = 0; i < _dimensions.tnx; i++)
@@ -722,11 +724,11 @@ namespace mpc
             {
                 double dx = dv * Xa(i);
                 x0(i) = x0(i) + dx;
-                static cvec<Tnx> f;
+                cvec<Tnx> f;
                 f.resize(_dimensions.tnx);
                 _fUser(f, x0, u0);
                 x0(i) = x0(i) - dx;
-                static cvec<Tnx> df;
+                cvec<Tnx> df;
                 df = (f - f0) / dx;
                 Jx.block(0, i, _dimensions.tnx, 1) = df;
             }
@@ -745,11 +747,11 @@ namespace mpc
                 int k = i;
                 double du = dv * Ua(k);
                 u0(k) = u0(k) + du;
-                static cvec<Tnx> f;
+                cvec<Tnx> f;
                 f.resize(_dimensions.tnx);
                 _fUser(f, x0, u0);
                 u0(k) = u0(k) - du;
-                static cvec<Tnx> df;
+                cvec<Tnx> df;
                 df = (f - f0) / du;
                 Jmv.block(0, i, _dimensions.tnx, 1) = df;
             }

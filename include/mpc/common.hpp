@@ -225,6 +225,8 @@ namespace mpc
         }
 
         MPCDims _dimensions;
+        
+    private:
         bool _isInitialized;
     };
 
