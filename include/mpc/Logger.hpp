@@ -29,9 +29,16 @@
 
 namespace mpc
 {
+    /**
+     * @brief Basic logger system
+     */
     class Logger
     {
     public:
+        /**
+         * @brief Internal log message enumerator
+         * 
+         */
         enum log_type
         {
             DETAIL = 0,
@@ -39,6 +46,9 @@ namespace mpc
             ERROR = 2
         };
 
+        /**
+         * @brief External desired log level enumerator
+         */
         enum log_level
         {
             DEEP = 0,
@@ -47,18 +57,34 @@ namespace mpc
             NONE
         };
 
+        /**
+         * @brief Return the instance of the logger
+         * 
+         * @return Logger& logger instance
+         */
         static Logger &instance()
         {
             static Logger instance;
             return instance;
         }
 
+        /**
+         * @brief Reset the logger configuration
+         * 
+         * @return Logger& logger instance
+         */
         Logger &reset()
         {
             resetImpl();
             return *this;
         }
 
+        /**
+         * @brief Define the log type for the following message
+         * 
+         * @param type level type enumerator
+         * @return Logger& logger instance
+         */
         Logger &log(log_type type)
         {
             Logger::instance().currentType = type;
@@ -77,18 +103,36 @@ namespace mpc
             return *this;
         }
 
+        /**
+         * @brief Set the stream output for the logger
+         * 
+         * @param opt_stream output stream
+         * @return Logger& logger instance
+         */
         Logger &setStream(std::ostream *opt_stream)
         {
             os = opt_stream;
             return *this;
         }
 
+        /**
+         * @brief Set the logger level
+         * 
+         * @param l level type enumerator
+         * @return Logger& logger instance
+         */
         Logger &setLevel(log_level l)
         {
             thresholdLevel = l;
             return *this;
         }
 
+        /**
+         * @brief Set the logger's messages prefix
+         * 
+         * @param s prefix string
+         * @return Logger& logger instance
+         */
         Logger &setPrefix(std::string s)
         {
             prefix = s;
@@ -115,11 +159,19 @@ namespace mpc
         };
 
     private:
+        /**
+         * @brief Construct a new Logger, currently the output stream is forced to be
+         * the standard output
+         * 
+         */
         Logger() : os(&std::cout)
         {
             resetImpl();
         }
 
+        /**
+         * @brief Reset function implementation
+         */
         void resetImpl()
         {
             prefix = "";

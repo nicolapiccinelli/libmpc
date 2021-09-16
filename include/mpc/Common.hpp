@@ -5,6 +5,19 @@
 
 namespace mpc {
 
+/**
+ * @brief Abstract base class for the classes which need access
+ * to the problem dimensions and to the function handlers types
+ * 
+ * @tparam Tnx dimension of the state space
+ * @tparam Tnu dimension of the input space
+ * @tparam Tndu dimension of the measured disturbance space
+ * @tparam Tny dimension of the output space
+ * @tparam Tph length of the prediction horizon
+ * @tparam Tch length of the control horizon
+ * @tparam Tineq number of the user inequality constraints
+ * @tparam Teq number of the user equality constraints
+ */
 template <
     int Tnx, int Tnu, int Tndu, int Tny,
     int Tph, int Tch, int Tineq, int Teq>
@@ -15,8 +28,29 @@ public:
         isInitialized = false;
     }
 
+    /**
+     * @brief Initialization hook used to perform sub-classes
+     * initialization procedure. Performing initialization in this
+     * method ensures the correct problem dimensions assigment has been
+     * already performed
+     */
     virtual void onInit() = 0;
 
+    /**
+     * @brief Initialize the dimensions of the optimization problem
+     * and then invokes the onInit method to perform extra initialization.
+     * In case of static allocation the dimensions are inferred from the
+     * template class parameters
+     * 
+     * @param nx dimension of the state space
+     * @param nu dimension of the input space
+     * @param ndu dimension of the measured disturbance space
+     * @param ny dimension of the output space
+     * @param ph length of the prediction horizon
+     * @param ch length of the control horizon
+     * @param ineq number of the user inequality constraints
+     * @param eq number of the user equality constraints
+     */
     void initialize(
         int nx = Tnx, int nu = Tnu, int ndu = Tndu, int ny = Tny,
         int ph = Tph, int ch = Tch, int ineq = Tineq, int eq = Teq)
@@ -28,6 +62,11 @@ public:
         onInit();
     }
 
+    /**
+     * @brief The problem dimensions structure containing
+     * the instances of each dimension for static or dynamic
+     * access
+     */
     struct MPCDims {
         Dim<Tnx> nx;
         Dim<Tnu> nu;
@@ -38,6 +77,18 @@ public:
         Dim<Tineq> ineq;
         Dim<Teq> eq;
 
+        /**
+         * @brief Set the dynamic dimensions
+         * 
+         * @param nx dimension of the state space
+         * @param nu dimension of the input space
+         * @param ndu dimension of the measured disturbance space
+         * @param ny dimension of the output space
+         * @param ph length of the prediction horizon
+         * @param ch length of the control horizon
+         * @param ineq number of the user inequality constraints
+         * @param eq number of the user equality constraints
+         */
         void set(
             size_t nx, size_t nu, size_t ndu, size_t ny,
             size_t ph, size_t ch, size_t ineq, size_t eq)
@@ -56,6 +107,12 @@ public:
     inline static MPCDims dim;
 
 protected:
+
+    /**
+     * @brief Check if the object has been correctly initialized. In case
+     * the initialization has not been performed yet, the library exits
+     * causing a crash
+     */
     inline void checkOrQuit()
     {
         if (!isInitialized) {

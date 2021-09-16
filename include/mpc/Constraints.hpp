@@ -3,6 +3,19 @@
 #include <mpc/Base.hpp>
 
 namespace mpc {
+
+/**
+ * @brief Managment of the user-defined and sytem dynamic constraints 
+ * for the non-linear mpc
+ * 
+ * @tparam Tnx dimension of the state space
+ * @tparam Tnu dimension of the input space
+ * @tparam Tny dimension of the output space
+ * @tparam Tph length of the prediction horizon
+ * @tparam Tch length of the control horizon
+ * @tparam Tineq number of the user inequality constraints
+ * @tparam Teq number of the user equality constraints
+ */
 template <
     int Tnx, int Tnu, int Tny,
     int Tph, int Tch,
@@ -13,6 +26,13 @@ private:
     using Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::dim;
 
 public:
+
+    /**
+     * @brief Internal structure containing the value and the gradient
+     * of the evaluated constraints.
+     * 
+     * @tparam Tcon number of the constraints
+     */
     template <int Tcon = Eigen::Dynamic>
     struct Cost {
         cvec<Tcon> value;
@@ -27,6 +47,12 @@ public:
 
     ~Constraints() = default;
 
+    /**
+     * @brief Initialization hook override used to perform the
+     * initialization procedure. Performing initialization in this
+     * method ensures the correct problem dimensions assigment has been
+     * already performed.
+     */
     void onInit()
     {
         x0.resize(dim.nx.num());
@@ -46,24 +72,50 @@ public:
         Jcineq_user.resize((dim.ph.num() * dim.nx.num()) + (dim.nu.num() * dim.ch.num()) + 1, dim.ineq.num());
     }
 
+    /**
+     * @brief Return if the dynamical system has an output function
+     * 
+     * @return true 
+     * @return false 
+     */
     bool hasOutputModel()
     {
         checkOrQuit();
         return outUser != nullptr;
     }
 
+    /**
+     * @brief Return if the dynamical system has user defined inequality constraints
+     * 
+     * @return true 
+     * @return false 
+     */
     bool hasIneqConstraints()
     {
         checkOrQuit();
         return ieqUser != nullptr;
     }
 
+    /**
+     * @brief Return if the dynamical system has user defined equality constraints
+     * 
+     * @return true 
+     * @return false 
+     */
     bool hasEqConstraints()
     {
         checkOrQuit();
         return eqUser != nullptr;
     }
 
+    /**
+     * @brief Set if the provided dynamical model is in continuos time
+     * 
+     * @param isContinuous system dynamics is defined in countinuos time
+     * @param Ts discretization sample time, in general this is the inverse of the control loop frequency
+     * @return true 
+     * @return false 
+     */
     bool setContinuos(bool isContinuous, double Ts = 0)
     {
         ts = Ts;
@@ -71,6 +123,13 @@ public:
         return true;
     }
 
+    /**
+     * @brief Set the system's states update function (e.g. the vector field)
+     * 
+     * @param handle function handler
+     * @return true 
+     * @return false 
+     */
     bool setStateModel(
         const typename Base<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::StateFunHandle handle)
     {
@@ -78,6 +137,13 @@ public:
         return fUser = handle, true;
     }
 
+    /**
+     * @brief Set the system's output function (e.g. the state/output mapping)
+     * 
+     * @param handle function handler
+     * @return true 
+     * @return false 
+     */
     bool setOutputModel(
         const typename Base<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::OutFunHandle handle)
     {
@@ -85,6 +151,13 @@ public:
         return outUser = handle, true;
     }
 
+    /**
+     * @brief Set the user defined inequality constraints
+     * 
+     * @param handle function handler
+     * @return true 
+     * @return false 
+     */
     bool setIneqConstraints(
         const typename Base<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::IConFunHandle handle)
     {
@@ -92,6 +165,13 @@ public:
         return ieqUser = handle, true;
     }
 
+    /**
+     * @brief Set the user defined equality constraints
+     * 
+     * @param handle function handler
+     * @return true 
+     * @return false 
+     */
     bool setEqConstraints(
         const typename Base<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::EConFunHandle handle)
     {
@@ -99,6 +179,13 @@ public:
         return eqUser = handle, true;
     }
 
+    /**
+     * @brief Evaluate the user defined inequality constraints
+     * 
+     * @param x internal optimization vector 
+     * @param hasGradient request the computation of the gradient
+     * @return Cost<dim.ineq> associated cost
+     */
     Cost<dim.ineq> evaluateIneq(
         cvec<((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>())> x,
         bool hasGradient)
@@ -185,6 +272,13 @@ public:
         return c;
     }
 
+    /**
+     * @brief Evaluate the equality constraints for the system's dynamic
+     * 
+     * @param x internal optimization vector 
+     * @param hasGradient request the computation of the gradient
+     * @return Cost<(dim.ph * dim.nx)> associated cost
+     */
     Cost<(dim.ph * dim.nx)> evaluateStateModelEq(
         cvec<((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>())> x,
         bool hasGradient)
@@ -221,6 +315,13 @@ public:
         return c;
     }
 
+    /**
+     * @brief Evaluate the user defined equality constraints
+     * 
+     * @param x internal optimization vector 
+     * @param hasGradient request the computation of the gradient
+     * @return Cost<dim.eq> associated cost
+     */
     Cost<dim.eq> evaluateEq(
         cvec<((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>())> x,
         bool hasGradient)
@@ -295,6 +396,16 @@ public:
     }
 
 private:
+    /**
+     * @brief Combines the Jacobian matrices of the system's dynamics, 
+     * the optimal control inputs and a set of constraints together
+     * 
+     * @tparam Tnc number of constraints
+     * @param Jres reference to the resulting Jacobian matrix
+     * @param Jstate Jacobian matrix of the system's dynamics
+     * @param Jmanvar Jacobian matrix of the optimal control inputs
+     * @param Jcon Jacobian matrix of the constraint' set
+     */
     template <int Tnc>
     void glueJacobian(
         mat<((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>()).get(), Tnc>& Jres,
@@ -319,6 +430,12 @@ private:
         Jres.bottomRows(1) = Jcon.transpose();
     }
 
+    /**
+     * @brief Compute the internal state equality constraints penalty 
+     * and if requested the associated Jacobian matrix
+     * 
+     * @param hasGradient request the computation of the gradient
+     */
     void getStateEqConstraints(
         bool hasGradient)
     {
@@ -445,6 +562,17 @@ private:
         }
     }
 
+    /**
+     * @brief Approximate the user defined inequality constraints Jacobian matrices
+     * 
+     * @param Jconx Jacobian matrix of the states-constraints
+     * @param Jconmv Jacobian matrix of the input-constraints
+     * @param Jcone Jacobian matrix of the slack-constraints
+     * @param x0 current state configuration
+     * @param u0 current optimal input configuration
+     * @param e0 current slack value
+     * @param f0 current user inequality constraints values
+     */
     void computeIneqJacobian(
         mat<Tineq, (dim.ph * dim.nx)>& Jconx,
         mat<Tineq, (dim.ph * dim.nu)>& Jconmv,
@@ -585,6 +713,15 @@ private:
         Jcone = (f1 - f2) / (2 * de);
     }
 
+    /**
+     * @brief Approximate the user defined equality constraints Jacobian matrices
+     * 
+     * @param Jconx Jacobian matrix of the states-constraints
+     * @param Jconmv Jacobian matrix of the input-constraints
+     * @param x0 current state configuration
+     * @param u0 current optimal input configuration
+     * @param f0 current user equality constraints values
+     */
     void computeEqJacobian(
         mat<dim.eq, (dim.ph * dim.nx)>& Jconx,
         mat<dim.eq, (dim.ph * dim.nu)>& Jconmv,
@@ -667,6 +804,15 @@ private:
         }
     }
 
+    /**
+     * @brief Approximate the system's dynamics equality constraints Jacobian matrices
+     * 
+     * @param Jconx Jacobian matrix of the states-constraints
+     * @param Jmv Jacobian matrix of the states-inputs
+     * @param f0 current user equality constraints values
+     * @param x0 current state configuration
+     * @param u0 current optimal input configuration
+     */
     void computeStateEqJacobian(
         mat<Tnx, Tnx>& Jx,
         mat<Tnx, Tnu>& Jmv,

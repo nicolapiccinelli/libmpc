@@ -5,6 +5,16 @@
 #include <mpc/ProblemBuilder.hpp>
 
 namespace mpc {
+/**
+ * @brief Linear MPC front-end class
+ * 
+ * @tparam Tnx dimension of the state space
+ * @tparam Tnu dimension of the input space
+ * @tparam Tndu dimension of the measured disturbance space
+ * @tparam Tny dimension of the output space
+ * @tparam Tph length of the prediction horizon
+ * @tparam Tch length of the control horizon
+ */
 template <
     int Tnx = Eigen::Dynamic, int Tnu = Eigen::Dynamic, int Tndu = Eigen::Dynamic,
     int Tny = Eigen::Dynamic, int Tph = Eigen::Dynamic, int Tch = Eigen::Dynamic>
@@ -23,30 +33,59 @@ public:
     LMPC() = default;
     ~LMPC() = default;
 
+    /**
+     * @brief (NOT AVAILABLE) Set the discretization time step to use for numerical integration 
+     */
     bool setContinuosTimeModel(const double /*ts*/)
     {
         throw std::runtime_error("Linear MPC supports only discrete time systems");
         return false;
     }
 
+    /**
+     * @brief  Set the solver specific parameters
+     * 
+     * @param param desired parameters (the structure must be of type LParameters)
+     */
     void setOptimizerParameters(const Parameters param)
     {
         checkOrQuit();
         ((LOptimizer<Tnx, Tnu, Tndu, Tny, Tph, Tch>*)optPtr)->setParameters(param);
     }
 
+    /**
+     * @brief (NOT AVAILABLE) Set the scaling factor for the control input
+     * 
+     */
     void setInputScale(const cvec<Tnu> /*scaling*/)
     {
         throw std::runtime_error("Linear MPC does not support input scaling");
         checkOrQuit();
     }
 
+    /**
+     * @brief (NOT AVAILABLE) Set the scaling factor for the dynamical system's states variables
+     * 
+     */
     void setStateScale(const cvec<Tnx> /*scaling*/)
     {
         throw std::runtime_error("Linear MPC does not support state scaling");
         checkOrQuit();
     }
 
+    /**
+     * @brief Set the state, input and output box constraints, the constraints are applied equally
+     * along the prediction horizon
+     * 
+     * @param XMin minimum state vector
+     * @param UMin minimum input vector
+     * @param YMin minimum output vector
+     * @param XMax maximum state vector
+     * @param UMax maximum input vector
+     * @param YMax maximum output vector
+     * @return true 
+     * @return false 
+     */
     bool setConstraints(
         const cvec<Tnx> XMin, const cvec<Tnu> UMin, const cvec<Tny> YMin,
         const cvec<Tnx> XMax, const cvec<Tnu> UMax, const cvec<Tny> YMax)
@@ -84,6 +123,16 @@ public:
             XMaxMat, UMaxMat, YMaxMat);
     }
 
+    /**
+     * @brief Set the objective function weights, the weights are applied equally
+     * along the prediction horizon
+     * 
+     * @param OWeight weights for the output vector
+     * @param UWeight weights for the optimal control input vector
+     * @param DeltaUWeight weight for the variation of the optimal control input vector
+     * @return true 
+     * @return false 
+     */
     bool setObjectiveWeights(
         const cvec<Tny>& OWeight,
         const cvec<Tnu>& UWeight,
@@ -112,6 +161,16 @@ public:
         return builder.setObjective(OWeightMat, UWeightMat, DeltaUWeightMat);
     }
 
+    /**
+     * @brief Set the state space model matrices
+     * x(k+1) = A*x(k) + B*u(k) + Bd*d(k)
+     * y(k) = C*x(k) + Dd*d(k)
+     * @param A state update matrix
+     * @param B input matrix
+     * @param C output matrix
+     * @return true 
+     * @return false 
+     */
     bool setStateSpaceModel(
         const mat<Tnx, Tnx>& A, const mat<Tnx, Tnu>& B,
         const mat<Tny, Tnx>& C)
@@ -122,9 +181,18 @@ public:
         return builder.setStateModel(A, B, C);
     }
 
+    /**
+     * @brief Set the disturbances matrices
+     * x(k+1) = A*x(k) + B*u(k) + Bd*d(k)
+     * y(k) = C*x(k) + Dd*d(k)
+     * @param Bd state disturbance matrix 
+     * @param Dd output disturbance matrix
+     * @return true 
+     * @return false 
+     */
     bool setDisturbances(
-        const mat<Tnx, Tndu> &B, 
-        const mat<Tny, Tndu> &D
+        const mat<Tnx, Tndu> &Bd, 
+        const mat<Tny, Tndu> &Dd
     )
     {
         checkOrQuit();
@@ -133,12 +201,28 @@ public:
         return builder.setExogenuosInput(B, D);
     }
 
+    /**
+     * @brief Set the exogenuos inputs vector
+     * 
+     * @param uMeas measured exogenuos input
+     * @return true 
+     * @return false 
+     */
     bool setExogenuosInputs(
         const cvec<Tndu>& uMeas)
     {
         return ((LOptimizer<Tnx, Tnu, Tndu, Tny, Tph, Tch>*)optPtr)->setExogenuosInputs(uMeas);
     }
 
+    /**
+     * @brief Set the references vector for the objective function
+     * 
+     * @param outRef reference for the output
+     * @param cmdRef reference for the optimal control input
+     * @param deltaCmdRef reference for the variation of the optimal control input
+     * @return true 
+     * @return false 
+     */
     bool setReferences(
         const cvec<Tny> outRef,
         const cvec<Tnu> cmdRef,
@@ -148,6 +232,9 @@ public:
     }
 
 protected:
+    /**
+     * @brief Initilization hook for the linear interface
+     */
     void onSetup()
     {
         builder.initialize(
@@ -162,6 +249,9 @@ protected:
         ((LOptimizer<Tnx, Tnu, Tndu, Tny, Tph, Tch>*)optPtr)->setBuilder(&builder);
     }
 
+    /**
+     * @brief (NOT AVAILABLE) Dynamical system initial condition update hook
+     */
     void onModelUpdate(const cvec<Tnx> /*x0*/)
     {
 

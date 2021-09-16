@@ -4,15 +4,33 @@
 
 namespace mpc{
 
-// N4 runge-kutta
+/**
+ * @brief Numerical integration using Runge-Kutta 4th order
+ * 
+ * @tparam N dimension of the state vector
+ */
 template <unsigned int N>
 class RK4 {
 public:
+    /**
+     * @brief Construct a new RK4 object
+     * 
+     * @param f function handle to the system's dynamics to be integrated
+     */
     RK4(std::function<cvec<N>(double, const cvec<N>&)> f)
         : m_func(f)
     {
     }
 
+    /**
+     * @brief Compute the numerical integration of the sytem's dynamics provided
+     * 
+     * @param t initial integration time
+     * @param in initial condition
+     * @param h integration step
+     * @param integration_step number of integration step to perform multistep integration
+     * @return cvec<N> integration result
+     */
     cvec<N> run(double t, const cvec<N>& in, double h, int integration_step = 1)
     {
         cvec<N> sol = in;
