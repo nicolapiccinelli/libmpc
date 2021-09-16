@@ -11,18 +11,17 @@ TEMPLATE_TEST_CASE_SIG(
     static constexpr int Tineq = 0;
     static constexpr int Teq = 0;
 
-    mpc::ObjFunction<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> objFunc;
-    objFunc.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mpc::Objective<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> objFunc;
+    objFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     mpc::Mapping<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> mapping;
-    mapping.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     objFunc.setMapping(mapping);
-    objFunc.setContinuos(true);
-    objFunc.setUserFunction([](
+    objFunc.setObjective([](
         mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)> x,
         mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> u,
-        double e) 
+        double) 
     {
         return x.array().square().sum() + u.array().square().sum();
     });
@@ -33,9 +32,10 @@ TEMPLATE_TEST_CASE_SIG(
     objFunc.setCurrentState(x0);
 
     // input decision variables vector
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR((mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize)))> x, expectedGrad;
-    x.resize(mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize));
-    expectedGrad.resize(mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize));
+    mpc::cvec<MPC_DYNAMIC_TEST_VAR(((Tph * Tnx) + (Tnu * Tch) + 1))> x,expectedGrad;
+    x.resize((Tph * Tnx) + (Tnu * Tch) + 1);
+    expectedGrad.resize((Tph * Tnx) + (Tnu * Tch) + 1);
+
     for (int i = 0; i < x.rows(); i++)
     {
         x[i] = i;
@@ -47,5 +47,5 @@ TEMPLATE_TEST_CASE_SIG(
     0, 1, 0, 0, 1, 0;
 
     auto c = objFunc.evaluate(x, false);
-    REQUIRE(c.value == 65730.0);
+    REQUIRE(c.value == expectedValue);
 }

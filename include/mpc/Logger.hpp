@@ -34,7 +34,7 @@ namespace mpc
     public:
         enum log_type
         {
-            DEBUG = 0,
+            DETAIL = 0,
             INFO = 1,
             ERROR = 2
         };
@@ -62,9 +62,8 @@ namespace mpc
         Logger &log(log_type type)
         {
             Logger::instance().currentType = type;
-            if (Logger::instance().thresholdLevel <= Logger::instance().currentType)
-            {
-                *(Logger::instance().os) << "[NLMPC";
+            if ((int)Logger::instance().thresholdLevel <= (int)Logger::instance().currentType) {
+                *(Logger::instance().os) << "[MPC++";
                 if (!Logger::instance().prefix.empty())
                 {
                     *(Logger::instance().os) << " " << Logger::instance().prefix << "] ";
@@ -99,8 +98,7 @@ namespace mpc
         template <typename T>
         Logger &operator<<(const T &x)
         {
-            if (thresholdLevel <= currentType)
-            {
+            if ((int)thresholdLevel <= (int)currentType) {
                 *os << x;
             }
 
@@ -109,8 +107,7 @@ namespace mpc
 
         Logger &operator<<(std::ostream &(*f)(std::ostream &o))
         {
-            if (thresholdLevel <= currentType)
-            {
+            if ((int)thresholdLevel <= (int)currentType) {
                 *os << f;
             }
 

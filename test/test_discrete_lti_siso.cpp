@@ -25,12 +25,12 @@ int DiscreteLtiSiso()
         optsolver;
 
     optsolver.initialize(
-        true,
-        Tnx, Tnu, Tny,
+        Tnx, Tnu, 0, Tny,
         Tph, Tch,
         Tineq, Teq);
+        
     optsolver.setLoggerLevel(mpc::Logger::log_level::NORMAL);
-    optsolver.setSampleTime(ts);
+    optsolver.setContinuosTimeModel(ts);
     
     mpc::mat<MPC_DYNAMIC_TEST_VAR(Tnx), MPC_DYNAMIC_TEST_VAR(Tnx)> A(Tnx, Tnx);
     mpc::mat<MPC_DYNAMIC_TEST_VAR(Tnx), MPC_DYNAMIC_TEST_VAR(Tnu)> B(Tnx, Tnu);
@@ -64,7 +64,7 @@ int DiscreteLtiSiso()
     auto objEq = [](
         mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)> x,
         mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> u,
-        double e)
+        double)
     {
         return x.array().square().sum() + u.array().square().sum();
     };
@@ -72,9 +72,10 @@ int DiscreteLtiSiso()
 
     auto conIneq = [=](
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tineq)>& ineq,
-        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)> x,
+        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)>,
+        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tny)>,
         mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> u,
-        double e)
+        double)
     {
         for (int i = 0; i <= Tph; i++)
         {
