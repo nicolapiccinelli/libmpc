@@ -2,7 +2,7 @@
 #include <catch2/catch.hpp>
 
 TEMPLATE_TEST_CASE_SIG(
-    MPC_TEST_NAME("Checking mapping dimensions"),
+    MPC_TEST_NAME("Checking mapping dim"),
     MPC_TEST_TAGS("[mapping][template]"),
     ((int Tnx, int Tnu, int Tph, int Tch), Tnx, Tnu, Tph, Tch), 
     (1, 1, 1, 1), (5, 1, 1, 1), (5, 3, 1, 1), 
@@ -14,7 +14,7 @@ TEMPLATE_TEST_CASE_SIG(
 
     mpc::Mapping<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> mapping;
 
-    mapping.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     REQUIRE(mapping.Iz2u().rows() == Tph * Tnu);
     REQUIRE(mapping.Iz2u().cols() == Tch * Tnu);
@@ -27,6 +27,15 @@ TEMPLATE_TEST_CASE_SIG(
 
     REQUIRE(mapping.Su2z().rows() == Tnu);
     REQUIRE(mapping.Su2z().cols() == Tnu);
+
+    REQUIRE(mapping.InputScaling().rows() == Tnu);
+    REQUIRE(mapping.InputScaling().cols() == 1);
+
+    REQUIRE(mapping.StateScaling().rows() == Tnx);
+    REQUIRE(mapping.StateScaling().cols() == 1);
+
+    REQUIRE(mapping.StateInverseScaling().rows() == Tnx);
+    REQUIRE(mapping.StateInverseScaling().cols() == 1);
 }
 
 TEMPLATE_TEST_CASE_SIG(
@@ -41,12 +50,12 @@ TEMPLATE_TEST_CASE_SIG(
     static constexpr int Teq = 1;
 
     mpc::Mapping<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> mapping;
-    mapping.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     // input decision variables vector
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR((mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize)))> x;
-    x.resize(mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize));
-    for (int i = 0; i < x.rows() ; i++)
+    mpc::cvec<MPC_DYNAMIC_TEST_VAR(((Tph * Tnx) + (Tnu * Tch) + 1))> x;
+    x.resize((Tph * Tnx) + (Tnu * Tch) + 1);
+    for (int i = 0; i < x.rows(); i++)
     {
         x[i] = i;
     }

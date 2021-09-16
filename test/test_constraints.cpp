@@ -10,11 +10,12 @@ TEMPLATE_TEST_CASE_SIG(
 {
     constexpr int Teq = Tineq;
 
-    mpc::ConFunction<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> conFunc;
-    conFunc.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mpc::Constraints<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> conFunc;
+    conFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
-    REQUIRE_FALSE(conFunc.hasEqConstraintFunction());
-    REQUIRE_FALSE(conFunc.hasIneqConstraintFunction());
+    REQUIRE_FALSE(conFunc.hasEqConstraints());
+    REQUIRE_FALSE(conFunc.hasIneqConstraints());
+    REQUIRE_FALSE(conFunc.hasOutputModel());    
 }
 
 TEMPLATE_TEST_CASE_SIG(
@@ -25,15 +26,15 @@ TEMPLATE_TEST_CASE_SIG(
 {
     constexpr int Teq = 0;
 
-    mpc::ConFunction<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> conFunc;
-    conFunc.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mpc::Constraints<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> conFunc;
+    conFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     mpc::Mapping<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> mapping;
-    mapping.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     conFunc.setMapping(mapping);
     conFunc.setContinuos(true);
-    conFunc.setStateSpaceFunction([](
+    conFunc.setStateModel([](
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> &dx,
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> x,
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnu)> u)
@@ -48,18 +49,18 @@ TEMPLATE_TEST_CASE_SIG(
     conFunc.setCurrentState(x0);
 
     // input decision variables vector
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR((mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize)))> x;
-    x.resize(mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize));
+    mpc::cvec<MPC_DYNAMIC_TEST_VAR(((Tph * Tnx) + (Tnu * Tch) + 1))> x;
+    x.resize((Tph * Tnx) + (Tnu * Tch) + 1);
     for (int i = 0; i < x.rows(); i++)
     {
         x[i] = i;
     }
 
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR((mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::StateEqSize)))> costExpected;
-    costExpected.resize(mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::StateEqSize));
+    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tph * Tnx)> costExpected;
+    costExpected.resize(Tph * Tnx);
     costExpected << 0, -1, -2, -2, -2, -2, -2, -2, -2, -2;
 
-    auto c = conFunc.evaluateEq(x, false);
+    auto c = conFunc.evaluateStateModelEq(x, false);
 
     REQUIRE(c.value == costExpected);
     REQUIRE(c.grad.isZero());
@@ -73,15 +74,15 @@ TEMPLATE_TEST_CASE_SIG(
 {
     constexpr int Teq = 0;
 
-    mpc::ConFunction<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> conFunc;
-    conFunc.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mpc::Constraints<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> conFunc;
+    conFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     mpc::Mapping<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> mapping;
-    mapping.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     conFunc.setMapping(mapping);
     conFunc.setContinuos(true);
-    conFunc.setStateSpaceFunction([](
+    conFunc.setStateModel([](
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> &dx,
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> x,
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnu)> u) 
@@ -90,11 +91,12 @@ TEMPLATE_TEST_CASE_SIG(
         dx[1] = x[0];
     });
 
-    conFunc.setIneqConstraintFunction([](
+    conFunc.setIneqConstraints([](
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tineq)> &eq_con,
         mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)> x,
-        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> u,
-        double e) 
+        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tny)>,
+        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)>,
+        double) 
     {
         for (int i = 0; i < Tineq; i++)
         {
@@ -107,19 +109,18 @@ TEMPLATE_TEST_CASE_SIG(
     x0 << 10, 0;
     conFunc.setCurrentState(x0);
 
-    // input decision variables vector
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR((mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize)))> x;
-    x.resize(mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize));
+    mpc::cvec<MPC_DYNAMIC_TEST_VAR(((Tph * Tnx) + (Tnu * Tch) + 1))> x;
+    x.resize((Tph * Tnx) + (Tnu * Tch) + 1);
     for (int i = 0; i < x.rows(); i++)
     {
-        x[i] = i + 1;
+        x[i] = i;
     }
 
     mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tineq)> costExpected;
     costExpected.resize(Tineq);
     costExpected << x0[0];
 
-    auto c = conFunc.evaluateUserIneq(x, false);
+    auto c = conFunc.evaluateIneq(x, false);
 
     REQUIRE(c.value == costExpected);
     REQUIRE(c.grad.isZero());
@@ -133,15 +134,15 @@ TEMPLATE_TEST_CASE_SIG(
 {
     constexpr int Teq = 1;
 
-    mpc::ConFunction<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> conFunc;
-    conFunc.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mpc::Constraints<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> conFunc;
+    conFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     mpc::Mapping<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> mapping;
-    mapping.initialize(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     conFunc.setMapping(mapping);
     conFunc.setContinuos(true);
-    conFunc.setStateSpaceFunction([](
+    conFunc.setStateModel([](
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> &dx,
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> x,
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnu)> u) 
@@ -150,10 +151,10 @@ TEMPLATE_TEST_CASE_SIG(
         dx[1] = x[0];
     });
 
-    conFunc.setEqConstraintFunction([Teq](
+    conFunc.setEqConstraints([Teq](
         mpc::cvec<MPC_DYNAMIC_TEST_VAR(Teq)> &eq_con,
         mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)> x,
-        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> u) 
+        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)>) 
     {
         for (int i = 0; i < Teq; i++)
         {
@@ -166,19 +167,18 @@ TEMPLATE_TEST_CASE_SIG(
     x0 << 10, 0;
     conFunc.setCurrentState(x0);
 
-    // input decision variables vector
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR((mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize)))> x;
-    x.resize(mpc::Common<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>::AssignSize(mpc::sizeEnum::DecVarsSize));
+    mpc::cvec<MPC_DYNAMIC_TEST_VAR(((Tph * Tnx) + (Tnu * Tch) + 1))> x;
+    x.resize((Tph * Tnx) + (Tnu * Tch) + 1);
     for (int i = 0; i < x.rows(); i++)
     {
-        x[i] = i + 1;
+        x[i] = i;
     }
 
     mpc::cvec<Teq> costExpected;
     costExpected.resize(Teq);
     costExpected << x0[0];
 
-    auto c = conFunc.evaluateUserEq(x, false);
+    auto c = conFunc.evaluateEq(x, false);
 
     REQUIRE(c.value == costExpected);
     REQUIRE(c.grad.isZero());

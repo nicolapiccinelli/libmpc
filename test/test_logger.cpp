@@ -21,7 +21,7 @@ TEST_CASE("Checking logger verbosity", "[logging]")
     SECTION("Level NONE")
     {
         mpc::Logger::instance().setLevel(mpc::Logger::log_level::NONE);
-        mpc::Logger::instance().log(mpc::Logger::log_type::DEBUG) << "a";
+        mpc::Logger::instance().log(mpc::Logger::log_type::DETAIL) << "a";
         REQUIRE(ss.str().size() == 0);
 
         ss.str("");
@@ -38,7 +38,7 @@ TEST_CASE("Checking logger verbosity", "[logging]")
     SECTION("Level DEEP")
     {
         mpc::Logger::instance().setLevel(mpc::Logger::log_level::DEEP);
-        mpc::Logger::instance().log(mpc::Logger::log_type::DEBUG) << "a";
+        mpc::Logger::instance().log(mpc::Logger::log_type::DETAIL) << "a";
         REQUIRE(ss.str().size() > 0);
 
         ss.str("");
@@ -55,7 +55,7 @@ TEST_CASE("Checking logger verbosity", "[logging]")
     SECTION("Level INFO")
     {
         mpc::Logger::instance().setLevel(mpc::Logger::log_level::NORMAL);
-        mpc::Logger::instance().log(mpc::Logger::log_type::DEBUG) << "a";
+        mpc::Logger::instance().log(mpc::Logger::log_type::DETAIL) << "a";
         REQUIRE(ss.str().size() == 0);
 
         ss.str("");
@@ -72,7 +72,7 @@ TEST_CASE("Checking logger verbosity", "[logging]")
     SECTION("Level ERROR")
     {
         mpc::Logger::instance().setLevel(mpc::Logger::log_level::ALERT);
-        mpc::Logger::instance().log(mpc::Logger::log_type::DEBUG) << "a";
+        mpc::Logger::instance().log(mpc::Logger::log_type::DETAIL) << "a";
         REQUIRE(ss.str().size() == 0);
 
         ss.str("");
