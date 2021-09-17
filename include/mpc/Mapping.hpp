@@ -4,6 +4,18 @@
 
 namespace mpc {
 
+/**
+ * @brief Utility class for manipulating the scaling and the transformations
+ * necessary to compute the non-linear optimization problem
+ * 
+ * @tparam Tnx dimension of the state space
+ * @tparam Tnu dimension of the input space
+ * @tparam Tny dimension of the output space
+ * @tparam Tph length of the prediction horizon
+ * @tparam Tch length of the control horizon
+ * @tparam Tineq number of the user inequality constraints
+ * @tparam Teq number of the user equality constraints
+ */
 template <
     int Tnx, int Tnu, int Tny,
     int Tph, int Tch,
@@ -19,6 +31,11 @@ public:
     {
     }
 
+    /**
+     * @brief Initialization hook override. Performing initialization in this
+     * method ensures the correct problem dimensions assigment has been
+     * already performed
+     */
     void onInit()
     {
         Iz2uMat.resize((dim.ph.num() * dim.nu.num()), (dim.nu.num() * dim.ch.num()));
@@ -37,63 +54,117 @@ public:
         computeMapping();
     }
 
+    /**
+     * @brief Set the input scaling matrix
+     * 
+     * @param scaling input scaling vector
+     */
     void setInputScaling(const cvec<dim.nu> scaling)
     {
         input_scaling = scaling;
         computeMapping();
     }
 
+    /**
+     * @brief Set the state scaling matrix
+     * 
+     * @param scaling state scaling vector
+     */
     void setStateScaling(const cvec<Tnx> scaling)
     {
         state_scaling = scaling;
         inverse_state_scaling = scaling.cwiseInverse();
     }
 
+    /**
+     * @brief Accesor to the optimal vector to input mapping matrix
+     * 
+     * @return mat<(dim.ph * dim.nu), (dim.nu * dim.ch)> mapping matrix
+     */
     mat<(dim.ph * dim.nu), (dim.nu * dim.ch)> Iz2u()
     {
         checkOrQuit();
         return Iz2uMat;
     }
 
+    /**
+     * @brief Accesor to the inverse of the optimal vector to input mapping matrix
+     * 
+     * @return mat<(dim.nu * dim.ch), (dim.ph * dim.nu)> mapping matrix
+     */
     mat<(dim.nu * dim.ch), (dim.ph * dim.nu)> Iu2z()
     {
         checkOrQuit();
         return Iu2zMat;
     }
 
+    /**
+     * @brief Accesor to the scaled optimal vector to input mapping matrix
+     * 
+     * @return mat<dim.nu, dim.nu> mapping matrix
+     */
     mat<dim.nu, dim.nu> Sz2u()
     {
         checkOrQuit();
         return Sz2uMat;
     }
 
+    /**
+     * @brief Accesor to the inverse of scaled optimal vector to input mapping matrix
+     * 
+     * @return mat<dim.nu, dim.nu> mapping matrix
+     */
     mat<dim.nu, dim.nu> Su2z()
     {
         checkOrQuit();
         return Su2zMat;
     }
 
+    /**
+     * @brief Get the current state scaling vector
+     * 
+     * @return cvec<Tnx> scaling vector
+     */
     cvec<Tnx> StateScaling()
     {
         checkOrQuit();
         return state_scaling;
     }
 
+    /**
+     * @brief Get the inverse of the current state scaling vector
+     * 
+     * @return cvec<Tnx> scaling vector
+     */
     cvec<Tnx> StateInverseScaling()
     {
         checkOrQuit();
         return inverse_state_scaling;
     }
 
+    /**
+     * @brief Get the current input scaling vector
+     * 
+     * @return cvec<Tnx> scaling vector
+     */
     cvec<dim.nu> InputScaling()
     {
         checkOrQuit();
         return input_scaling;
     }
 
+    /**
+     * @brief Convert from optimal vector to the state, input and slackness sub-vectors
+     * 
+     * @param x current optimal vector
+     * @param x0 current system's dynamics initial condition
+     * @param Xmat state vector along the prediction horizon
+     * @param Umat input vector along the prediction horizon
+     * @param slack slackness values along the prediction horizon
+     */
     void unwrapVector(
         const cvec<((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>())> x,
-        cvec<Tnx> x0,
+        const cvec<Tnx> x0,
         mat<(dim.ph + Dim<1>()), Tnx>& Xmat,
         mat<(dim.ph + Dim<1>()), dim.nu>& Umat,
         double& slack)
@@ -137,6 +208,9 @@ protected:
     cvec<Tnx> state_scaling, inverse_state_scaling;
 
 private:
+    /**
+     * @brief Utility function to compute the mapping matrices
+     */
     void computeMapping()
     {
         static cvec<dim.ch> m;

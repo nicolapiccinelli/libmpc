@@ -6,6 +6,16 @@
 #include <osqp/osqp.h>
 
 namespace mpc {
+/**
+ * @brief Linear MPC optimizer interface class
+ * 
+ * @tparam Tnx dimension of the state space
+ * @tparam Tnu dimension of the input space
+ * @tparam Tndu dimension of the measured disturbance space
+ * @tparam Tny dimension of the output space
+ * @tparam Tph length of the prediction horizon
+ * @tparam Tch length of the control horizon
+ */
 template <
     int Tnx, int Tnu, int Tndu,
     int Tny, int Tph, int Tch>
@@ -32,13 +42,18 @@ public:
         }
     }
 
+    /**
+     * @brief Initialization hook override. Performing initialization in this
+     * method ensures the correct problem dimensions assigment has been
+     * already performed
+     */
     void onInit()
     {
         settings = (OSQPSettings*)c_malloc(sizeof(OSQPSettings));
 
         initData();
 
-        setParameters(Parameters());
+        setParameters(LParameters());
 
         last_r.cmd.resize(dim.nu.num());
         last_r.cmd.setZero();
@@ -56,12 +71,22 @@ public:
         currentSlack = 0;
     }
 
+    /**
+     * @brief Set the proble builder
+     * 
+     * @param b optimal problem builder
+     */
     void setBuilder(ProblemBuilder<Tnx, Tnu, Tndu, Tny, Tph, Tch>* b)
     {
         checkOrQuit();
         builder = b;
     }
 
+    /**
+     * @brief Set the optmiziation parameters
+     * 
+     * @param param parameters desired
+     */
     void setParameters(const Parameters param)
     {
         checkOrQuit();
@@ -73,6 +98,15 @@ public:
             << std::endl;
     }
 
+    /**
+     * @brief Set the references vector for the objective function
+     * 
+     * @param outRef reference for the output
+     * @param cmdRef reference for the optimal control input
+     * @param deltaCmdRef reference for the variation of the optimal control input
+     * @return true 
+     * @return false 
+     */
     bool setReferences(
         const cvec<Tny>& outRef,
         const cvec<Tnu>& cmdRef,
@@ -85,12 +119,26 @@ public:
         return true;
     }
 
+    /**
+     * @brief Set the exogenuos inputs vector
+     * 
+     * @param uMeas measured exogenuos input
+     * @return true 
+     * @return false 
+     */
     bool setExogenuosInputs(const cvec<Tndu>& uMeas)
     {
         extInputMeas = uMeas;
         return true;
     }
 
+    /**
+     * @brief Implementation of the optimization step
+     * 
+     * @param x0 system's variables initial condition
+     * @param u0 control action initial condition for warm start
+     * @return Result<Tnu> optimization result
+     */
     Result<Tnu> run(
         const cvec<Tnx>& x0,
         const cvec<Tnu>& u0)
@@ -188,6 +236,14 @@ public:
     }
 
 private:
+    /**
+     * @brief Create an osqp sparse matrix from a sparse eigen matrix
+     * 
+     * @param eigenSparseMatrix sparse eigen matrix
+     * @param osqpSparseMatrix osqp sparse matrix
+     * @return true 
+     * @return false 
+     */
     bool createOsqpSparseMatrix(const smat& eigenSparseMatrix, csc*& osqpSparseMatrix)
     {
         // Copying into a new sparse matrix to be sure to use a CSC matrix
@@ -234,6 +290,9 @@ private:
         return true;
     }
 
+    /**
+     * @brief Clear the current allocated osqp problem data structures
+     */
     void clearData()
     {
         if (data) {
@@ -247,6 +306,9 @@ private:
         }
     }
 
+    /**
+     * @brief Initialize the osqp problem data structures
+     */
     void initData()
     {
         data = (OSQPData*)c_malloc(sizeof(OSQPData));

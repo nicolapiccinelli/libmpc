@@ -3,6 +3,18 @@
 #include <mpc/Base.hpp>
 
 namespace mpc {
+
+/**
+ * @brief Managment of the objective function for the non-linear mpc
+ * 
+ * @tparam Tnx dimension of the state space
+ * @tparam Tnu dimension of the input space
+ * @tparam Tny dimension of the output space
+ * @tparam Tph length of the prediction horizon
+ * @tparam Tch length of the control horizon
+ * @tparam Tineq number of the user inequality constraints
+ * @tparam Teq number of the user equality constraints
+ */
 template <
     int Tnx, int Tnu, int Tny,
     int Tph, int Tch,
@@ -13,6 +25,11 @@ private:
     using Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::dim;
 
 public:
+
+    /**
+     * @brief Internal structure containing the value and the gradient
+     * of the evaluated constraints.
+     */
     struct Cost {
         double value;
         cvec<((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>())> grad;
@@ -21,6 +38,12 @@ public:
     Objective() = default;
     ~Objective() = default;
 
+    /**
+     * @brief Initialization hook override used to perform the
+     * initialization procedure. Performing initialization in this
+     * method ensures the correct problem dimensions assigment has been
+     * already performed.
+     */
     void onInit()
     {
         x0.resize(dim.nx.num());
@@ -32,6 +55,13 @@ public:
         Je = 0;
     }
 
+    /**
+     * @brief Set the objective function to be minimized
+     * 
+     * @param handle function handler
+     * @return true 
+     * @return false 
+     */
     bool setObjective(
         const typename Base<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::ObjFunHandle handle)
     {
@@ -39,6 +69,13 @@ public:
         return fuser = handle, true;
     }
 
+    /**
+     * @brief Evaluate the objective function at the desired optimal vector
+     * 
+     * @param x internal optimal vector
+     * @param hasGradient request the computation of the gradient
+     * @return Cost associated cost
+     */
     Cost evaluate(
         cvec<((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>())> x,
         bool hasGradient)
@@ -118,6 +155,15 @@ public:
     }
 
 private:
+
+    /**
+     * @brief Approximate the objective function Jacobian matrices
+     * 
+     * @param x0 current state configuration
+     * @param u0 current optimal input configuration
+     * @param f0 current user inequality constraints values
+     * @param e0 current slack value
+     */
     void computeJacobian(
         mat<(dim.ph + Dim<1>()), Tnx> x0,
         mat<(dim.ph + Dim<1>()), Tnu> u0,

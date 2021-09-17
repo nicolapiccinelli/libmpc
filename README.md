@@ -1,6 +1,9 @@
 # libmpc++
-References link: https://altairlab.gitlab.io/libmpc/
-## Dependecies:
+libmpc++ is a C++ library to easily solve linear and non-linear MPC, the library requires at least C++17 and it
+is tested on Linux, MacOs and Windows.
+
+For the full references please referes to the following link: https://altairlab.gitlab.io/libmpc/
+## Dependecies
 Deploy:
 - `eigen`
 - `osqp` for linear MPC
@@ -12,4 +15,4 @@ Development:
 - `gcovr`, `lcov` GCC code coverage
 
 ## Usage
-The library is header only, simply add the include folder to your project. The project use static allocation only, big optimization problem can't be currently handled.
+The library is header only, simply add the include folder to your project and install the dependecies listed above

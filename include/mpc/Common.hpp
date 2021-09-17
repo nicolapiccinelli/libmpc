@@ -68,26 +68,50 @@ public:
      * access
      */
     struct MPCDims {
+        /**
+         * @brief Dimension of the state space
+         */
         Dim<Tnx> nx;
+        /**
+         * @brief Dimension of the input space
+         */
         Dim<Tnu> nu;
+        /**
+         * @brief Dimension of the measured disturbance space
+         */
         Dim<Tndu> ndu;
+        /**
+         * @brief Dimension of the output space
+         */
         Dim<Tny> ny;
+        /**
+         * @brief Dimension of the prediction horizon
+         */
         Dim<Tph> ph;
+        /**
+         * @brief Dimension of the control horizon
+         */
         Dim<Tch> ch;
+        /**
+         * @brief Number of the user inequality constraints
+         */
         Dim<Tineq> ineq;
+        /**
+         * @brief Number of the user equality constraints
+         */
         Dim<Teq> eq;
 
         /**
          * @brief Set the dynamic dimensions
          * 
-         * @param nx dimension of the state space
-         * @param nu dimension of the input space
-         * @param ndu dimension of the measured disturbance space
-         * @param ny dimension of the output space
-         * @param ph length of the prediction horizon
-         * @param ch length of the control horizon
-         * @param ineq number of the user inequality constraints
-         * @param eq number of the user equality constraints
+         * @param nx Dimension of the state space
+         * @param nu Dimension of the input space
+         * @param ndu Dimension of the measured disturbance space
+         * @param ny Dimension of the output space
+         * @param ph Length of the prediction horizon
+         * @param ch Length of the control horizon
+         * @param ineq Number of the user inequality constraints
+         * @param eq Number of the user equality constraints
          */
         void set(
             size_t nx, size_t nu, size_t ndu, size_t ny,

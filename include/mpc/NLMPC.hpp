@@ -7,6 +7,17 @@
 #include <mpc/NLOptimizer.hpp>
 
 namespace mpc {
+/**
+ * @brief Non-lnear MPC front-end class
+ * 
+ * @tparam Tnx dimension of the state space
+ * @tparam Tnu dimension of the input space
+ * @tparam Tny dimension of the output space
+ * @tparam Tph length of the prediction horizon
+ * @tparam Tch length of the control horizon
+ * @tparam Tineq number of the user inequality constraints
+ * @tparam Teq number of the user equality constraints
+ */
 template <
     int Tnx = Eigen::Dynamic, int Tnu = Eigen::Dynamic, int Tny = Eigen::Dynamic,
     int Tph = Eigen::Dynamic, int Tch = Eigen::Dynamic,
@@ -31,6 +42,13 @@ public:
         delete optPtr;
     }
 
+    /**
+     * @brief Set the discretization time step to use for numerical integration
+     * 
+     * @param ts sample time in seconds
+     * @return true 
+     * @return false 
+     */
     bool setContinuosTimeModel(const double ts)
     {
         checkOrQuit();
@@ -45,12 +63,23 @@ public:
         return res;
     }
 
+    /**
+     * @brief  Set the solver specific parameters
+     * 
+     * @param param desired parameters (the structure must be of type NLParameters)
+     */
     void setOptimizerParameters(const Parameters param)
     {
         checkOrQuit();
         ((NLOptimizer<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>*)optPtr)->setParameters(param);
     }
 
+    /**
+     * 
+     * @brief Set the scaling factor for the control input
+     * 
+     * @param scaling scaling vector
+     */
     void setInputScale(const cvec<Tnu> scaling)
     {
         mapping.setInputScaling(scaling);
@@ -60,6 +89,12 @@ public:
         ((NLOptimizer<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>*)optPtr)->setMapping(mapping);
     }
 
+    /**
+     * 
+     * @brief Set the scaling factor for the dynamical system's states variables
+     * 
+     * @param scaling scaling vector
+     */
     void setStateScale(const cvec<Tnx> scaling)
     {
         mapping.setStateScaling(scaling);
@@ -69,6 +104,13 @@ public:
         ((NLOptimizer<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>*)optPtr)->setMapping(mapping);
     }
 
+    /**
+     * @brief Set the handler to the function defining the objective function
+     * 
+     * @param handle function handler
+     * @return true 
+     * @return false 
+     */
     bool setObjectiveFunction(const typename Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::ObjFunHandle handle)
     {
         checkOrQuit();
@@ -87,6 +129,16 @@ public:
         return res;
     }
 
+    /**
+     * @brief Set the handler to the function defining the state space update function.
+     * Based on the type of sytem (continuos or discrete) you should provide the appropriate
+     * vector field differential equations or the finite differences update model
+     * 
+     * @param handle function handler
+     * @param eq_tol equality constraints tolerances (default 1e-10)
+     * @return true 
+     * @return false 
+     */
     bool setStateSpaceFunction(const typename Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::StateFunHandle handle,
         const float eq_tol = 1e-10)
     {
@@ -115,6 +167,14 @@ public:
         return res;
     }
 
+    /**
+     * @brief Set the handler to the function defining the user inequality constraints
+     * 
+     * @param handle function handler
+     * @param tol inequality constraints tolerances (default 1e-10)
+     * @return true 
+     * @return false 
+     */
     bool setIneqConFunction(
         const typename Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::IConFunHandle handle, const float tol = 1e-10)
     {
@@ -128,6 +188,14 @@ public:
         return res;
     }
 
+    /**
+     * @brief Set the handler to the function defining the user equality constraints
+     * 
+     * @param handle function handler
+     * @param tol equality constraints tolerances (default 1e-10)
+     * @return true 
+     * @return false 
+     */
     bool setEqConFunction(
         const typename Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::EConFunHandle handle, const float tol = 1e-10)
     {
@@ -142,6 +210,9 @@ public:
     }
 
 protected:
+    /**
+     * @brief Initilization hook for the linear interface
+     */
     void onSetup()
     {
         conF.initialize(
@@ -174,6 +245,9 @@ protected:
             << std::endl;
     }
 
+    /**
+     * @brief Dynamical system initial condition update hook
+     */
     void onModelUpdate(const cvec<Tnx> x0)
     {
         objF.setCurrentState(x0);
