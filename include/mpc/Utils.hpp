@@ -4,6 +4,18 @@
 #include <unsupported/Eigen/MatrixFunctions>
 
 namespace mpc {
+
+/**
+ * @brief Discretization of the linear system vector field
+ * 
+ * @tparam nx dimension of the state space
+ * @tparam nu dimension of the input space
+ * @param A state update matrix
+ * @param B input matrix
+ * @param Ts sampling time in seconds
+ * @param Ad discrete time state update matrix
+ * @param Bd discrete time input matrix
+ */
 template <size_t nx, size_t nu>
 void discretization(
     const mat<nx, nx>& A, const mat<nx, nu>& B, const double& Ts,
@@ -30,6 +42,20 @@ void discretization(
     Bd = res.block(0, nx, nx, nu);
 }
 
+/**
+ * @brief Discretization of the linear system vector field
+ * with input disturbances
+ * 
+ * @tparam nx dimension of the state space
+ * @tparam nu dimension of the input space
+ * @param A state update matrix
+ * @param B input matrix
+ * @param Be disturbances input matrix
+ * @param Ts sampling time in seconds
+ * @param Ad discrete time state update matrix
+ * @param Bd discrete time input matrix
+ * @param Be discrete time disturbances input matrix
+ */
 template <size_t nx, size_t nu, size_t nud>
 void discretization(
     const mat<nx, nx>& A, const mat<nx, nu>& B, const mat<nx, nud>& Be, const double& Ts,
@@ -58,6 +84,23 @@ void discretization(
     Bed = res.block(0, nx + nu, nx, nud);
 }
 
+/**
+ * @brief  Discretization of the linear system vector field
+ * and the output map
+ * 
+ * @tparam nx dimension of the state space
+ * @tparam nu dimension of the input space
+ * @tparam ny dimension of the output space
+ * @param A state update matrix
+ * @param B input matrix
+ * @param C output matrix
+ * @param D feedforward input matrix
+ * @param Ts sampling time in seconds
+ * @param Ad discrete time state update matrix
+ * @param Bd discrete time input matrix
+ * @param Cd discrete time output matrix
+ * @param Dd discrete time feedforward input matrix
+ */
 template <size_t nx, size_t nu, size_t ny>
 void discretization(
     const mat<nx, nx>& A, const mat<nx, nu>& B,
@@ -69,30 +112,4 @@ void discretization(
     Cd = C;
     Dd = D;
 }
-
-template <typename _Matrix_Type_>
-_Matrix_Type_ pinv(_Matrix_Type_ A)
-{
-    Eigen::JacobiSVD<_Matrix_Type_> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV); //M=USV*
-    double pinvtoler = 1.e-8; //tolerance
-    int row = A.rows();
-    int col = A.cols();
-    int k = std::min(row, col);
-    _Matrix_Type_ X = _Matrix_Type_::Zero(col, row);
-    _Matrix_Type_ singularValues_inv = svd.singularValues(); //singular value
-    _Matrix_Type_ singularValues_inv_mat = _Matrix_Type_::Zero(col, row);
-    for (long i = 0; i < k; ++i) {
-        if (singularValues_inv(i) > pinvtoler)
-            singularValues_inv(i) = 1.0 / singularValues_inv(i);
-        else
-            singularValues_inv(i) = 0;
-    }
-    for (long i = 0; i < k; ++i) {
-        singularValues_inv_mat(i, i) = singularValues_inv(i);
-    }
-    X = (svd.matrixV()) * (singularValues_inv_mat) * (svd.matrixU().transpose()); //X=VS+U*
-
-    return X;
-}
-
 }

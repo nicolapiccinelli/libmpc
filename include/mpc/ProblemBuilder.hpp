@@ -5,6 +5,16 @@
 #include <unsupported/Eigen/KroneckerProduct>
 
 namespace mpc {
+/**
+ * @brief Linear MPC optimal problem builder
+ * 
+ * @tparam Tnx dimension of the state space
+ * @tparam Tnu dimension of the input space
+ * @tparam Tndu dimension of the measured disturbance space
+ * @tparam Tny dimension of the output space
+ * @tparam Tph length of the prediction horizon
+ * @tparam Tch length of the control horizon
+ */
 template <int Tnx, int Tnu, int Tndu, int Tny, int Tph, int Tch>
 class ProblemBuilder : public Base<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0> {
 private:
@@ -12,8 +22,18 @@ private:
     using Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::dim;
 
 public:
+
+    /**
+     * @brief Linear optimal problem
+     */
     class Problem {
     public:
+        /**
+         * @brief Get the sparse matrices
+         * 
+         * @param Psparse objective function P matrix
+         * @param Asparse constraints A matrix
+         */
         void getSparse(smat& Psparse, smat& Asparse)
         {
             // converting P matrix to sparse and
@@ -42,6 +62,12 @@ public:
     ProblemBuilder() = default;
     ~ProblemBuilder() = default;
 
+    /**
+     * @brief Initialization hook override used to perform the
+     * initialization procedure. Performing initialization in this
+     * method ensures the correct problem dimensions assigment has been
+     * already performed.
+     */
     void onInit()
     {
         ssA.resize(dim.nu.num() + dim.nx.num(), dim.nu.num() + dim.nx.num());
@@ -111,6 +137,16 @@ public:
         mpcProblem.u.setZero();
     }
 
+    /**
+     * @brief Set the state space model matrices
+     * x(k+1) = A*x(k) + B*u(k) + Bd*d(k)
+     * y(k) = C*x(k) + Dd*d(k)
+     * @param A state update matrix
+     * @param B input matrix
+     * @param C output matrix
+     * @return true 
+     * @return false 
+     */
     bool setStateModel(
         const mat<Tnx, Tnx>& A, const mat<Tnx, Tnu>& B,
         const mat<Tny, Tnx>& C)
@@ -133,22 +169,40 @@ public:
         return buildTITerms();
     }
 
+    /**
+     * @brief Set the disturbances matrices
+     * x(k+1) = A*x(k) + B*u(k) + Bd*d(k)
+     * y(k) = C*x(k) + Dd*d(k)
+     * @param Bd state disturbance matrix 
+     * @param Dd output disturbance matrix
+     * @return true 
+     * @return false 
+     */
     bool setExogenuosInput(
-        const mat<Tnx, Tndu>& B,
-        const mat<Tny, Tndu>& D)
+        const mat<Tnx, Tndu>& Bd,
+        const mat<Tny, Tndu>& Dd)
     {
         checkOrQuit();
 
         // the exogenous inputs goes only to states and outputs
         ssBv.setZero();
-        ssBv.block(0, 0, dim.nx.num(), dim.ndu.num()) = B;
+        ssBv.block(0, 0, dim.nx.num(), dim.ndu.num()) = Bd;
 
         ssDv.setZero();
-        ssDv.block(0, 0, dim.ny.num(), dim.ndu.num()) = D;
+        ssDv.block(0, 0, dim.ny.num(), dim.ndu.num()) = Dd;
 
         return buildTITerms();
     }
 
+    /**
+     * @brief Set the objective function weights
+     * 
+     * @param OWeight weights for the output vector
+     * @param UWeight weights for the optimal control input vector
+     * @param DeltaUWeight weight for the variation of the optimal control input vector
+     * @return true 
+     * @return false 
+     */
     bool setObjective(
         const mat<Tny, (dim.ph + Dim<1>())>& OWeight,
         const mat<Tnu, (dim.ph + Dim<1>())>& UWeight,
@@ -163,6 +217,18 @@ public:
         return buildTITerms();
     }
 
+    /**
+     * @brief Set the state, input and output box constraints
+     * 
+     * @param XMin minimum state vector
+     * @param UMin minimum input vector
+     * @param YMin minimum output vector
+     * @param XMax maximum state vector
+     * @param UMax maximum input vector
+     * @param YMax maximum output vector
+     * @return true 
+     * @return false 
+     */
     bool setConstraints(
         const mat<Tnx, Tph>& XMin, const mat<Tnu, Tph>& UMin, const mat<Tny, Tph>& YMin,
         const mat<Tnx, Tph>& XMax, const mat<Tnu, Tph>& UMax, const mat<Tny, Tph>& YMax)
@@ -185,6 +251,15 @@ public:
         return buildTITerms();
     }
 
+    /**
+     * @brief Request the generation of a new MPC optimization problem
+     * 
+     * @param x0 initial condition of the system's dynamics vector
+     * @param yRef output reference vector
+     * @param uRef control input reference vector
+     * @param deltaURef control input variation reference vector
+     * @param uMeas external disturbances vector
+     */
     const Problem& get(
         const cvec<Tnx>& x0,
         const cvec<Tnu>& /*u0*/,
@@ -277,6 +352,12 @@ public:
     }
 
 private:
+    /**
+     * @brief Build the time invariant optimal control problem terms
+     * 
+     * @return true 
+     * @return false 
+     */
     bool buildTITerms()
     {
         // quadratic objective

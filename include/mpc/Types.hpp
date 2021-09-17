@@ -45,12 +45,18 @@ template <
     int N = Eigen::Dynamic>
 using rvec = Eigen::Matrix<double, 1, N>;
 
+/**
+ * @brief Shared optimizer parameters
+ */
 struct Parameters {
     Parameters() = default;
 
     int maximum_iteration = 100;
 };
 
+/**
+ * @brief Non-linear optimizer parameters
+ */
 struct NLParameters : Parameters {
     NLParameters() = default;
     NLParameters(const Parameters& p)
@@ -63,6 +69,9 @@ struct NLParameters : Parameters {
     bool hard_constraints = true;
 };
 
+/**
+ * @brief Linear optimizer parameters
+ */
 struct LParameters : Parameters {
     LParameters() = default;
     LParameters(const Parameters& p)
@@ -83,6 +92,11 @@ struct LParameters : Parameters {
     bool polish = true;
 };
 
+/**
+ * @brief Optimization control input result
+ * 
+ * @tparam Tnu dimension of the input space
+ */
 template <int Tnu = Eigen::Dynamic>
 struct Result {
     Result()
@@ -104,6 +118,13 @@ enum constraints_type {
     UEQ
 };
 
+/**
+ * @brief Utility to get the dimension based on the input flag
+ * 
+ * @param n value
+ * @param c flag
+ * @return constexpr int input dimension or -1
+ */
 inline constexpr int makeDim(const int n, bool c)
 {
     if (c) {

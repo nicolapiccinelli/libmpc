@@ -10,6 +10,17 @@
 #include <nlopt.hpp>
 
 namespace mpc {
+/**
+ * @brief Non-lnear MPC optimizer interface class
+ * 
+ * @tparam Tnx dimension of the state space
+ * @tparam Tnu dimension of the input space
+ * @tparam Tny dimension of the output space
+ * @tparam Tph length of the prediction horizon
+ * @tparam Tch length of the control horizon
+ * @tparam Tineq number of the user inequality constraints
+ * @tparam Teq number of the user equality constraints
+ */
 template <
     int Tnx, int Tnu, int Tny,
     int Tph, int Tch,
@@ -28,6 +39,11 @@ public:
         delete innerOpt;
     }
 
+    /**
+     * @brief Initialization hook override. Performing initialization in this
+     * method ensures the correct problem dimensions assigment has been
+     * already performed
+     */
     void onInit()
     {
         innerOpt = new nlopt::opt(nlopt::LD_SLSQP, ((dim.ph.num() * dim.nx.num()) + (dim.nu.num() * dim.ch.num()) + 1));
@@ -40,6 +56,11 @@ public:
         currentSlack = 0;
     }
 
+    /**
+     * @brief Set the mapping object
+     * 
+     * @param m mapping reference
+     */
     void setMapping(Mapping<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>& m)
     {
         checkOrQuit();
@@ -47,6 +68,11 @@ public:
         mapping = m;
     }
 
+    /**
+     * @brief Set the optmiziation parameters
+     * 
+     * @param param parameters desired
+     */
     void setParameters(const Parameters param)
     {
         checkOrQuit();
@@ -77,6 +103,14 @@ public:
             << std::endl;
     }
 
+    /**
+     * @brief Bind the objective function class with the internal solver
+     * objective function referemce
+     * 
+     * @param objFunc objective function class instance
+     * @return true 
+     * @return false 
+     */
     bool bind(Objective<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* objFunc)
     {
         checkOrQuit();
@@ -93,6 +127,15 @@ public:
         }
     }
 
+    /**
+     * @brief Bind the constraints class with the internal solver
+     * system's dynamics equality constraints function referemce
+     * 
+     * @param conFunc constraints class instance
+     * @param tol equality constraints tolerances
+     * @return true 
+     * @return false 
+     */
     bool bindEq(
         Constraints<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* conFunc,
         constraints_type,
@@ -120,6 +163,15 @@ public:
         }
     }
 
+    /**
+     * @brief Bind the constraints class with the internal solver
+     * user inequality constraints function referemce
+     * 
+     * @param conFunc constraints class instance
+     * @param tol inequality constraints tolerances
+     * @return true 
+     * @return false 
+     */
     bool bindUserIneq(
         Constraints<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* conFunc,
         constraints_type,
@@ -147,6 +199,16 @@ public:
         }
     }
 
+    /**
+     * @brief Bind the constraints class with the internal solver
+     * user equality constraints function referemce
+     * 
+     * @param conFunc constraints class instance
+     * @param type constraints type
+     * @param tol equality constraints tolerances
+     * @return true 
+     * @return false 
+     */
     bool bindUserEq(
         Constraints<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>* conFunc,
         constraints_type type,
@@ -174,6 +236,13 @@ public:
         }
     }
 
+    /**
+     * @brief Implementation of the optimization step
+     * 
+     * @param x0 system's variables initial condition
+     * @param u0 control action initial condition for warm start
+     * @return Result<Tnu> optimization result
+     */
     Result<Tnu> run(
         const cvec<Tnx>& x0,
         const cvec<Tnu>& u0)
@@ -275,6 +344,14 @@ public:
     }
 
 private:
+    /**
+     * @brief Forward the objective function evaluation to the internal solver
+     * 
+     * @param x current optimization vector
+     * @param grad objective gradient w.r.t. the current optimization vector
+     * @param objFunc reference to the objective class
+     * @return double objective function value
+     */
     static double nloptObjFunWrapper(
         const std::vector<double>& x,
         std::vector<double>& grad,
@@ -296,6 +373,15 @@ private:
         return res.value;
     }
 
+    /**
+     * @brief Forward the system's dynamics equality constraints evaluation to the internal solver
+     * 
+     * @param result constraints value
+     * @param n dimension of the optimization vector
+     * @param x current optimization vector
+     * @param grad equality constraints gradient w.r.t. the current optimization vector
+     * @param conFunc reference to the constraints class
+     */
     static void nloptEqConFunWrapper(
         unsigned int,
         double* result,
@@ -324,6 +410,15 @@ private:
         }
     }
 
+    /**
+     * @brief Forward the user inequality constraints evaluation to the internal solver
+     * 
+     * @param result constraints value
+     * @param n dimension of the optimization vector
+     * @param x current optimization vector
+     * @param grad equality constraints gradient w.r.t. the current optimization vector
+     * @param conFunc reference to the constraints class
+     */
     static void nloptUserIneqConFunWrapper(
         unsigned int,
         double* result,
@@ -352,6 +447,15 @@ private:
         }
     }
 
+    /**
+     * @brief Forward the user equality constraints evaluation to the internal solver
+     * 
+     * @param result constraints value
+     * @param n dimension of the optimization vector
+     * @param x current optimization vector
+     * @param grad equality constraints gradient w.r.t. the current optimization vector
+     * @param conFunc reference to the constraints class
+     */
     static void nloptUserEqConFunWrapper(
         unsigned int m,
         double* result,
