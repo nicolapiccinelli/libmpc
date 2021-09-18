@@ -9,6 +9,7 @@ image: tsgkadot/docker-doxygen
 
 pages:
   script:
+    - apk --update add ttf-freefont
     - doxygen Doxyfile
     - mv doc/html/ public/
   artifacts:
