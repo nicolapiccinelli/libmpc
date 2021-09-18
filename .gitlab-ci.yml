@@ -5,11 +5,10 @@
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Pages/Doxygen.gitlab-ci.yml
 
 # Full project: https://gitlab.com/pages/doxygen
-image: alpine
+image: nakatt/doxygen
 
 pages:
   script:
-    - apk update && apk add doxygen
     - doxygen
     - mv doc/html/ public/
   artifacts:
