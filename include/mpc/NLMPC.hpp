@@ -68,7 +68,7 @@ public:
      * 
      * @param param desired parameters (the structure must be of type NLParameters)
      */
-    void setOptimizerParameters(const Parameters param)
+    void setOptimizerParameters(const Parameters& param)
     {
         checkOrQuit();
         ((NLOptimizer<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>*)optPtr)->setParameters(param);

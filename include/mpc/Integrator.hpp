@@ -17,8 +17,7 @@ public:
      * 
      * @param f function handle to the system's dynamics to be integrated
      */
-    RK4(std::function<cvec<N>(double, const cvec<N>&)> f)
-        : m_func(f)
+    RK4(std::function<cvec<N>(double, const cvec<N>&)> f) : m_func(f)
     {
     }
 

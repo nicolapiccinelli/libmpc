@@ -1,17 +1,12 @@
-# This file is a template, and might need editing before it works on your project.
-# To contribute improvements to CI/CD templates, please follow the Development guide at:
-# https://docs.gitlab.com/ee/development/cicd/templates.html
-# This specific template is located at:
-# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Pages/Doxygen.gitlab-ci.yml
-
-# Full project: https://gitlab.com/pages/doxygen
-image: tsgkadot/docker-doxygen
+image: musicscience37/sphinx-doxygen
 
 pages:
   script:
-    - apk --update add ttf-freefont
     - doxygen Doxyfile
-    - mv doc/html/ public/
+    - pip3 install sphinx breathe sphinx_rtd_theme
+    - sphinx-build -b html docs/source/ web/sphinx-build
+    - mv web/doxygen-build/html/ web/sphinx-build/doxygen
+    - mv web/sphinx-build public/
   artifacts:
     paths:
       - public

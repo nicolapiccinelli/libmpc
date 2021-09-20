@@ -35,7 +35,7 @@ public:
      * 
      * @param param desired parameters (refers to the optimizer specific for the meaning of the parameters)
      */
-    virtual void setParameters(const Parameters param) = 0;
+    virtual void setParameters(const Parameters& param) = 0;
     /**
      * @brief Abstract caller to perform the optimization
      * 

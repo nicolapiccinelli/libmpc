@@ -46,7 +46,7 @@ public:
     /**
      * @brief Set the solver specific parameters
      */
-    virtual void setOptimizerParameters(const Parameters) = 0;
+    virtual void setOptimizerParameters(const Parameters&) = 0;
 
     /**
      * @brief Implements the initilization hook to provide shared initilization logic

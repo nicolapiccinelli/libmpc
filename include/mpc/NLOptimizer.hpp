@@ -48,7 +48,7 @@ public:
     {
         innerOpt = new nlopt::opt(nlopt::LD_SLSQP, ((dim.ph.num() * dim.nx.num()) + (dim.nu.num() * dim.ch.num()) + 1));
 
-        setParameters(Parameters());
+        setParameters(NLParameters());
 
         last_r.cmd.resize(dim.nu.num());
         last_r.cmd.setZero();
@@ -73,15 +73,15 @@ public:
      * 
      * @param param parameters desired
      */
-    void setParameters(const Parameters param)
+    void setParameters(const Parameters& param)
     {
         checkOrQuit();
 
-        auto nl_param = static_cast<NLParameters>(param);
+        auto nl_param = dynamic_cast<const NLParameters*>(&param);
 
-        innerOpt->set_ftol_rel(nl_param.relative_ftol);
-        innerOpt->set_maxeval(nl_param.maximum_iteration);
-        innerOpt->set_xtol_rel(nl_param.relative_xtol);
+        innerOpt->set_ftol_rel(nl_param->relative_ftol);
+        innerOpt->set_maxeval(nl_param->maximum_iteration);
+        innerOpt->set_xtol_rel(nl_param->relative_xtol);
 
         std::vector<double> lb, ub;
         lb.resize(((dim.ph.num() * dim.nx.num()) + (dim.nu.num() * dim.ch.num()) + 1));
@@ -89,7 +89,7 @@ public:
 
         for (size_t i = 0; i < ((dim.ph.num() * dim.nx.num()) + (dim.nu.num() * dim.ch.num()) + 1); i++) {
             lb[i] = -std::numeric_limits<double>::infinity();
-            if (i + 1 == ((dim.ph.num() * dim.nx.num()) + (dim.nu.num() * dim.ch.num()) + 1) && nl_param.hard_constraints) {
+            if (i + 1 == ((dim.ph.num() * dim.nx.num()) + (dim.nu.num() * dim.ch.num()) + 1) && nl_param->hard_constraints) {
                 lb[i] = 0;
             }
             ub[i] = std::numeric_limits<double>::infinity();

@@ -87,11 +87,27 @@ public:
      * 
      * @param param parameters desired
      */
-    void setParameters(const Parameters param)
+    void setParameters(const Parameters& param)
     {
         checkOrQuit();
 
-        lin_params = static_cast<LParameters>(param);
+        auto lin_params = dynamic_cast<const LParameters*>(&param);
+
+        // define solver settings as default
+        if (settings) {
+            osqp_set_default_settings(settings);
+            
+            settings->alpha = lin_params->alpha;
+            settings->verbose = lin_params->verbose;
+            settings->rho = lin_params->rho;
+            settings->adaptive_rho = lin_params->adaptive_rho;
+            settings->eps_rel = lin_params->eps_rel;
+            settings->eps_abs = lin_params->eps_abs;
+            settings->eps_prim_inf = lin_params->eps_prim_inf;
+            settings->eps_dual_inf = lin_params->eps_dual_inf;
+            settings->max_iter = lin_params->maximum_iteration;
+            settings->polish = lin_params->polish;
+        }
 
         Logger::instance().log(Logger::log_type::DETAIL)
             << "Setting tolerances and stopping criterias"
@@ -186,22 +202,6 @@ public:
 
             data->l = mpcProblem.l.data();
             data->u = mpcProblem.u.data();
-        }
-
-        // define solver settings as default
-        if (settings) {
-            osqp_set_default_settings(settings);
-            // change alpha parameter
-            settings->alpha = lin_params.alpha;
-            settings->verbose = lin_params.verbose;
-            settings->rho = lin_params.rho;
-            settings->adaptive_rho = lin_params.adaptive_rho;
-            settings->eps_rel = lin_params.eps_rel;
-            settings->eps_abs = lin_params.eps_abs;
-            settings->eps_prim_inf = lin_params.eps_prim_inf;
-            settings->eps_dual_inf = lin_params.eps_dual_inf;
-            settings->max_iter = lin_params.maximum_iteration;
-            settings->polish = lin_params.polish;
         }
 
         // setup workspace
@@ -330,6 +330,5 @@ private:
     cvec<Tndu> extInputMeas;
 
     ProblemBuilder<Tnx, Tnu, Tndu, Tny, Tph, Tch>* builder;
-    LParameters lin_params;
 };
 } // namespace mpc
