@@ -2,6 +2,8 @@ image: musicscience37/sphinx-doxygen
 
 pages:
   script:
+    - mkdir -p web/doxygen-build
+    - mkdir -p web/sphinx-build
     - doxygen Doxyfile
     - pip3 install sphinx breathe sphinx_rtd_theme
     - sphinx-build -b html docs/source/ web/sphinx-build
