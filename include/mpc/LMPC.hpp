@@ -47,7 +47,7 @@ public:
      * 
      * @param param desired parameters (the structure must be of type LParameters)
      */
-    void setOptimizerParameters(const Parameters param)
+    void setOptimizerParameters(const Parameters& param)
     {
         checkOrQuit();
         ((LOptimizer<Tnx, Tnu, Tndu, Tny, Tph, Tch>*)optPtr)->setParameters(param);
@@ -198,7 +198,7 @@ public:
         checkOrQuit();
 
         Logger::instance().log(Logger::log_type::DETAIL) << "Setting disturbances matrices" << std::endl;
-        return builder.setExogenuosInput(B, D);
+        return builder.setExogenuosInput(Bd, Dd);
     }
 
     /**

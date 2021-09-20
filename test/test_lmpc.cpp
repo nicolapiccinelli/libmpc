@@ -21,12 +21,7 @@ TEST_CASE(
         num_states, num_inputs, num_dinputs, num_output,
         pred_hor, ctrl_hor);
 
-    optsolver.setLoggerLevel(mpc::Logger::log_level::NORMAL);
-
-    mpc::Logger::instance().log(mpc::Logger::log_type::INFO) << "Problem size " << 
-        num_states << " " << num_output << " " << 
-        num_inputs << " " << pred_hor << " " << 
-        ctrl_hor << std::endl;
+    optsolver.setLoggerLevel(mpc::Logger::log_level::NONE);
 
     mpc::mat<num_states, num_states> Ad;
     Ad << 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0,
@@ -65,7 +60,7 @@ TEST_CASE(
     optsolver.setStateSpaceModel(Ad, Bd, Cd);
 
     optsolver.setDisturbances(
-        mpc::mat<num_states, num_dinputs>::Zero(), 
+        mpc::mat<num_states, num_dinputs>::Zero(),
         mpc::mat<num_output, num_dinputs>::Zero());
 
     mpc::cvec<num_inputs> InputW, DeltaInputW;
@@ -105,5 +100,8 @@ TEST_CASE(
     optsolver.setReferences(yRef, mpc::cvec<num_inputs>::Zero(), mpc::cvec<num_inputs>::Zero());
     auto res = optsolver.step(mpc::cvec<num_states>::Zero(), mpc::cvec<num_inputs>::Zero());
 
-    std::cout << "res: " << res.cmd << std::endl;
+    mpc::cvec<4> testRes;
+    testRes << -0.9916, 1.74839, -0.9916, 1.74839;
+
+    REQUIRE(res.cmd.isApprox(testRes, 1e-4));
 }

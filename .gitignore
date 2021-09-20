@@ -1,6 +1,6 @@
 build/
 bin/
 lib/
-doc/
+web/
 /.vs*
 .vscode/settings.json

@@ -49,8 +49,11 @@ using rvec = Eigen::Matrix<double, 1, N>;
  * @brief Shared optimizer parameters
  */
 struct Parameters {
+protected:
     Parameters() = default;
+    virtual ~Parameters() = default;
 
+public:
     int maximum_iteration = 100;
 };
 
@@ -59,10 +62,6 @@ struct Parameters {
  */
 struct NLParameters : Parameters {
     NLParameters() = default;
-    NLParameters(const Parameters& p)
-    {
-        maximum_iteration = p.maximum_iteration;
-    }
     
     double relative_ftol = 1e-10;
     double relative_xtol = 1e-10;
@@ -74,10 +73,6 @@ struct NLParameters : Parameters {
  */
 struct LParameters : Parameters {
     LParameters() = default;
-    LParameters(const Parameters& p)
-    {
-        maximum_iteration = p.maximum_iteration;
-    }
 
     double alpha = 1.6;
     double rho = 1e-6;
