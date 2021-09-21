@@ -1,17 +1,17 @@
 # libmpc++
-libmpc++ is a C++ library to easily solve linear and non-linear MPC, the library requires at least C++17 and it
-is tested on Linux, MacOs and Windows.
+libmpc++ is a C++ library to solve linear and non-linear MPC. The library requires at least C++17 and it
+is tested to work on Linux, macOS and Windows.
 
-The libmpc website can be found at the following link: https://altairlab.gitlab.io/libmpc/
+The libmpc++ website can be found at the following link: https://altairlab.gitlab.io/libmpc/
 ## Dependecies
 Deploy:
-- `eigen`
-- `osqp` for linear MPC
-- `nlopt` for non-linear MPC
+- `Eigen3` (https://eigen.tuxfamily.org/index.php?title=Main_Page)
+- `OSQP` for linear MPC (https://osqp.org)
+- `NLopt` for non-linear MPC (https://nlopt.readthedocs.io/en/latest/)
 
 Development:
-- `boost` for stacktrace debug
-- `Catch2` test suite
+- `boost` for stacktrace debug (https://www.boost.org)
+- `Catch2` test suite (https://github.com/catchorg/Catch2)
 - `gcovr`, `lcov` GCC code coverage
 
 ## Usage

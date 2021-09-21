@@ -2,6 +2,10 @@ if(UNIX)
     set(CMAKE_CXX_FLAGS "-Wall -Werror -Wextra -std=c++17 -Wfatal-errors -Werror=return-type -g -O0 -no-pie -fno-pie")
 endif()
 
+IF("${CMAKE_CXX_COMPILER_ID}" MATCHES "(Apple)?[Cc]lang")
+    set(CMAKE_CXX_FLAGS "-Wunused-command-line-argument")
+endif()
+
 if(WIN32)
     set(CMAKE_CXX_FLAGS "/std:c++17")
 endif()
