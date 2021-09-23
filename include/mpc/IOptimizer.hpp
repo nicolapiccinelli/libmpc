@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mpc/Common.hpp>
+#include <mpc/IComponent.hpp>
 
 namespace mpc {
 /**
@@ -19,7 +19,7 @@ namespace mpc {
 template <
     int Tnx, int Tnu, int Tndu, int Tny,
     int Tph, int Tch, int Tineq, int Teq>
-class IOptimizer : public Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq> {
+class IOptimizer : public IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq> {
 public:
     virtual ~IOptimizer() {}
 

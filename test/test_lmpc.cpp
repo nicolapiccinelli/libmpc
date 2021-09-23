@@ -12,14 +12,15 @@ TEST_CASE(
     constexpr int pred_hor = 10;
     constexpr int ctrl_hor = 10;
 
-    mpc::LMPC<MPC_LIN_DYNAMIC_TEST_VARS(
-        num_states, num_inputs, num_dinputs, num_output,
-        pred_hor, ctrl_hor)>
-        optsolver;
-
-    optsolver.initialize(
+#ifdef MPC_DYNAMIC
+    mpc::LMPC<> optsolver(
         num_states, num_inputs, num_dinputs, num_output,
         pred_hor, ctrl_hor);
+#else
+    mpc::LMPC<
+        TVAR(num_states), TVAR(num_inputs), TVAR(num_dinputs), TVAR(num_output),
+        TVAR(pred_hor), TVAR(ctrl_hor)> optsolver;
+#endif
 
     optsolver.setLoggerLevel(mpc::Logger::log_level::NONE);
 

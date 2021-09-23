@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mpc/Base.hpp>
+#include <mpc/IComponent.hpp>
 #include <mpc/Utils.hpp>
 #include <unsupported/Eigen/KroneckerProduct>
 
@@ -16,10 +16,10 @@ namespace mpc {
  * @tparam Tch length of the control horizon
  */
 template <int Tnx, int Tnu, int Tndu, int Tny, int Tph, int Tch>
-class ProblemBuilder : public Base<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0> {
+class ProblemBuilder : public IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0> {
 private:
-    using Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::checkOrQuit;
-    using Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::dim;
+    using IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::checkOrQuit;
+    using IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::dim;
 
 public:
 

@@ -13,23 +13,26 @@ int VanderPol()
 
     double ts = 0.1;
 
-    mpc::NLMPC<MPC_DYNAMIC_TEST_VARS(
+#ifdef MPC_DYNAMIC
+    mpc::NLMPC<> optsolver(
         num_states, num_inputs, num_output,
         pred_hor, ctrl_hor,
-        ineq_c, eq_c)>
-        optsolver;
-
-    optsolver.initialize(
-        num_states, num_inputs, 0, num_output,
-        pred_hor, ctrl_hor,
         ineq_c, eq_c);
+#else
+    mpc::NLMPC<
+        num_states, num_inputs, num_output,
+        pred_hor, ctrl_hor,
+        ineq_c, eq_c>
+        optsolver;
+#endif
+
     optsolver.setLoggerLevel(mpc::Logger::log_level::NORMAL);
     optsolver.setContinuosTimeModel(ts);
 
     auto stateEq = [&](
-                       mpc::cvec<MPC_DYNAMIC_TEST_VAR(num_states)>& dx,
-                       mpc::cvec<MPC_DYNAMIC_TEST_VAR(num_states)> x,
-                       mpc::cvec<MPC_DYNAMIC_TEST_VAR(num_inputs)> u) {
+                       mpc::cvec<TVAR(num_states)>& dx,
+                       mpc::cvec<TVAR(num_states)> x,
+                       mpc::cvec<TVAR(num_inputs)> u) {
         dx(0) = ((1.0 - (x(1) * x(1))) * x(0)) - x(1) + u(0);
         dx(1) = x(0);
     };
@@ -37,24 +40,24 @@ int VanderPol()
     optsolver.setStateSpaceFunction(stateEq);
 
     optsolver.setObjectiveFunction([&](
-                                       mpc::mat<MPC_DYNAMIC_TEST_VAR(pred_hor + 1), MPC_DYNAMIC_TEST_VAR(num_states)> x,
-                                       mpc::mat<MPC_DYNAMIC_TEST_VAR(pred_hor + 1), MPC_DYNAMIC_TEST_VAR(num_inputs)> u,
+                                       mpc::mat<TVAR(pred_hor + 1), TVAR(num_states)> x,
+                                       mpc::mat<TVAR(pred_hor + 1), TVAR(num_inputs)> u,
                                        double) {
         return x.array().square().sum() + u.array().square().sum();
     });
 
     optsolver.setIneqConFunction([&](
-                                     mpc::cvec<MPC_DYNAMIC_TEST_VAR(ineq_c)>& in_con,
-                                     mpc::mat<MPC_DYNAMIC_TEST_VAR(pred_hor + 1), MPC_DYNAMIC_TEST_VAR(num_states)>,
-                                     mpc::mat<MPC_DYNAMIC_TEST_VAR(pred_hor + 1), MPC_DYNAMIC_TEST_VAR(num_output)>,
-                                     mpc::mat<MPC_DYNAMIC_TEST_VAR(pred_hor + 1), MPC_DYNAMIC_TEST_VAR(num_inputs)> u,
+                                     mpc::cvec<TVAR(ineq_c)>& in_con,
+                                     mpc::mat<TVAR(pred_hor + 1), TVAR(num_states)>,
+                                     mpc::mat<TVAR(pred_hor + 1), TVAR(num_output)>,
+                                     mpc::mat<TVAR(pred_hor + 1), TVAR(num_inputs)> u,
                                      double) {
         for (int i = 0; i < ineq_c; i++) {
             in_con(i) = u(i, 0) - 0.5;
         }
     });
 
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR(num_states)> modelX, modeldX;
+    mpc::cvec<TVAR(num_states)> modelX, modeldX;
     modelX.resize(num_states);
     modeldX.resize(num_states);
 

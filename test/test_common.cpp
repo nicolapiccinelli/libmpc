@@ -12,7 +12,7 @@ TEMPLATE_TEST_CASE_SIG(
     static constexpr int Tineq = 1;
     static constexpr int Teq = 1;
 
-    mpc::Mapping<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> mapping;
+    mpc::Mapping<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> mapping;
 
     mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
@@ -49,18 +49,18 @@ TEMPLATE_TEST_CASE_SIG(
     static constexpr int Tineq = 1;
     static constexpr int Teq = 1;
 
-    mpc::Mapping<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> mapping;
+    mpc::Mapping<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> mapping;
     mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     // input decision variables vector
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR(((Tph * Tnx) + (Tnu * Tch) + 1))> x;
+    mpc::cvec<TVAR(((Tph * Tnx) + (Tnu * Tch) + 1))> x;
     x.resize((Tph * Tnx) + (Tnu * Tch) + 1);
     for (int i = 0; i < x.rows(); i++)
     {
         x[i] = i;
     }
 
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> x0;
+    mpc::cvec<TVAR(Tnx)> x0;
     x0.resize(Tnx);
     for (int i = 0; i < x0.rows(); i++)
     {
@@ -68,8 +68,8 @@ TEMPLATE_TEST_CASE_SIG(
     }
 
     // unwrapped components
-    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)> Xmat;
-    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> Umat;
+    mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> Xmat;
+    mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> Umat;
     Xmat.resize(Tph + 1, Tnx);
     Umat.resize(Tph + 1, Tnu);
     double e;

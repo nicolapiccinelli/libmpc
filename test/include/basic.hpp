@@ -6,16 +6,22 @@
 #ifdef MPC_DYNAMIC
 #define MPC_DYNAMIC_TEST_NAME "Dynamic - "
 #define MPC_DYNAMIC_TEST_TAGS "[dynamic]"
-#define MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq) -1, -1, -1, -1, -1, -1, -1
-#define MPC_LIN_DYNAMIC_TEST_VARS(Tnx, Tnu, Tndu, Tny, Tph, Tch) -1, -1, -1, -1, -1, -1
-#define MPC_DYNAMIC_TEST_VAR(var) -1
+constexpr bool DYNAMIC_ALLOC = true;
 #else
 #define MPC_DYNAMIC_TEST_NAME "Static - "
 #define MPC_DYNAMIC_TEST_TAGS "[static]"
-#define MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq) Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq
-#define MPC_LIN_DYNAMIC_TEST_VARS(Tnx, Tnu, Tndu, Tny, Tph, Tch) Tnx, Tnu, Tndu, Tny, Tph, Tch
-#define MPC_DYNAMIC_TEST_VAR(var) var
+constexpr bool DYNAMIC_ALLOC = false;
 #endif
+
+constexpr int TVAR(int v)
+{
+    int ret = -1;
+    if (!DYNAMIC_ALLOC) {
+        ret = v;
+    }
+    
+    return ret;
+}
 
 #define MPC_TEST_NAME(name) MPC_DYNAMIC_TEST_NAME name
 #define MPC_TEST_TAGS(tags) MPC_DYNAMIC_TEST_TAGS tags

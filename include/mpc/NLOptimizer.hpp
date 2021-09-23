@@ -27,8 +27,8 @@ template <
     int Tineq, int Teq>
 class NLOptimizer : public IOptimizer<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq> {
 private:
-    using Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::checkOrQuit;
-    using Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::dim;
+    using IComponent<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::checkOrQuit;
+    using IComponent<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::dim;
 
 public:
     NLOptimizer() = default;

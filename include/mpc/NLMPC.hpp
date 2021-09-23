@@ -22,11 +22,13 @@ template <
     int Tnx = Eigen::Dynamic, int Tnu = Eigen::Dynamic, int Tny = Eigen::Dynamic,
     int Tph = Eigen::Dynamic, int Tch = Eigen::Dynamic,
     int Tineq = Eigen::Dynamic, int Teq = Eigen::Dynamic>
-class NLMPC : public IMPC<Tnx, Tnu,0, Tny, Tph, Tch, Tineq, Teq> {
+class NLMPC : public IMPC<Tnx, Tnu,0, Tny, Tph, Tch, Tineq, Teq> 
+{
+    
 private:
-    using Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::checkOrQuit;
     using IMPC<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::optPtr;
-    using Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::dim;
+    using IDimensionable<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::setDimension;
+    using IDimensionable<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::dim;
 
 public:
     using IMPC<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::step;
@@ -34,11 +36,20 @@ public:
     using IMPC<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::setLoggerPrefix;
     using IMPC<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::getLastResult;
 
-    NLMPC() = default;
+    NLMPC()
+    {
+        setDimension();
+    }
+
+    NLMPC(
+        const int& nx, const int& nu, const int& ny, 
+        const int& ph, const int& ch, const int& ineq, const int& eq)
+    {
+        setDimension(nx, nu, 0, ny, ph, ch, ineq, eq);
+    }
 
     ~NLMPC()
     {
-        checkOrQuit();
         delete optPtr;
     }
 
@@ -51,8 +62,6 @@ public:
      */
     bool setContinuosTimeModel(const double ts)
     {
-        checkOrQuit();
-
         Logger::instance().log(Logger::log_type::DETAIL)
             << "Setting sampling time to: "
             << ts
@@ -70,7 +79,6 @@ public:
      */
     void setOptimizerParameters(const Parameters& param)
     {
-        checkOrQuit();
         ((NLOptimizer<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq>*)optPtr)->setParameters(param);
     }
 
@@ -111,10 +119,8 @@ public:
      * @return true 
      * @return false 
      */
-    bool setObjectiveFunction(const typename Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::ObjFunHandle handle)
+    bool setObjectiveFunction(const typename IDimensionable<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::ObjFunHandle handle)
     {
-        checkOrQuit();
-
         Logger::instance().log(Logger::log_type::DETAIL)
             << "Setting objective function handle"
             << std::endl;
@@ -131,7 +137,7 @@ public:
 
     /**
      * @brief Set the handler to the function defining the state space update function.
-     * Based on the type of sytem (continuos or discrete) you should provide the appropriate
+     * Based on the type of system (continuos or discrete) you should provide the appropriate
      * vector field differential equations or the finite differences update model
      * 
      * @param handle function handler
@@ -139,11 +145,9 @@ public:
      * @return true 
      * @return false 
      */
-    bool setStateSpaceFunction(const typename Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::StateFunHandle handle,
+    bool setStateSpaceFunction(const typename IDimensionable<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::StateFunHandle handle,
         const float eq_tol = 1e-10)
     {
-        checkOrQuit();
-
         static cvec<Dim<2>() * dim.ph * dim.ny> ineq_tol_vec;
         ineq_tol_vec.resize((2 * dim.ph.num() * dim.ny.num()));
         ineq_tol_vec.setOnes();
@@ -168,6 +172,22 @@ public:
     }
 
     /**
+     * Set the handler to the function defining the output function
+     * 
+     * @param handle function handler
+     * @return true 
+     * @return false 
+     */
+    bool setOutputFunction(const typename IDimensionable<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::OutFunHandle handle)
+    {        
+        Logger::instance().log(Logger::log_type::DETAIL)
+            << "Setting output function handle"
+            << std::endl;
+
+        return conF.setOutputModel(handle);
+    }
+
+    /**
      * @brief Set the handler to the function defining the user inequality constraints
      * 
      * @param handle function handler
@@ -176,10 +196,8 @@ public:
      * @return false 
      */
     bool setIneqConFunction(
-        const typename Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::IConFunHandle handle, const float tol = 1e-10)
+        const typename IDimensionable<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::IConFunHandle handle, const float tol = 1e-10)
     {
-        checkOrQuit();
-
         cvec<Tineq> tol_vec;
         tol_vec = cvec<Tineq>::Ones(dim.ineq.num());
 
@@ -197,10 +215,8 @@ public:
      * @return false 
      */
     bool setEqConFunction(
-        const typename Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::EConFunHandle handle, const float tol = 1e-10)
+        const typename IDimensionable<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::EConFunHandle handle, const float tol = 1e-10)
     {
-        checkOrQuit();
-
         cvec<Teq> tol_vec;
         tol_vec = cvec<Teq>::Ones(dim.eq);
 

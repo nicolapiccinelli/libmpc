@@ -4,3 +4,4 @@ lib/
 web/
 /.vs*
 .vscode/settings.json
+docs/source/_build
