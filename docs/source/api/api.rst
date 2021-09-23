@@ -6,10 +6,21 @@ API references
 
 The libmpc++ API consists of the following parts:
 
+* :ref:`IMPC.hpp <impc-api>`: Common MPC interface
 * :ref:`LMPC.hpp <linear-mpc-api>`: Linear MPC interface
 * :ref:`NLMPC.hpp <nonlinear-mpc-api>`: Non-linear MPC interface
 * :ref:`Integrator.hpp <integrator-api>`: Numerical integrators
 * :ref:`Utils.hpp <utils-api>`: Utilities
+
+.. _impc-api:
+
+The MPC interface
+=================
+
+.. doxygenclass:: mpc::IMPC
+    :project: libmpc++
+    :path: ../web/doxygen-build/xml
+    :members:
 
 .. _linear-mpc-api:
 
