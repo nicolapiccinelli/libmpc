@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mpc/Common.hpp>
+#include <mpc/IDimensionable.hpp>
 #include <mpc/IOptimizer.hpp>
 
 #include <chrono>
@@ -22,7 +22,7 @@ namespace mpc {
 template <
     int Tnx, int Tnu, int Tndu, int Tny,
     int Tph, int Tch, int Tineq, int Teq>
-class IMPC : public Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq> {
+class IMPC : public IDimensionable<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq> {
 
 public:
     /**
@@ -96,8 +96,6 @@ public:
      */
     Result<Tnu> step(const cvec<Tnx> x0, const cvec<Tnu> lastU)
     {
-        checkOrQuit();
-
         onModelUpdate(x0);
 
         Logger::instance().log(Logger::log_type::INFO)
@@ -123,7 +121,6 @@ public:
      */
     Result<Tnu> getLastResult()
     {
-        checkOrQuit();
         return result;
     }
 
@@ -137,8 +134,7 @@ protected:
      */
     virtual void onModelUpdate(const cvec<Tnx>) = 0;
 
-    using Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq>::checkOrQuit;
-    using Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq>::dim;
+    using IDimensionable<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq>::dim;
 
     IOptimizer<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq>* optPtr;
     Result<Tnu> result;

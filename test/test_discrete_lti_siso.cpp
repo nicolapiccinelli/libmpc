@@ -14,28 +14,24 @@ int DiscreteLtiSiso()
     constexpr int Tineq = (Tph + 1) * 2;
     constexpr int Teq = 0;
 
-    bool saveData = false;
-    int maxIterations = 10000;
     double ts = 0.1;
 
-    mpc::NLMPC<MPC_DYNAMIC_TEST_VARS(
+#ifdef MPC_DYNAMIC
+    mpc::NLMPC<> optsolver(
         Tnx, Tnu, Tny,
         Tph, Tch,
-        Tineq, Teq)>
-        optsolver;
-
-    optsolver.initialize(
-        Tnx, Tnu, 0, Tny,
-        Tph, Tch,
         Tineq, Teq);
+#else
+    mpc::NLMPC<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq> optsolver;
+#endif
         
     optsolver.setLoggerLevel(mpc::Logger::log_level::NORMAL);
     optsolver.setContinuosTimeModel(ts);
     
-    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tnx), MPC_DYNAMIC_TEST_VAR(Tnx)> A(Tnx, Tnx);
-    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tnx), MPC_DYNAMIC_TEST_VAR(Tnu)> B(Tnx, Tnu);
-    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tny), MPC_DYNAMIC_TEST_VAR(Tnx)> C(Tny, Tnx);
-    mpc::mat<MPC_DYNAMIC_TEST_VAR(Tny), MPC_DYNAMIC_TEST_VAR(Tnu)> D(Tny, Tnu);
+    mpc::mat<TVAR(Tnx), TVAR(Tnx)> A(Tnx, Tnx);
+    mpc::mat<TVAR(Tnx), TVAR(Tnu)> B(Tnx, Tnu);
+    mpc::mat<TVAR(Tny), TVAR(Tnx)> C(Tny, Tnx);
+    mpc::mat<TVAR(Tny), TVAR(Tnu)> D(Tny, Tnu);
     
     A << 1, 0,
          1, 1;
@@ -45,25 +41,27 @@ int DiscreteLtiSiso()
     D << 0;
 
     auto stateEq = [=](
-        mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)>& dx,
-        mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> x,
-        mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnu)> u)
+        mpc::cvec<TVAR(Tnx)>& dx,
+        mpc::cvec<TVAR(Tnx)> x,
+        mpc::cvec<TVAR(Tnu)> u)
     {
         dx = A*x + B*u; 
     };
     optsolver.setStateSpaceFunction(stateEq);
 
     auto outEq = [=](
-        mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tny)>& y,
-        mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> x,
-        mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnu)> u)
+        mpc::cvec<TVAR(Tny)>& y,
+        mpc::cvec<TVAR(Tnx)> x,
+        mpc::cvec<TVAR(Tnu)> u)
     {
         y = C*x + D*u; 
     };
 
+    optsolver.setOutputFunction(outEq);
+
     auto objEq = [](
-        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)> x,
-        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> u,
+        mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
+        mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> u,
         double)
     {
         return x.array().square().sum() + u.array().square().sum();
@@ -71,10 +69,10 @@ int DiscreteLtiSiso()
     optsolver.setObjectiveFunction(objEq);
 
     auto conIneq = [=](
-        mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tineq)>& ineq,
-        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)>,
-        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tny)>,
-        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> u,
+        mpc::cvec<TVAR(Tineq)>& ineq,
+        mpc::mat<TVAR(Tph + 1), TVAR(Tnx)>,
+        mpc::mat<TVAR(Tph + 1), TVAR(Tny)>,
+        mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> u,
         double)
     {
         for (int i = 0; i <= Tph; i++)
@@ -85,60 +83,17 @@ int DiscreteLtiSiso()
     };
     optsolver.setIneqConFunction(conIneq);
 
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> modelX(Tnx);
+    mpc::cvec<TVAR(Tnx)> modelX(Tnx);
     modelX << 10,
               0;
 
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnu)> modelU(Tnu);
+    mpc::cvec<TVAR(Tnu)> modelU(Tnu);
     modelU << 0;
 
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tny)> modelY(Tny);
+    mpc::cvec<TVAR(Tny)> modelY(Tny);
     modelY << 0;
 
-    auto r = optsolver.getLastResult();
-
-    std::ofstream yFile;
-    std::ofstream xFile;
-    std::ofstream uFile;
-    std::ofstream tFile;
-
-    if(saveData)
-    {
-        yFile.open("y.txt");
-        xFile.open("x.txt");
-        uFile.open("u.txt");
-        tFile.open("t.txt");
-    }
-
-    for (int i=0; i<maxIterations; i++) 
-    {
-        if(saveData)
-        {
-            yFile << modelY.transpose() << std::endl;
-            xFile << modelX.transpose() << std::endl;
-            uFile << modelU.transpose() << std::endl;
-            tFile << (double)i * ts << std::endl;
-        }
-
-        r = optsolver.step(modelX, modelU);
-
-        modelU = r.cmd;
-        outEq(modelY, modelX, modelU);
-        stateEq(modelX, modelX, modelU);
-
-        if (std::fabs(modelX(0)) <= 1e-4) 
-        {
-            break;
-        }
-    }
-
-    if(saveData)
-    {
-        yFile.close();
-        xFile.close();
-        uFile.close();
-        tFile.close();
-    }
+    optsolver.getLastResult();
     return 0;
 }
 

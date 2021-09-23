@@ -1,5 +1,5 @@
 DOXYFILE_ENCODING      = UTF-8
-PROJECT_NAME     = "libmpc"
+PROJECT_NAME     = "libmpc++"
 PROJECT_NUMBER   =
 PROJECT_BRIEF    =
 PROJECT_LOGO     =

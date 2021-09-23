@@ -19,7 +19,7 @@ import sphinx_rtd_theme
 
 # -- Project information -----------------------------------------------------
 
-project = u'Libmpc'
+project = u'libmpc++'
 copyright = u'2021, Nicola Piccinelli'
 author = u'Nicola Piccinelli'
 
@@ -45,9 +45,9 @@ extensions = [
 ]
 
 # breathe config
-breathe_default_project = "libmpc"
+breathe_default_project = "libmpc++"
 breathe_domain_by_extension = {"hpp": "cpp"}
-breathe_projects = {"libmpc": "../../web/doxygen-build/xml"}
+breathe_projects = {"libmpc++": "../../web/doxygen-build/xml"}
 breathe_show_define_initializer = False
 
 # Add any paths that contain templates here, relative to this directory.
@@ -110,7 +110,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'Libmpcdoc'
+htmlhelp_basename = 'libmpc++doc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -126,7 +126,11 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     #
-    # 'preamble': '',
+    'preamble': r'''
+\usepackage{bm}
+\usepackage{amssymb}
+\usepackage{amsmath}
+''',
 
     # Latex figure (float) alignment
     #
@@ -137,7 +141,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'Libmpc.tex', u'Libmpc Documentation',
+    (master_doc, 'libmpc++.tex', u'libmpc++ Documentation',
      u'Nicola Piccinelli', 'manual'),
 ]
 
@@ -147,7 +151,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'libmpc', u'Libmpc Documentation',
+    (master_doc, 'libmpc++', u'libmpc++ Documentation',
      [author], 1)
 ]
 
@@ -158,8 +162,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'Libmpc', u'Libmpc Documentation',
-     author, 'Libmpc', 'One line description of project.',
+    (master_doc, 'libmpc++', u'libmpc++ Documentation',
+     author, 'libmpc++', 'One line description of project.',
      'Miscellaneous'),
 ]
 

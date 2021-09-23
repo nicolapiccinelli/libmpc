@@ -2,8 +2,8 @@
 
 #include <mpc/Base.hpp>
 
-namespace mpc {
-
+namespace mpc
+{
 /**
  * @brief Managment of the user-defined and sytem dynamic constraints 
  * for the non-linear mpc
@@ -20,13 +20,13 @@ template <
     int Tnx, int Tnu, int Tny,
     int Tph, int Tch,
     int Tineq, int Teq>
-class Constraints : public Base<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq> {
+class Constraints : public Base<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>
+{
 private:
-    using Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::checkOrQuit;
-    using Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::dim;
+    using IComponent<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::checkOrQuit;
+    using IComponent<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::dim;
 
 public:
-
     /**
      * @brief Internal structure containing the value and the gradient
      * of the evaluated constraints.
@@ -34,7 +34,8 @@ public:
      * @tparam Tcon number of the constraints
      */
     template <int Tcon = Eigen::Dynamic>
-    struct Cost {
+    struct Cost
+    {
         cvec<Tcon> value;
         cvec<(Dim<Tcon>() * ((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>()))> grad;
     };
@@ -194,13 +195,25 @@ public:
 
         mapping.unwrapVector(x, x0, Xmat, Umat, e);
 
-        if (hasIneqConstraints()) {
+        if (hasIneqConstraints())
+        {
             // check if the output function of the system is defined
             // if so, let's compute the output along the horizon
-            mat<(dim.ph + Dim<1>()), Tny> Ymat;
+            mat<(dim.ph + Dim<1>()), dim.ny> Ymat;
+            Ymat.resize(dim.ph.num() + 1, dim.ny.num());
             Ymat.setZero();
-            if (hasOutputModel()) {
-                outUser(Ymat, Xmat, Umat);
+            
+            if (hasOutputModel())
+            {
+                for (size_t i = 0; i < dim.ph.num() + 1; i++)
+                {
+                    cvec<dim.ny> YmatRow;
+                    YmatRow.resize(dim.ny.num());
+                    YmatRow.setZero();
+
+                    outUser(YmatRow, Xmat.row(i), Umat.row(i));
+                    Ymat.row(i) = YmatRow;
+                }
             }
 
             ieqUser(cineq_user, Xmat, Ymat, Umat, e);
@@ -230,10 +243,13 @@ public:
                 Jie);
 
             auto scaled_Jcineq_user = Jcineq_user;
-            for (int j = 0; j < Jcineq_user.cols(); j++) {
+            for (int j = 0; j < Jcineq_user.cols(); j++)
+            {
                 int ioff = 0;
-                for (size_t k = 0; k < dim.ph.num(); k++) {
-                    for (size_t ix = 0; ix < dim.nx.num(); ix++) {
+                for (size_t k = 0; k < dim.ph.num(); k++)
+                {
+                    for (size_t ix = 0; ix < dim.nx.num(); ix++)
+                    {
                         scaled_Jcineq_user(ioff + ix, j) = scaled_Jcineq_user(ioff + ix, j) * mapping.StateScaling()(ix);
                     }
                     ioff = ioff + dim.nx.num();
@@ -241,14 +257,16 @@ public:
             }
 
             Jcineq_user = scaled_Jcineq_user;
-        } else {
+        }
+        else
+        {
             cineq_user.setZero();
             Jcineq_user.setZero();
         }
 
         Cost<Tineq> c;
         c.value = cineq_user;
-        c.grad = Eigen::Map<cvec<(dim.ineq * ((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>()))>>(
+        c.grad = Eigen::Map<cvec<(dim.ineq * ((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>()))> >(
             Jcineq_user.data(),
             Jcineq_user.size());
 
@@ -257,11 +275,14 @@ public:
             << std::setprecision(10)
             << c.value
             << std::endl;
-        if (!hasGradient) {
+        if (!hasGradient)
+        {
             Logger::instance().log(Logger::log_type::DETAIL)
                 << "Gradient user inequality constraints not currently used"
                 << std::endl;
-        } else {
+        }
+        else
+        {
             Logger::instance().log(Logger::log_type::DETAIL)
                 << "User inequality constraints gradient:\n"
                 << std::setprecision(10)
@@ -291,7 +312,7 @@ public:
 
         Cost<(dim.ph * dim.nx)> c;
         c.value = ceq;
-        c.grad = Eigen::Map<cvec<((dim.ph * dim.nx) * ((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>()))>>(
+        c.grad = Eigen::Map<cvec<((dim.ph * dim.nx) * ((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>()))> >(
             Jceq.data(),
             Jceq.size());
 
@@ -300,11 +321,14 @@ public:
             << std::setprecision(10)
             << c.value
             << std::endl;
-        if (!hasGradient) {
+        if (!hasGradient)
+        {
             Logger::instance().log(Logger::log_type::DETAIL)
                 << "State equality constraints gradient not currectly used"
                 << std::endl;
-        } else {
+        }
+        else
+        {
             Logger::instance().log(Logger::log_type::DETAIL)
                 << "State equality constraints gradient:\n"
                 << std::setprecision(10)
@@ -330,7 +354,8 @@ public:
         mapping.unwrapVector(x, x0, Xmat, Umat, e);
 
         // Add user defined constraints
-        if (hasEqConstraints()) {
+        if (hasEqConstraints())
+        {
             eqUser(ceq_user, Xmat, Umat);
 
             mat<dim.eq, (dim.ph * dim.nx)> Jeqx;
@@ -353,10 +378,13 @@ public:
                 cvec<dim.eq>::Zero(dim.eq.num()));
 
             auto scaled_Jceq_user = Jceq_user;
-            for (int j = 0; j < Jceq_user.cols(); j++) {
+            for (int j = 0; j < Jceq_user.cols(); j++)
+            {
                 int ioff = 0;
-                for (size_t k = 0; k < dim.ph.num(); k++) {
-                    for (size_t ix = 0; ix < dim.nx.num(); ix++) {
+                for (size_t k = 0; k < dim.ph.num(); k++)
+                {
+                    for (size_t ix = 0; ix < dim.nx.num(); ix++)
+                    {
                         scaled_Jceq_user(ioff + ix, j) = scaled_Jceq_user(ioff + ix, j) * mapping.StateScaling()(ix);
                     }
                     ioff = ioff + dim.nx.num();
@@ -364,14 +392,16 @@ public:
             }
 
             Jceq_user = scaled_Jceq_user;
-        } else {
+        }
+        else
+        {
             ceq_user.setZero();
             Jceq_user.setZero();
         }
 
         Cost<dim.eq> c;
         c.value = ceq_user;
-        c.grad = Eigen::Map<cvec<(dim.eq * ((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>()))>>(
+        c.grad = Eigen::Map<cvec<(dim.eq * ((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>()))> >(
             Jceq_user.data(),
             Jceq_user.size());
 
@@ -380,11 +410,14 @@ public:
             << std::setprecision(10)
             << c.value
             << std::endl;
-        if (!hasGradient) {
+        if (!hasGradient)
+        {
             Logger::instance().log(Logger::log_type::DETAIL)
                 << "Gradient user equality constraints not currectly used"
                 << std::endl;
-        } else {
+        }
+        else
+        {
             Logger::instance().log(Logger::log_type::DETAIL)
                 << "User equality constraints gradient:\n"
                 << std::setprecision(10)
@@ -408,13 +441,14 @@ private:
      */
     template <int Tnc>
     void glueJacobian(
-        mat<((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>()).get(), Tnc>& Jres,
-        const mat<Tnc, (dim.ph * dim.nx).get()>& Jstate,
-        const mat<Tnc, (dim.ph * dim.nu).get()>& Jmanvar,
-        const cvec<Tnc>& Jcon)
+        mat<((dim.ph * dim.nx) + (dim.nu * dim.ch) + Dim<1>()).get(), Tnc> &Jres,
+        const mat<Tnc, (dim.ph * dim.nx).get()> &Jstate,
+        const mat<Tnc, (dim.ph * dim.nu).get()> &Jmanvar,
+        const cvec<Tnc> &Jcon)
     {
         //#pragma omp parallel for
-        for (size_t i = 0; i < dim.ph.num(); i++) {
+        for (size_t i = 0; i < dim.ph.num(); i++)
+        {
             Jres.middleRows(i * dim.nx.num(), dim.nx.num()) = Jstate.middleCols(i * dim.nx.num(), dim.nx.num()).transpose();
         }
 
@@ -422,7 +456,8 @@ private:
         Jmanvar_mat.resize(Jres.cols(), dim.ph.num() * dim.nu.num());
 
         //#pragma omp parallel for
-        for (size_t i = 0; i < dim.ph.num(); i++) {
+        for (size_t i = 0; i < dim.ph.num(); i++)
+        {
             Jmanvar_mat.block(0, i * dim.nu.num(), Jres.cols(), dim.nu.num()) = Jmanvar.middleCols(i * dim.nu.num(), dim.nu.num());
         }
 
@@ -466,9 +501,11 @@ private:
         Tx = mapping.StateScaling().asDiagonal();
 
         // TODO bind for continuos time
-        if (ctime) {
+        if (ctime)
+        {
             //#pragma omp parallel for
-            for (size_t i = 0; i < dim.ph.num(); i++) {
+            for (size_t i = 0; i < dim.ph.num(); i++)
+            {
                 cvec<dim.nu> uk;
                 uk = Umat.row(i).transpose();
                 cvec<dim.nx> xk;
@@ -491,7 +528,8 @@ private:
                 ceq.middleRows(ic, dim.nx.num()) = xk + (h * (fk + fk1)) - xk1;
                 ceq.middleRows(ic, dim.nx.num()) = ceq.middleRows(ic, dim.nx.num()).array() / mapping.StateScaling().array();
 
-                if (hasGradient) {
+                if (hasGradient)
+                {
                     mat<dim.nx, dim.nx> Ak;
                     Ak.resize(dim.nx.num(), dim.nx.num());
 
@@ -508,7 +546,8 @@ private:
 
                     computeStateEqJacobian(Ak1, Bk1, fk1, xk1, uk);
 
-                    if (i > 0) {
+                    if (i > 0)
+                    {
                         Jx.middleCols((i - 1) * dim.nx.num(), dim.nx.num()).middleRows(ic, dim.nx.num()) = Ix + (h * Sx * Ak * Tx);
                     }
 
@@ -518,9 +557,12 @@ private:
 
                 ic += dim.nx.num();
             }
-        } else {
+        }
+        else
+        {
             //#pragma omp parallel for
-            for (size_t i = 0; i < dim.ph.num(); i++) {
+            for (size_t i = 0; i < dim.ph.num(); i++)
+            {
                 cvec<Tnu> uk;
                 uk = Umat.row(i).transpose();
                 cvec<Tnx> xk;
@@ -534,7 +576,8 @@ private:
                 ceq.middleRows(ic, dim.nx.num()) = Xmat.row(i + 1).transpose() - xk1;
                 ceq.middleRows(ic, dim.nx.num()) = ceq.middleRows(ic, dim.nx.num()).array() / mapping.StateScaling().array();
 
-                if (hasGradient) {
+                if (hasGradient)
+                {
                     mat<dim.nx, dim.nx> Ak;
                     Ak.resize(dim.nx.num(), dim.nx.num());
 
@@ -547,7 +590,8 @@ private:
                     Bk = Sx * Bk;
 
                     Jx.middleCols(i * dim.nx.num(), dim.nx.num()).middleRows(ic, dim.nx.num()) = Ix;
-                    if (i > 0) {
+                    if (i > 0)
+                    {
                         Jx.middleCols((i - 1) * dim.nx.num(), dim.nx.num()).middleRows(ic, dim.nx.num()) = -Ak;
                     }
                     Jmv.middleCols(i * dim.nu.num(), dim.nu.num()).middleRows(ic, dim.nx.num()) = -Bk;
@@ -557,7 +601,8 @@ private:
             }
         }
 
-        if (hasGradient) {
+        if (hasGradient)
+        {
             glueJacobian<dim.ph * dim.nx>(Jceq, Jx, Jmv, Je);
         }
     }
@@ -574,9 +619,9 @@ private:
      * @param f0 current user inequality constraints values
      */
     void computeIneqJacobian(
-        mat<Tineq, (dim.ph * dim.nx)>& Jconx,
-        mat<Tineq, (dim.ph * dim.nu)>& Jconmv,
-        cvec<Tineq>& Jcone,
+        mat<Tineq, (dim.ph * dim.nx)> &Jconx,
+        mat<Tineq, (dim.ph * dim.nu)> &Jconmv,
+        cvec<Tineq> &Jcone,
         mat<(dim.ph + Dim<1>()), Tnx> x0,
         mat<(dim.ph + Dim<1>()), Tnu> u0,
         double e0, cvec<Tineq> f0)
@@ -593,15 +638,19 @@ private:
         mat<(dim.ph + Dim<1>()), dim.nx> Xa;
         Xa = x0.cwiseAbs();
         //#pragma omp parallel for
-        for (int i = 0; i < (int)Xa.rows(); i++) {
-            for (int j = 0; j < (int)Xa.cols(); j++) {
+        for (int i = 0; i < (int)Xa.rows(); i++)
+        {
+            for (int j = 0; j < (int)Xa.cols(); j++)
+            {
                 Xa(i, j) = (Xa(i, j) < 1) ? 1 : Xa(i, j);
             }
         }
 
         //#pragma omp parallel for
-        for (size_t i = 0; i < dim.ph.num(); i++) {
-            for (size_t j = 0; j < dim.nx.num(); j++) {
+        for (size_t i = 0; i < dim.ph.num(); i++)
+        {
+            for (size_t j = 0; j < dim.nx.num(); j++)
+            {
                 int ix = i + 1;
                 double dx = dv * Xa.array()(j);
                 x0(ix, j) = x0(ix, j) + dx;
@@ -611,9 +660,20 @@ private:
                 // check if the output function of the system is defined
                 // if so, let's compute the output along the horizon
                 mat<(dim.ph + Dim<1>()), dim.ny> y0;
+                y0.resize(dim.ph.num() + 1, dim.ny.num());
                 y0.setZero();
-                if (hasOutputModel()) {
-                    outUser(y0, x0, u0);
+
+                if (hasOutputModel())
+                {
+                    for (size_t k = 0; k < dim.ph.num() + 1; k++)
+                    {
+                        mpc::cvec<dim.ny> y0Row;
+                        y0Row.resize(dim.ny.num());
+                        y0Row.setZero();
+
+                        outUser(y0Row, x0.row(k), u0.row(k));
+                        y0.row(k) = y0Row;
+                    }
                 }
 
                 ieqUser(f, x0, y0, u0, e);
@@ -627,8 +687,10 @@ private:
         mat<(dim.ph + Dim<1>()), dim.nu> Ua;
         Ua = u0.cwiseAbs();
         //#pragma omp parallel for
-        for (int i = 0; i < (int)Ua.rows(); i++) {
-            for (int j = 0; j < (int)Ua.cols(); j++) {
+        for (int i = 0; i < (int)Ua.rows(); i++)
+        {
+            for (int j = 0; j < (int)Ua.cols(); j++)
+            {
                 Ua(i, j) = (Ua(i, j) < 1) ? 1 : Ua(i, j);
             }
         }
@@ -636,7 +698,8 @@ private:
         //#pragma omp parallel for
         for (size_t i = 0; i < (dim.ph.num() - 1); i++)
             // TODO support measured disturbaces
-            for (size_t j = 0; j < dim.nu.num(); j++) {
+            for (size_t j = 0; j < dim.nu.num(); j++)
+            {
                 int k = j;
                 double du = dv * Ua.array()(k);
                 u0(i, k) = u0(i, k) + du;
@@ -646,9 +709,20 @@ private:
                 // check if the output function of the system is defined
                 // if so, let's compute the output along the horizon
                 mat<(dim.ph + Dim<1>()), dim.ny> y0;
+                y0.resize(dim.ph.num() + 1, dim.ny.num());
                 y0.setZero();
-                if (hasOutputModel()) {
-                    outUser(y0, x0, u0);
+
+                if (hasOutputModel())
+                {
+                    for (size_t k = 0; k < dim.ph.num() + 1; k++)
+                    {
+                        mpc::cvec<dim.ny> y0Row;
+                        y0Row.resize(dim.ny.num());
+                        y0Row.setZero();
+
+                        outUser(y0Row, x0.row(k), u0.row(k));
+                        y0.row(k) = y0Row;
+                    }
                 }
 
                 ieqUser(f, x0, y0, u0, e);
@@ -660,7 +734,8 @@ private:
 
         // TODO support measured disturbaces
         //#pragma omp parallel for
-        for (size_t j = 0; j < dim.nu.num(); j++) {
+        for (size_t j = 0; j < dim.nu.num(); j++)
+        {
             int k = j;
             double du = dv * Ua.array()(k);
             u0((dim.ph.num() - 1), k) = u0((dim.ph.num() - 1), k) + du;
@@ -670,10 +745,21 @@ private:
 
             // check if the output function of the system is defined
             // if so, let's compute the output along the horizon
-            mat<(dim.ph + Dim<1>()), Tny> y0;
+            mat<(dim.ph + Dim<1>()), dim.ny> y0;
+            y0.resize(dim.ph.num() + 1, dim.ny.num());
             y0.setZero();
-            if (hasOutputModel()) {
-                outUser(y0, x0, u0);
+
+            if (hasOutputModel())
+            {
+                for (size_t k = 0; k < dim.ph.num() + 1; k++)
+                {
+                    mpc::cvec<dim.ny> y0Row;
+                    y0Row.resize(dim.ny.num());
+                    y0Row.setZero();
+
+                    outUser(y0Row, x0.row(k), u0.row(k));
+                    y0.row(k) = y0Row;
+                }
             }
 
             ieqUser(f, x0, y0, u0, e);
@@ -692,9 +778,20 @@ private:
         // check if the output function of the system is defined
         // if so, let's compute the output along the horizon
         mat<(dim.ph + Dim<1>()), dim.ny> y0;
+        y0.resize(dim.ph.num() + 1, dim.ny.num());
         y0.setZero();
-        if (hasOutputModel()) {
-            outUser(y0, x0, u0);
+
+        if (hasOutputModel())
+        {
+            for (size_t i = 0; i < dim.ph.num() + 1; i++)
+            {
+                mpc::cvec<dim.ny> y0Row;
+                y0Row.resize(dim.ny.num());
+                y0Row.setZero();
+
+                outUser(y0Row, x0.row(i), u0.row(i));
+                y0.row(i) = y0Row;
+            }
         }
 
         ieqUser(f1, x0, y0, u0, e0 + de);
@@ -705,8 +802,18 @@ private:
         // check if the output function of the system is defined
         // if so, let's compute the output along the horizon
         y0.setZero();
-        if (hasOutputModel()) {
-            outUser(y0, x0, u0);
+
+        if (hasOutputModel())
+        {
+            for (size_t i = 0; i < dim.ph.num() + 1; i++)
+            {
+                mpc::cvec<dim.ny> y0Row;
+                y0Row.resize(dim.ny.num());
+                y0Row.setZero();
+
+                outUser(y0Row, x0.row(i), u0.row(i));
+                y0.row(i) = y0Row;
+            }
         }
 
         ieqUser(f2, x0, y0, u0, e0 - de);
@@ -723,8 +830,8 @@ private:
      * @param f0 current user equality constraints values
      */
     void computeEqJacobian(
-        mat<dim.eq, (dim.ph * dim.nx)>& Jconx,
-        mat<dim.eq, (dim.ph * dim.nu)>& Jconmv,
+        mat<dim.eq, (dim.ph * dim.nx)> &Jconx,
+        mat<dim.eq, (dim.ph * dim.nu)> &Jconmv,
         mat<(dim.ph + Dim<1>()), dim.nx> x0,
         mat<(dim.ph + Dim<1>()), Tnu> u0, cvec<dim.eq> f0)
     {
@@ -738,15 +845,19 @@ private:
         mat<(dim.ph + Dim<1>()), dim.nx> Xa;
         Xa = x0.cwiseAbs();
         //#pragma omp parallel for
-        for (int i = 0; i < (int)Xa.rows(); i++) {
-            for (int j = 0; j < (int)Xa.cols(); j++) {
+        for (int i = 0; i < (int)Xa.rows(); i++)
+        {
+            for (int j = 0; j < (int)Xa.cols(); j++)
+            {
                 Xa(i, j) = (Xa(i, j) < 1) ? 1 : Xa(i, j);
             }
         }
 
         //#pragma omp parallel for
-        for (size_t i = 0; i < dim.ph.num(); i++) {
-            for (size_t j = 0; j < dim.nx.num(); j++) {
+        for (size_t i = 0; i < dim.ph.num(); i++)
+        {
+            for (size_t j = 0; j < dim.nx.num(); j++)
+            {
                 int ix = i + 1;
                 double dx = dv * Xa.array()(j);
                 x0(ix, j) = x0(ix, j) + dx;
@@ -763,16 +874,20 @@ private:
         mat<(dim.ph + Dim<1>()), Tnu> Ua;
         Ua = u0.cwiseAbs();
         //#pragma omp parallel for
-        for (int i = 0; i < (int)Ua.rows(); i++) {
-            for (int j = 0; j < (int)Ua.cols(); j++) {
+        for (int i = 0; i < (int)Ua.rows(); i++)
+        {
+            for (int j = 0; j < (int)Ua.cols(); j++)
+            {
                 Ua(i, j) = (Ua(i, j) < 1) ? 1 : Ua(i, j);
             }
         }
 
         //#pragma omp parallel for
-        for (size_t i = 0; i < (dim.ph.num() - 1); i++) {
+        for (size_t i = 0; i < (dim.ph.num() - 1); i++)
+        {
             // TODO support measured disturbaces
-            for (size_t j = 0; j < dim.nu.num(); j++) {
+            for (size_t j = 0; j < dim.nu.num(); j++)
+            {
                 int k = j;
                 double du = dv * Ua.array()(k);
                 u0(i, k) = u0(i, k) + du;
@@ -788,7 +903,8 @@ private:
 
         // TODO support measured disturbaces
         //#pragma omp parallel for
-        for (size_t j = 0; j < dim.nu.num(); j++) {
+        for (size_t j = 0; j < dim.nu.num(); j++)
+        {
             int k = j;
             double du = dv * Ua.array()(k);
             u0((dim.ph.num() - 1), k) = u0((dim.ph.num() - 1), k) + du;
@@ -814,8 +930,8 @@ private:
      * @param u0 current optimal input configuration
      */
     void computeStateEqJacobian(
-        mat<Tnx, Tnx>& Jx,
-        mat<Tnx, Tnu>& Jmv,
+        mat<Tnx, Tnx> &Jx,
+        mat<Tnx, Tnu> &Jmv,
         cvec<Tnx> f0,
         cvec<Tnx> x0,
         cvec<Tnu> u0)
@@ -828,12 +944,14 @@ private:
         cvec<dim.nx> Xa;
         Xa = x0.cwiseAbs();
         //#pragma omp parallel for
-        for (size_t i = 0; i < dim.nx.num(); i++) {
+        for (size_t i = 0; i < dim.nx.num(); i++)
+        {
             Xa(i) = (Xa(i) < 1) ? 1 : Xa(i);
         }
 
         //#pragma omp parallel for
-        for (size_t i = 0; i < dim.nx.num(); i++) {
+        for (size_t i = 0; i < dim.nx.num(); i++)
+        {
             double dx = dv * Xa(i);
             x0(i) = x0(i) + dx;
             cvec<dim.nx> f;
@@ -847,12 +965,14 @@ private:
 
         cvec<dim.nu> Ua = u0.cwiseAbs();
         //#pragma omp parallel for
-        for (size_t i = 0; i < dim.nu.num(); i++) {
+        for (size_t i = 0; i < dim.nu.num(); i++)
+        {
             Ua(i) = (Ua(i) < 1) ? 1 : Ua(i);
         }
 
         //#pragma omp parallel for
-        for (size_t i = 0; i < dim.nu.num(); i++) {
+        for (size_t i = 0; i < dim.nu.num(); i++)
+        {
             // TODO support measured disturbaces
             int k = i;
             double du = dv * Ua(k);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mpc/Common.hpp>
+#include <mpc/IComponent.hpp>
 
 namespace mpc {
 
@@ -20,14 +20,14 @@ template <
     int Tnx, int Tnu, int Tny,
     int Tph, int Tch,
     int Tineq, int Teq>
-class Mapping : public Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq> {
+class Mapping : public IComponent<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq> {
 private:
-    using Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::checkOrQuit;
-    using Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::dim;
+    using IComponent<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::checkOrQuit;
+    using IComponent<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>::dim;
 
 public:
     Mapping()
-        : Common<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>()
+        : IComponent<Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq>()
     {
     }
 

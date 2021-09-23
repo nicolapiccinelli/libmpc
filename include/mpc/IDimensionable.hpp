@@ -6,7 +6,7 @@
 namespace mpc {
 
 /**
- * @brief Abstract base class for the classes which need access
+ * @brief Abstract class for all the classes which need access
  * to the problem dimensions and to the function handlers types
  * 
  * @tparam Tnx dimension of the state space
@@ -21,20 +21,16 @@ namespace mpc {
 template <
     int Tnx, int Tnu, int Tndu, int Tny,
     int Tph, int Tch, int Tineq, int Teq>
-class Common {
+class IDimensionable {
 public:
-    Common()
+    IDimensionable()
     {
-        isInitialized = false;
+
     }
 
-    /**
-     * @brief Initialization hook used to perform sub-classes
-     * initialization procedure. Performing initialization in this
-     * method ensures the correct problem dimensions assigment has been
-     * already performed
-     */
-    virtual void onInit() = 0;
+protected:
+    // this is used just to avoid explicit construction of this class
+    virtual ~IDimensionable() = default;
 
     /**
      * @brief Initialize the dimensions of the optimization problem
@@ -51,14 +47,12 @@ public:
      * @param ineq number of the user inequality constraints
      * @param eq number of the user equality constraints
      */
-    void initialize(
+    void setDimension(
         int nx = Tnx, int nu = Tnu, int ndu = Tndu, int ny = Tny,
         int ph = Tph, int ch = Tch, int ineq = Tineq, int eq = Teq)
     {
         assert(nx >= 0 && nu >= 0 && ndu >= 0 && ny >= 0 && ph > 0 && ch > 0 && ineq >= 0 && eq >= 0);
         dim.set(nx, nu, ndu, ny, ph, ch, ineq, eq);
-        isInitialized = true;
-
         onInit();
     }
 
@@ -130,20 +124,13 @@ public:
 
     inline static MPCDims dim;
 
-protected:
-
     /**
-     * @brief Check if the object has been correctly initialized. In case
-     * the initialization has not been performed yet, the library exits
-     * causing a crash
+     * @brief Initialization hook used to perform sub-classes
+     * initialization procedure. Performing initialization in this
+     * method ensures the correct problem dimensions assigment has been
+     * already performed
      */
-    inline void checkOrQuit()
-    {
-        if (!isInitialized) {
-            Logger::instance().log(Logger::log_type::ERROR) << RED << "MPC library is not initialized, quitting..." << RESET << std::endl;
-            exit(-1);
-        }
-    }
+    virtual void onInit() = 0;
 
     using ObjFunHandle = std::function<double(
         mat<dim.ph + Dim<1>(), dim.nx>,
@@ -168,12 +155,9 @@ protected:
         cvec<dim.nu>)>;
 
     using OutFunHandle = std::function<void(
-        mat<dim.ph + Dim<1>(), dim.ny>&,
-        mat<dim.ph + Dim<1>(), dim.nx>,
-        mat<dim.ph + Dim<1>(), dim.nu>)>;
-
-private:
-    bool isInitialized;
+        cvec<dim.ny>&,
+        cvec<dim.nx>,
+        cvec<dim.nu>)>;
 };
 
 } // namespace mpc

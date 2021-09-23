@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mpc/Common.hpp>
+#include <mpc/IComponent.hpp>
 #include <mpc/Mapping.hpp>
 #include <mpc/Types.hpp>
 
@@ -21,11 +21,11 @@ namespace mpc {
  */
 template <int Tnx, int Tnu, int Tndu, int Tny,
     int Tph, int Tch, int Tineq, int Teq>
-class Base : public Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq> {
+class Base : public IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq> {
 
 public:
     Base()
-        : Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq>()
+        : IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq>()
     {
         e = 0;
         ts = 0;
@@ -66,7 +66,7 @@ public:
 
 protected:
     Mapping<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq> mapping;
-    using Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq>::dim;
+    using IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq>::dim;
 
     cvec<dim.nx> x0;
     mat<(dim.ph + Dim<1>()), dim.nx> Xmat;

@@ -11,28 +11,28 @@ TEMPLATE_TEST_CASE_SIG(
     static constexpr int Tineq = 0;
     static constexpr int Teq = 0;
 
-    mpc::Objective<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> objFunc;
+    mpc::Objective<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> objFunc;
     objFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
-    mpc::Mapping<MPC_DYNAMIC_TEST_VARS(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq)> mapping;
+    mpc::Mapping<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> mapping;
     mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     objFunc.setMapping(mapping);
     objFunc.setObjective([](
-        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnx)> x,
-        mpc::mat<MPC_DYNAMIC_TEST_VAR(Tph + 1), MPC_DYNAMIC_TEST_VAR(Tnu)> u,
+        mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
+        mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> u,
         double) 
     {
         return x.array().square().sum() + u.array().square().sum();
     });
 
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR(Tnx)> x0;
+    mpc::cvec<TVAR(Tnx)> x0;
     x0.resize(Tnx);
     x0 << 0, 0, 0, 0, 0;
     objFunc.setCurrentState(x0);
 
     // input decision variables vector
-    mpc::cvec<MPC_DYNAMIC_TEST_VAR(((Tph * Tnx) + (Tnu * Tch) + 1))> x,expectedGrad;
+    mpc::cvec<TVAR(((Tph * Tnx) + (Tnu * Tch) + 1))> x,expectedGrad;
     x.resize((Tph * Tnx) + (Tnu * Tch) + 1);
     expectedGrad.resize((Tph * Tnx) + (Tnu * Tch) + 1);
 

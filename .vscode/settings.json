@@ -79,5 +79,6 @@
         "qr": "cpp",
         "svd": "cpp",
         "orderingmethods": "cpp"
-    }
+    },
+    "restructuredtext.confPath": "${workspaceFolder}/docs/source"
 }

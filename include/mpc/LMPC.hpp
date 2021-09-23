@@ -18,10 +18,13 @@ namespace mpc {
 template <
     int Tnx = Eigen::Dynamic, int Tnu = Eigen::Dynamic, int Tndu = Eigen::Dynamic,
     int Tny = Eigen::Dynamic, int Tph = Eigen::Dynamic, int Tch = Eigen::Dynamic>
-class LMPC : public IMPC<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0> {
+class LMPC : public IMPC<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>
+{
+
 private:
     using IMPC<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::optPtr;
-    using Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::dim;
+    using IDimensionable<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::setDimension;
+    using IDimensionable<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::dim;
 
 public:
     using IMPC<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::step;
@@ -30,7 +33,19 @@ public:
     using IMPC<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::getLastResult;
 
 public:
-    LMPC() = default;
+
+    LMPC()
+    {
+        setDimension();
+    }
+
+    LMPC(
+        const int& nx, const int& nu, const int& ndu, 
+        const int& ny, const int& ph, const int& ch)
+    {
+        setDimension(nx, nu, ndu, ny, ph, ch);
+    }
+
     ~LMPC() = default;
 
     /**
@@ -49,7 +64,6 @@ public:
      */
     void setOptimizerParameters(const Parameters& param)
     {
-        checkOrQuit();
         ((LOptimizer<Tnx, Tnu, Tndu, Tny, Tph, Tch>*)optPtr)->setParameters(param);
     }
 
@@ -60,7 +74,6 @@ public:
     void setInputScale(const cvec<Tnu> /*scaling*/)
     {
         throw std::runtime_error("Linear MPC does not support input scaling");
-        checkOrQuit();
     }
 
     /**
@@ -70,7 +83,6 @@ public:
     void setStateScale(const cvec<Tnx> /*scaling*/)
     {
         throw std::runtime_error("Linear MPC does not support state scaling");
-        checkOrQuit();
     }
 
     /**
@@ -90,7 +102,6 @@ public:
         const cvec<Tnx> XMin, const cvec<Tnu> UMin, const cvec<Tny> YMin,
         const cvec<Tnx> XMax, const cvec<Tnu> UMax, const cvec<Tny> YMax)
     {
-        checkOrQuit();
 
         // replicate the bounds all along the prediction horizon
         mat<Tnx, Tph> XMinMat, XMaxMat;
@@ -138,7 +149,6 @@ public:
         const cvec<Tnu>& UWeight,
         const cvec<Tnu>& DeltaUWeight)
     {
-        checkOrQuit();
 
         // replicate the weights all along the prediction horizon
         mat<Tny, (dim.ph + Dim<1>())> OWeightMat;
@@ -175,7 +185,6 @@ public:
         const mat<Tnx, Tnx>& A, const mat<Tnx, Tnu>& B,
         const mat<Tny, Tnx>& C)
     {
-        checkOrQuit();
 
         Logger::instance().log(Logger::log_type::DETAIL) << "Setting state space model" << std::endl;
         return builder.setStateModel(A, B, C);
@@ -195,7 +204,6 @@ public:
         const mat<Tny, Tndu> &Dd
     )
     {
-        checkOrQuit();
 
         Logger::instance().log(Logger::log_type::DETAIL) << "Setting disturbances matrices" << std::endl;
         return builder.setExogenuosInput(Bd, Dd);
@@ -259,9 +267,6 @@ protected:
 
 private:
     ProblemBuilder<Tnx, Tnu, Tndu, Tny, Tph, Tch> builder;
-
-    using Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::checkOrQuit;
     using IMPC<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::result;
 };
-
 } // namespace mpc

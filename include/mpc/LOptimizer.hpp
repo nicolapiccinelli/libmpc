@@ -21,8 +21,8 @@ template <
     int Tny, int Tph, int Tch>
 class LOptimizer : public IOptimizer<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0> {
 private:
-    using Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::checkOrQuit;
-    using Common<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::dim;
+    using IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::checkOrQuit;
+    using IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::dim;
 
 public:
     LOptimizer() = default;
