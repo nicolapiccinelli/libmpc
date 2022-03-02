@@ -99,6 +99,11 @@ TEST_CASE(
     yRef << 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
     optsolver.setReferences(yRef, mpc::cvec<num_inputs>::Zero(), mpc::cvec<num_inputs>::Zero());
+    
+    mpc::LParameters params;
+    params.maximum_iteration = 250;
+    optsolver.setOptimizerParameters(params);
+
     auto res = optsolver.step(mpc::cvec<num_states>::Zero(), mpc::cvec<num_inputs>::Zero());
 
     mpc::cvec<4> testRes;
