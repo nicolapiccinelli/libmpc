@@ -23,6 +23,7 @@ class LOptimizer : public IOptimizer<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0> {
 private:
     using IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::checkOrQuit;
     using IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::dim;
+    LParameters lin_params;
 
 public:
     LOptimizer() = default;
@@ -30,16 +31,7 @@ public:
     ~LOptimizer()
     {
         checkOrQuit();
-
         clearData();
-
-        if (settings) {
-            c_free(settings);
-        }
-
-        if (work) {
-            c_free(work);
-        }
     }
 
     /**
@@ -49,12 +41,6 @@ public:
      */
     void onInit()
     {
-        settings = (OSQPSettings*)c_malloc(sizeof(OSQPSettings));
-
-        initData();
-
-        setParameters(LParameters());
-
         last_r.cmd.resize(dim.nu.num());
         last_r.cmd.setZero();
 
@@ -90,24 +76,7 @@ public:
     void setParameters(const Parameters& param)
     {
         checkOrQuit();
-
-        auto lin_params = dynamic_cast<const LParameters*>(&param);
-
-        // define solver settings as default
-        if (settings) {
-            osqp_set_default_settings(settings);
-            
-            settings->alpha = lin_params->alpha;
-            settings->verbose = lin_params->verbose;
-            settings->rho = lin_params->rho;
-            settings->adaptive_rho = lin_params->adaptive_rho;
-            settings->eps_rel = lin_params->eps_rel;
-            settings->eps_abs = lin_params->eps_abs;
-            settings->eps_prim_inf = lin_params->eps_prim_inf;
-            settings->eps_dual_inf = lin_params->eps_dual_inf;
-            settings->max_iter = lin_params->maximum_iteration;
-            settings->polish = lin_params->polish;
-        }
+        lin_params = *dynamic_cast<LParameters*>(const_cast<Parameters*>(&param));
 
         Logger::instance().log(Logger::log_type::DETAIL)
             << "Setting tolerances and stopping criterias"
@@ -183,7 +152,6 @@ public:
         int numConstraints = A.rows();
 
         // clear and create the problem data struct
-        clearData();
         initData();
 
         if (data) {
@@ -202,6 +170,22 @@ public:
 
             data->l = mpcProblem.l.data();
             data->u = mpcProblem.u.data();
+        }
+
+        // define solver settings as default
+        if (settings) {
+            osqp_set_default_settings(settings);
+
+            settings->alpha = lin_params.alpha;
+            settings->verbose = lin_params.verbose ? 1 : 0;
+            settings->rho = lin_params.rho;
+            settings->adaptive_rho = lin_params.adaptive_rho ? 1 : 0;
+            settings->eps_rel = lin_params.eps_rel;
+            settings->eps_abs = lin_params.eps_abs;
+            settings->eps_prim_inf = lin_params.eps_prim_inf;
+            settings->eps_dual_inf = lin_params.eps_dual_inf;
+            settings->max_iter = lin_params.maximum_iteration;
+            settings->polish = lin_params.polish ? 1 : 0;            
         }
 
         // setup workspace
@@ -232,6 +216,7 @@ public:
             r = last_r;
         }
 
+        clearData();
         return r;
     }
 
@@ -295,14 +280,20 @@ private:
      */
     void clearData()
     {
+        osqp_cleanup(work);
+
         if (data) {
             if (data->A) {
-                c_free(data->A);
+                csc_spfree(data->A);
             }
             if (data->P) {
-                c_free(data->P);
+                csc_spfree(data->P);
             }
             c_free(data);
+        }
+
+        if (settings) {
+            c_free(settings);
         }
     }
 
@@ -311,7 +302,9 @@ private:
      */
     void initData()
     {
+        settings = (OSQPSettings*)c_malloc(sizeof(OSQPSettings));
         data = (OSQPData*)c_malloc(sizeof(OSQPData));
+
         data->P = nullptr;
         data->A = nullptr;
     }
