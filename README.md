@@ -2,7 +2,7 @@
 libmpc++ is a C++ library to solve linear and non-linear MPC. The library is written in modern C++17 and it
 is tested to work on Linux, macOS and Windows.
 
-The libmpc++ website can be found at the following link: https://altairlab.gitlab.io/libmpc/
+The libmpc++ website can be found at the following link: https://altairlab.gitlab.io/optcontrol/libmpc/
 
 ## Dependecies
 The library depends on the following external libraries which must be installed on the machine before using libmpc++
