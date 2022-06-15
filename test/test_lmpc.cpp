@@ -1,5 +1,6 @@
 #include "basic.hpp"
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_template_test_macros.hpp>
 
 TEST_CASE(
     MPC_TEST_NAME("Linear example"),
