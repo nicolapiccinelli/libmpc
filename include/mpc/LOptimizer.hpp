@@ -131,7 +131,12 @@ public:
         checkOrQuit();
         Result<Tnu> r;
 
-        auto mpcProblem = builder->get(x0, u0, outSysRef, cmdSysRef, deltaCmdSysRef, extInputMeas);
+        auto& mpcProblem = builder->get(x0, u0, outSysRef, cmdSysRef, deltaCmdSysRef, extInputMeas);
+
+        /* Getting number of milliseconds as a double. */
+        duration<double, std::milli> ms_double = t2 - t1;
+        std::cout << "out: " << ms_double.count() << "ms\n";
+
         smat P, A;
         mpcProblem.getSparse(P, A);
 
@@ -162,14 +167,14 @@ public:
                 Logger::instance().log(Logger::log_type::ERROR) << "Unable to create the P matrix" << std::endl;
             }
 
-            data->q = mpcProblem.q.data();
+            data->q = (c_float*) mpcProblem.q.data();
 
             if (!createOsqpSparseMatrix(A, data->A)) {
                 Logger::instance().log(Logger::log_type::ERROR) << "Unable to create the A matrix" << std::endl;
             }
 
-            data->l = mpcProblem.l.data();
-            data->u = mpcProblem.u.data();
+            data->l = (c_float *) mpcProblem.l.data();
+            data->u = (c_float *) mpcProblem.u.data();
         }
 
         // define solver settings as default

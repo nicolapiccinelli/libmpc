@@ -78,7 +78,14 @@
         "lu": "cpp",
         "qr": "cpp",
         "svd": "cpp",
-        "orderingmethods": "cpp"
+        "orderingmethods": "cpp",
+        "__hash_table": "cpp",
+        "__tree": "cpp",
+        "__tuple": "cpp",
+        "locale": "cpp",
+        "__config": "cpp",
+        "__functional_03": "cpp",
+        "__functional_base": "cpp"
     },
     "restructuredtext.confPath": "${workspaceFolder}/docs/source"
 }

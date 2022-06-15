@@ -28,13 +28,17 @@ public:
      */
     class Problem {
     public:
+        Problem() = default;
+        Problem(const Problem &) = delete;
+        Problem &operator=(const Problem &) = delete;
+
         /**
          * @brief Get the sparse matrices
          * 
          * @param Psparse objective function P matrix
          * @param Asparse constraints A matrix
          */
-        void getSparse(smat& Psparse, smat& Asparse)
+        void getSparse(smat& Psparse, smat& Asparse) const
         {
             // converting P matrix to sparse and
             // getting the upper triangular part of the matrix
