@@ -133,10 +133,6 @@ public:
 
         auto& mpcProblem = builder->get(x0, u0, outSysRef, cmdSysRef, deltaCmdSysRef, extInputMeas);
 
-        /* Getting number of milliseconds as a double. */
-        duration<double, std::milli> ms_double = t2 - t1;
-        std::cout << "out: " << ms_double.count() << "ms\n";
-
         smat P, A;
         mpcProblem.getSparse(P, A);
 
