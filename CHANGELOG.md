@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.8.2] - 2022-06-20
+
+### Fixed
+- Fixed issue on compilation
+
 ## [0.0.8.1] - 2022-06-15
 
 ### Changed

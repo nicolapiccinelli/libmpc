@@ -1,6 +1,25 @@
-image: musicscience37/sphinx-doxygen
+stages:
+  - test
+  - publish
+
+test:
+  image: ubuntu:latest
+  stage: test
+  script:
+    - apt-get update
+    - apt-get install -y git lcov build-essential cmake
+    - sh configure.sh
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE=Debug ..
+    - make
+    - make test
+  only:
+    - merge_requests
 
 pages:
+  image: musicscience37/sphinx-doxygen
+  stage: publish
   script:
     - mkdir -p web/doxygen-build web/sphinx-build
     - doxygen Doxyfile
