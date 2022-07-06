@@ -4,564 +4,561 @@
 #include <mpc/Utils.hpp>
 #include <unsupported/Eigen/KroneckerProduct>
 
-namespace mpc {
-/**
- * @brief Linear MPC optimal problem builder
- * 
- * @tparam Tnx dimension of the state space
- * @tparam Tnu dimension of the input space
- * @tparam Tndu dimension of the measured disturbance space
- * @tparam Tny dimension of the output space
- * @tparam Tph length of the prediction horizon
- * @tparam Tch length of the control horizon
- */
-template <int Tnx, int Tnu, int Tndu, int Tny, int Tph, int Tch>
-class ProblemBuilder : public IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0> {
-private:
-    using IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::checkOrQuit;
-    using IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::dim;
-
-public:
-
+namespace mpc
+{
     /**
-     * @brief Linear optimal problem
+     * @brief Linear MPC optimal problem builder
+     *
+     * @tparam sizer.nx dimension of the state space
+     * @tparam sizer.nu dimension of the input space
+     * @tparam sizer.ndu dimension of the measured disturbance space
+     * @tparam sizer.ny dimension of the output space
+     * @tparam sizer.ph length of the prediction horizon
+     * @tparam Tch length of the control horizon
      */
-    class Problem {
+    template <MPCSize sizer>
+    class ProblemBuilder : public IComponent<sizer>
+    {
+    private:
+        using IComponent<sizer>::checkOrQuit;
+        using IComponent<sizer>::nu;
+        using IComponent<sizer>::nx;
+        using IComponent<sizer>::ndu;
+        using IComponent<sizer>::ny;
+        using IComponent<sizer>::ph;
+        using IComponent<sizer>::ch;
+        using IComponent<sizer>::ineq;
+        using IComponent<sizer>::eq;
+
     public:
-        Problem() = default;
-        Problem(const Problem &) = delete;
-        Problem &operator=(const Problem &) = delete;
+        /**
+         * @brief Linear optimal problem
+         */
+        class Problem
+        {
+        public:
+            Problem() = default;
+            Problem(const Problem &) = delete;
+            Problem &operator=(const Problem &) = delete;
+
+            /**
+             * @brief Get the sparse matrices
+             *
+             * @param Psparse objective function P matrix
+             * @param Asparse constraints A matrix
+             */
+            void getSparse(smat &Psparse, smat &Asparse) const
+            {
+                // converting P matrix to sparse and
+                // getting the upper triangular part of the matrix
+                Psparse = P.sparseView();
+                Psparse = Psparse.triangularView<Eigen::Upper>();
+
+                // converting A matrix to sparse
+                Asparse = A.sparseView();
+
+                // let the matrix sparse
+                Psparse.makeCompressed();
+                Asparse.makeCompressed();
+            }
+
+            // objective_matrix is P
+            mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu)), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> P;
+            // objective_vector is q
+            cvec<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> q;
+            // constraint_matrix is A
+            mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu)))), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> A;
+            // lower_bounds is l and upper_bounds is u
+            cvec<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu))))> l, u;
+        };
+
+        ProblemBuilder() = default;
+        ~ProblemBuilder() = default;
 
         /**
-         * @brief Get the sparse matrices
-         * 
-         * @param Psparse objective function P matrix
-         * @param Asparse constraints A matrix
+         * @brief Initialization hook override used to perform the
+         * initialization procedure. Performing initialization in this
+         * method ensures the correct problem dimensions assigment has been
+         * already performed.
          */
-        void getSparse(smat& Psparse, smat& Asparse) const
+        void onInit()
         {
-            // converting P matrix to sparse and
-            // getting the upper triangular part of the matrix
-            Psparse = P.sparseView();
-            Psparse = Psparse.triangularView<Eigen::Upper>();
+            ssA.resize(nu() + nx(), nu() + nx());
+            ssB.resize(nu() + nx(), nu());
+            ssC.resize(nu() + ny(), nu() + nx());
+            ssBv.resize(nu() + nx(), ndu());
+            ssDv.resize(nu() + ny(), ndu());
 
-            // converting A matrix to sparse
-            Asparse = A.sparseView();
+            wOutput.resize(ny(), (ph() + 1));
+            wU.resize(nu(), (ph() + 1));
+            wDeltaU.resize(nu(), ph());
 
-            // let the matrix sparse
-            Psparse.makeCompressed();
-            Asparse.makeCompressed();
+            minX.resize(nx(), (ph() + 1));
+            maxX.resize(nx(), (ph() + 1));
+
+            minY.resize(ny(), (ph() + 1));
+            maxY.resize(ny(), (ph() + 1));
+
+            minU.resize(nu(), ph());
+            maxU.resize(nu(), ph());
+
+            leq.resize(((ph() + 1) * (nu() + nx())));
+            ueq.resize(((ph() + 1) * (nu() + nx())));
+
+            lineq.resize((((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()))));
+            uineq.resize((((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()))));
+
+            ssA.setZero();
+            ssB.setZero();
+            ssC.setZero();
+            ssBv.setZero();
+            ssDv.setZero();
+
+            wOutput.setZero();
+            wU.setZero();
+            wDeltaU.setZero();
+
+            minX.setZero();
+            maxX.setZero();
+            minY.setZero();
+            maxY.setZero();
+            minU.setZero();
+            maxU.setZero();
+
+            leq.setZero();
+            ueq.setZero();
+            lineq.setZero();
+            uineq.setZero();
+
+            mpcProblem.P.resize(
+                (((ph() + 1) * (nu() + nx())) + (ph() * nu())),
+                (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
+            mpcProblem.q.resize(
+                (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
+            mpcProblem.A.resize(
+                (((ph() + 1) * (nu() + nx())) + ((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()))),
+                (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
+            mpcProblem.l.resize(
+                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu())))));
+            mpcProblem.u.resize(
+                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu())))));
+
+            mpcProblem.P.setZero();
+            mpcProblem.q.setZero();
+            mpcProblem.A.setZero();
+            mpcProblem.l.setZero();
+            mpcProblem.u.setZero();
         }
 
-        // objective_matrix is P
-        mat<(((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + (dim.ph * dim.nu)), (((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + (dim.ph * dim.nu))> P;
-        // objective_vector is q
-        cvec<(((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + (dim.ph * dim.nu))> q;
-        // constraint_matrix is A
-        mat<(((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + (((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + (((dim.ph + Dim<1>()) * dim.ny) + (dim.ph * dim.nu)))), (((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + (dim.ph * dim.nu))> A;
-        // lower_bounds is l and upper_bounds is u
-        cvec<(((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + (((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + (((dim.ph + Dim<1>()) * dim.ny) + (dim.ph * dim.nu))))> l, u;
-    };
+        /**
+         * @brief Set the state space model matrices
+         * x(k+1) = A*x(k) + B*u(k) + Bd*d(k)
+         * y(k) = C*x(k) + Dd*d(k)
+         * @param A state update matrix
+         * @param B input matrix
+         * @param C output matrix
+         * @return true
+         * @return false
+         */
+        bool setStateModel(
+            const mat<sizer.nx, sizer.nx> &A, const mat<sizer.nx, sizer.nu> &B,
+            const mat<sizer.ny, sizer.nx> &C)
+        {
+            checkOrQuit();
 
-    ProblemBuilder() = default;
-    ~ProblemBuilder() = default;
+            // augmenting to system to store the command input of the current timestep
+            ssA.block(0, 0, nx(), nx()) = A;
+            ssA.block(0, nx(), nx(), nu()) = B;
+            ssA.block(nx(), 0, nu(), nx()).setZero();
+            ssA.block(nx(), nx(), nu(), nu()).setIdentity();
 
-    /**
-     * @brief Initialization hook override used to perform the
-     * initialization procedure. Performing initialization in this
-     * method ensures the correct problem dimensions assigment has been
-     * already performed.
-     */
-    void onInit()
-    {
-        ssA.resize(dim.nu.num() + dim.nx.num(), dim.nu.num() + dim.nx.num());
-        ssB.resize(dim.nu.num() + dim.nx.num(), dim.nu.num());
-        ssC.resize(dim.nu.num() + dim.ny.num(), dim.nu.num() + dim.nx.num());
-        ssBv.resize(dim.nu.num() + dim.nx.num(), dim.ndu.num());
-        ssDv.resize(dim.nu.num() + dim.ny.num(), dim.ndu.num());
+            ssB.block(0, 0, nx(), nu()) = B;
+            ssB.block(nx(), 0, nu(), nu()).setIdentity();
 
-        wOutput.resize(dim.ny.num(), (dim.ph.num() + 1));
-        wU.resize(dim.nu.num(), (dim.ph.num() + 1));
-        wDeltaU.resize(dim.nu.num(), dim.ph.num());
+            // we put on the output also the command to allow its penalization
+            ssC.block(0, 0, ny(), nx()) = C;
+            ssC.block(ny(), nx(), nu(), nu()).setIdentity();
 
-        minX.resize(dim.nx.num(), (dim.ph.num() + 1));
-        maxX.resize(dim.nx.num(), (dim.ph.num() + 1));
+            return buildTITerms();
+        }
 
-        minY.resize(dim.ny.num(), (dim.ph.num() + 1));
-        maxY.resize(dim.ny.num(), (dim.ph.num() + 1));
+        /**
+         * @brief Set the disturbances matrices
+         * x(k+1) = A*x(k) + B*u(k) + Bd*d(k)
+         * y(k) = C*x(k) + Dd*d(k)
+         * @param Bd state disturbance matrix
+         * @param Dd output disturbance matrix
+         * @return true
+         * @return false
+         */
+        bool setExogenuosInput(
+            const mat<sizer.nx, sizer.ndu> &Bd,
+            const mat<sizer.ny, sizer.ndu> &Dd)
+        {
+            checkOrQuit();
 
-        minU.resize(dim.nu.num(), dim.ph.num());
-        maxU.resize(dim.nu.num(), dim.ph.num());
+            // the exogenous inputs goes only to states and outputs
+            ssBv.setZero();
+            ssBv.block(0, 0, nx(), ndu()) = Bd;
 
-        leq.resize(((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())));
-        ueq.resize(((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())));
+            ssDv.setZero();
+            ssDv.block(0, 0, ny(), ndu()) = Dd;
 
-        lineq.resize((((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (((dim.ph.num() + 1) * dim.ny.num()) + (dim.ph.num() * dim.nu.num()))));
-        uineq.resize((((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (((dim.ph.num() + 1) * dim.ny.num()) + (dim.ph.num() * dim.nu.num()))));
+            return buildTITerms();
+        }
 
-        ssA.setZero();
-        ssB.setZero();
-        ssC.setZero();
-        ssBv.setZero();
-        ssDv.setZero();
+        /**
+         * @brief Set the objective function weights
+         *
+         * @param OWeight weights for the output vector
+         * @param UWeight weights for the optimal control input vector
+         * @param DeltaUWeight weight for the variation of the optimal control input vector
+         * @return true
+         * @return false
+         */
+        bool setObjective(
+            const mat<sizer.ny, sizer.ph + 1> &OWeight,
+            const mat<sizer.nu, sizer.ph + 1> &UWeight,
+            const mat<sizer.nu, sizer.ph> &DeltaUWeight)
+        {
+            checkOrQuit();
 
-        wOutput.setZero();
-        wU.setZero();
-        wDeltaU.setZero();
+            wOutput = OWeight;
+            wU = UWeight;
+            wDeltaU = DeltaUWeight;
 
-        minX.setZero();
-        maxX.setZero();
-        minY.setZero();
-        maxY.setZero();
-        minU.setZero();
-        maxU.setZero();
+            return buildTITerms();
+        }
 
-        leq.setZero();
-        ueq.setZero();
-        lineq.setZero();
-        uineq.setZero();
+        /**
+         * @brief Set the state, input and output box constraints
+         *
+         * @param XMin minimum state vector
+         * @param UMin minimum input vector
+         * @param YMin minimum output vector
+         * @param XMax maximum state vector
+         * @param UMax maximum input vector
+         * @param YMax maximum output vector
+         * @return true
+         * @return false
+         */
+        bool setConstraints(
+            const mat<sizer.nx, sizer.ph> &XMin, const mat<sizer.nu, sizer.ph> &UMin, const mat<sizer.ny, sizer.ph> &YMin,
+            const mat<sizer.nx, sizer.ph> &XMax, const mat<sizer.nu, sizer.ph> &UMax, const mat<sizer.ny, sizer.ph> &YMax)
+        {
+            checkOrQuit();
 
-        mpcProblem.P.resize(
-            (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (dim.ph.num() * dim.nu.num())),
-            (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (dim.ph.num() * dim.nu.num())));
-        mpcProblem.q.resize(
-            (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (dim.ph.num() * dim.nu.num())));
-        mpcProblem.A.resize(
-            (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (((dim.ph.num() + 1) * dim.ny.num()) + (dim.ph.num() * dim.nu.num()))),
-            (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (dim.ph.num() * dim.nu.num())));
-        mpcProblem.l.resize(
-            (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (((dim.ph.num() + 1) * dim.ny.num()) + (dim.ph.num() * dim.nu.num())))));
-        mpcProblem.u.resize(
-            (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (((dim.ph.num() + 1) * dim.ny.num()) + (dim.ph.num() * dim.nu.num())))));
+            minX.block(0, 1, nx(), ph()) = XMin;
+            minX.col(0) = XMin.col(0);
+            maxX.block(0, 1, nx(), ph()) = XMax;
+            maxX.col(0) = XMax.col(0);
 
-        mpcProblem.P.setZero();
-        mpcProblem.q.setZero();
-        mpcProblem.A.setZero();
-        mpcProblem.l.setZero();
-        mpcProblem.u.setZero();
-    }
+            minY.block(0, 1, ny(), ph()) = YMin;
+            minY.col(0) = YMin.col(0);
+            maxY.block(0, 1, ny(), ph()) = YMax;
+            maxY.col(0) = YMax.col(0);
 
-    /**
-     * @brief Set the state space model matrices
-     * x(k+1) = A*x(k) + B*u(k) + Bd*d(k)
-     * y(k) = C*x(k) + Dd*d(k)
-     * @param A state update matrix
-     * @param B input matrix
-     * @param C output matrix
-     * @return true 
-     * @return false 
-     */
-    bool setStateModel(
-        const mat<Tnx, Tnx>& A, const mat<Tnx, Tnu>& B,
-        const mat<Tny, Tnx>& C)
-    {
-        checkOrQuit();
+            minU = UMin;
+            maxU = UMax;
 
-        // augmenting to system to store the command input of the current timestep
-        ssA.block(0, 0, dim.nx.num(), dim.nx.num()) = A;
-        ssA.block(0, dim.nx.num(), dim.nx.num(), dim.nu.num()) = B;
-        ssA.block(dim.nx.num(), 0, dim.nu.num(), dim.nx.num()).setZero();
-        ssA.block(dim.nx.num(), dim.nx.num(), dim.nu.num(), dim.nu.num()).setIdentity();
+            return buildTITerms();
+        }
 
-        ssB.block(0, 0, dim.nx.num(), dim.nu.num()) = B;
-        ssB.block(dim.nx.num(), 0, dim.nu.num(), dim.nu.num()).setIdentity();
+        /**
+         * @brief Request the generation of a new MPC optimization problem
+         *
+         * @param x0 initial condition of the system's dynamics vector
+         * @param yRef output reference vector
+         * @param uRef control input reference vector
+         * @param deltaURef control input variation reference vector
+         * @param uMeas external disturbances vector
+         */
+        const Problem &get(
+            const cvec<sizer.nx> &x0,
+            const cvec<sizer.nu> & /*u0*/,
+            const cvec<sizer.ny> &yRef,
+            const cvec<sizer.nu> &uRef,
+            const cvec<sizer.nu> &deltaURef,
+            const cvec<sizer.ndu> &uMeas)
+        {
+            // linear objective terms must be computed at each control loop since
+            // it depends on the references and the refs can changes over time
+            mat<(sizer.ny + sizer.nu), (sizer.ny + sizer.nu)> wExtendedState;
+            wExtendedState.resize((ny() + nu()), (ny() + nu()));
+            wExtendedState.setZero();
 
-        // we put on the output also the command to allow its penalization
-        ssC.block(0, 0, dim.ny.num(), dim.nx.num()) = C;
-        ssC.block(dim.ny.num(), dim.nx.num(), dim.nu.num(), dim.nu.num()).setIdentity();
+            cvec<(sizer.ny + sizer.nu)> eRef;
+            eRef.resize(ny() + nu());
+            eRef << yRef, uRef;
 
-        return buildTITerms();
-    }
+            mpcProblem.q.setZero();
+            leq.setZero();
 
-    /**
-     * @brief Set the disturbances matrices
-     * x(k+1) = A*x(k) + B*u(k) + Bd*d(k)
-     * y(k) = C*x(k) + Dd*d(k)
-     * @param Bd state disturbance matrix 
-     * @param Dd output disturbance matrix
-     * @return true 
-     * @return false 
-     */
-    bool setExogenuosInput(
-        const mat<Tnx, Tndu>& Bd,
-        const mat<Tny, Tndu>& Dd)
-    {
-        checkOrQuit();
+            for (size_t i = 0; i < ph() + 1; i++)
+            {
+                wExtendedState.block(0, 0, ny(), ny()) = wOutput.col(i).asDiagonal();
+                wExtendedState.block(
+                    ny(), ny(),
+                    nu(), nu()) = wU.col(i).asDiagonal();
 
-        // the exogenous inputs goes only to states and outputs
-        ssBv.setZero();
-        ssBv.block(0, 0, dim.nx.num(), dim.ndu.num()) = Bd;
-
-        ssDv.setZero();
-        ssDv.block(0, 0, dim.ny.num(), dim.ndu.num()) = Dd;
-
-        return buildTITerms();
-    }
-
-    /**
-     * @brief Set the objective function weights
-     * 
-     * @param OWeight weights for the output vector
-     * @param UWeight weights for the optimal control input vector
-     * @param DeltaUWeight weight for the variation of the optimal control input vector
-     * @return true 
-     * @return false 
-     */
-    bool setObjective(
-        const mat<Tny, (dim.ph + Dim<1>())>& OWeight,
-        const mat<Tnu, (dim.ph + Dim<1>())>& UWeight,
-        const mat<Tnu, Tph>& DeltaUWeight)
-    {
-        checkOrQuit();
-
-        wOutput = OWeight;
-        wU = UWeight;
-        wDeltaU = DeltaUWeight;
-
-        return buildTITerms();
-    }
-
-    /**
-     * @brief Set the state, input and output box constraints
-     * 
-     * @param XMin minimum state vector
-     * @param UMin minimum input vector
-     * @param YMin minimum output vector
-     * @param XMax maximum state vector
-     * @param UMax maximum input vector
-     * @param YMax maximum output vector
-     * @return true 
-     * @return false 
-     */
-    bool setConstraints(
-        const mat<Tnx, Tph>& XMin, const mat<Tnu, Tph>& UMin, const mat<Tny, Tph>& YMin,
-        const mat<Tnx, Tph>& XMax, const mat<Tnu, Tph>& UMax, const mat<Tny, Tph>& YMax)
-    {
-        checkOrQuit();
-
-        minX.block(0, 1, dim.nx.num(), dim.ph.num()) = XMin;
-        minX.col(0) = XMin.col(0);
-        maxX.block(0, 1, dim.nx.num(), dim.ph.num()) = XMax;
-        maxX.col(0) = XMax.col(0);
-
-        minY.block(0, 1, dim.ny.num(), dim.ph.num()) = YMin;
-        minY.col(0) = YMin.col(0);
-        maxY.block(0, 1, dim.ny.num(), dim.ph.num()) = YMax;
-        maxY.col(0) = YMax.col(0);
-
-        minU = UMin;
-        maxU = UMax;
-
-        return buildTITerms();
-    }
-
-    /**
-     * @brief Request the generation of a new MPC optimization problem
-     * 
-     * @param x0 initial condition of the system's dynamics vector
-     * @param yRef output reference vector
-     * @param uRef control input reference vector
-     * @param deltaURef control input variation reference vector
-     * @param uMeas external disturbances vector
-     */
-    const Problem& get(
-        const cvec<Tnx>& x0,
-        const cvec<Tnu>& /*u0*/,
-        const cvec<Tny>& yRef,
-        const cvec<Tnu>& uRef,
-        const cvec<Tnu>& deltaURef,
-        const cvec<Tndu>& uMeas)
-    {
-        // linear objective terms must be computed at each control loop since
-        // it depends on the references and the refs can changes over time
-        mat<(dim.ny + dim.nu), (dim.ny + dim.nu)> wExtendedState;
-        wExtendedState.resize((dim.ny.num() + dim.nu.num()), (dim.ny.num() + dim.nu.num()));
-        wExtendedState.setZero();
-
-        cvec<(dim.ny + dim.nu)> eRef;
-        eRef.resize(dim.ny.num() + dim.nu.num());
-        eRef << yRef, uRef;
-
-        mpcProblem.q.setZero();
-        leq.setZero();
-
-        for (size_t i = 0; i < dim.ph.num() + 1; i++) {
-            wExtendedState.block(0, 0, dim.ny.num(), dim.ny.num()) = wOutput.col(i).asDiagonal();
-            wExtendedState.block(
-                dim.ny.num(), dim.ny.num(),
-                dim.nu.num(), dim.nu.num())
-                = wU.col(i).asDiagonal();
-
-            mpcProblem.q.middleRows(
-                i * (dim.nx.num() + dim.nu.num()), dim.nx.num() + dim.nu.num())
-                = ssC.transpose() * wExtendedState * (-eRef + (ssDv * uMeas));
-
-            // the command increments stop at the last prediction horizon step
-            if (i < dim.ph.num()) {
                 mpcProblem.q.middleRows(
-                    ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (i * dim.nu.num()),
-                    dim.nu.num())
-                    = -(wDeltaU.col(i).asDiagonal() * deltaURef);
+                    i * (nx() + nu()), nx() + nu()) = ssC.transpose() * wExtendedState * (-eRef + (ssDv * uMeas));
+
+                // the command increments stop at the last prediction horizon step
+                if (i < ph())
+                {
+                    mpcProblem.q.middleRows(
+                        ((ph() + 1) * (nu() + nx())) + (i * nu()),
+                        nu()) = -(wDeltaU.col(i).asDiagonal() * deltaURef);
+                }
+
+                // the first entry of the state evolution is the initial condition of the states
+                if (i > 0)
+                {
+                    leq.middleRows(i * (nx() + nu()), nx() + nu()) = -ssBv * uMeas;
+                }
+
+                // let's add on the output part of the system
+                // any contribution of the exogenous inputs on the output function
+                lineq.middleRows(
+                    (i * ny()) + ((ph() + 1) * (nu() + nx())),
+                    ny()) -= ssDv.block(0, 0, ny(), ndu()) * uMeas;
+
+                uineq.middleRows(
+                    (i * ny()) + ((ph() + 1) * (nu() + nx())),
+                    ny()) -= ssDv.block(0, 0, ny(), ndu()) * uMeas;
             }
 
-            // the first entry of the state evolution is the initial condition of the states
-            if (i > 0) {
-                leq.middleRows(i * (dim.nx.num() + dim.nu.num()), dim.nx.num() + dim.nu.num()) = -ssBv * uMeas;
-            }
+            // state evolution depends on the initial condition and
+            // on the exogeneous inputs so they are changes over time
+            leq.middleRows(0, nx()) = -x0;
 
-            // let's add on the output part of the system
-            // any contribution of the exogenous inputs on the output function
-            lineq.middleRows(
-                (i * dim.ny.num()) + ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())),
-                dim.ny.num())
-                -= ssDv.block(0, 0, dim.ny.num(), dim.ndu.num()) * uMeas;
+            // set lower and upper bound equal in order to have equality constraints
+            ueq = leq;
 
-            uineq.middleRows(
-                (i * dim.ny.num()) + ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())),
-                dim.ny.num())
-                -= ssDv.block(0, 0, dim.ny.num(), dim.ndu.num()) * uMeas;
+            // creation of bounds and here is the right place to take into account
+            // of the measured exogenous inputs on the output (we are gonna treat them as offsets)
+            mpcProblem.l.setZero();
+            mpcProblem.u.setZero();
+
+            mpcProblem.l.middleRows(
+                0, (ph() + 1) * (nu() + nx())) = leq;
+
+            mpcProblem.u.middleRows(
+                0, (ph() + 1) * (nu() + nx())) = ueq;
+
+            mpcProblem.l.middleRows(
+                (ph() + 1) * (nu() + nx()),
+                ((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny()) + (ph() * nu())) = lineq;
+
+            mpcProblem.u.middleRows(
+                (ph() + 1) * (nu() + nx()),
+                ((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny()) + (ph() * nu())) = uineq;
+
+            return mpcProblem;
         }
 
-        // state evolution depends on the initial condition and
-        // on the exogeneous inputs so they are changes over time
-        leq.middleRows(0, dim.nx.num()) = -x0;
+    private:
+        /**
+         * @brief Build the time invariant optimal control problem terms
+         *
+         * @return true
+         * @return false
+         */
+        bool buildTITerms()
+        {
+            // quadratic objective
+            mat<(sizer.nu + sizer.ny), (sizer.nu + sizer.ny)> wExtendedState;
+            wExtendedState.resize((nu() + ny()), (nu() + ny()));
+            wExtendedState.setZero();
 
-        // set lower and upper bound equal in order to have equality constraints
-        ueq = leq;
+            mpcProblem.P.setZero();
 
-        // creation of bounds and here is the right place to take into account
-        // of the measured exogenous inputs on the output (we are gonna treat them as offsets)
-        mpcProblem.l.setZero();
-        mpcProblem.u.setZero();
+            for (size_t i = 0; i < (size_t)(ph() + 1); i++)
+            {
+                wExtendedState.block(0, 0, ny(), ny()) = wOutput.col(i).asDiagonal();
+                wExtendedState.block(ny(), ny(), nu(), nu()) = wU.col(i).asDiagonal();
 
-        mpcProblem.l.middleRows(
-            0, (dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num()))
-            = leq;
-
-        mpcProblem.u.middleRows(
-            0, (dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num()))
-            = ueq;
-
-        mpcProblem.l.middleRows(
-            (dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num()),
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + ((dim.ph.num() + 1) * dim.ny.num()) + (dim.ph.num() * dim.nu.num()))
-            = lineq;
-
-        mpcProblem.u.middleRows(
-            (dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num()),
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + ((dim.ph.num() + 1) * dim.ny.num()) + (dim.ph.num() * dim.nu.num()))
-            = uineq;
-
-        return mpcProblem;
-    }
-
-private:
-    /**
-     * @brief Build the time invariant optimal control problem terms
-     * 
-     * @return true 
-     * @return false 
-     */
-    bool buildTITerms()
-    {
-        // quadratic objective
-        mat<(dim.nu + dim.ny), (dim.nu + dim.ny)> wExtendedState;
-        wExtendedState.resize((dim.nu.num() + dim.ny.num()), (dim.nu.num() + dim.ny.num()));
-        wExtendedState.setZero();
-
-        mpcProblem.P.setZero();
-
-        for (size_t i = 0; i < (size_t)(dim.ph.num() + 1); i++) {
-            wExtendedState.block(0, 0, dim.ny.num(), dim.ny.num()) = wOutput.col(i).asDiagonal();
-            wExtendedState.block(dim.ny.num(), dim.ny.num(), dim.nu.num(), dim.nu.num()) = wU.col(i).asDiagonal();
-
-            mpcProblem.P.block(
-                i * (dim.nu.num() + dim.nx.num()), i * (dim.nu.num() + dim.nx.num()),
-                dim.nu.num() + dim.nx.num(), dim.nu.num() + dim.nx.num())
-                = (ssC.transpose() * wExtendedState * ssC);
-
-            // the command increments stop at the last prediction horizon step
-            if (i < dim.ph.num()) {
                 mpcProblem.P.block(
-                    ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (i * dim.nu.num()),
-                    ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (i * dim.nu.num()),
-                    dim.nu.num(), dim.nu.num())
-                    = wDeltaU.col(i).asDiagonal();
+                    i * (nu() + nx()), i * (nu() + nx()),
+                    nu() + nx(), nu() + nx()) = (ssC.transpose() * wExtendedState * ssC);
+
+                // the command increments stop at the last prediction horizon step
+                if (i < ph())
+                {
+                    mpcProblem.P.block(
+                        ((ph() + 1) * (nu() + nx())) + (i * nu()),
+                        ((ph() + 1) * (nu() + nx())) + (i * nu()),
+                        nu(), nu()) = wDeltaU.col(i).asDiagonal();
+                }
             }
-        }
 
-        // linear objective dynamics
-        mat<((dim.ph + Dim<1>()) * (dim.nu + dim.nx)), (((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + ((dim.ph * dim.nu)))> Aeq;
-        Aeq.resize(
-            (dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num()),
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + ((dim.ph.num() * dim.nu.num())));
+            // linear objective dynamics
+            mat<((sizer.ph + 1) * (sizer.nu + sizer.nx)), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + ((sizer.ph * sizer.nu)))> Aeq;
+            Aeq.resize(
+                (ph() + 1) * (nu() + nx()),
+                ((ph() + 1) * (nu() + nx())) + ((ph() * nu())));
 
-        // build the identity matrices
-        mat<(dim.ph + Dim<1>()), (dim.ph + Dim<1>())> augId;
-        augId.resize((dim.ph.num() + 1), (dim.ph.num() + 1));
-        augId.setZero();
-        augId.block(1, 0, dim.ph.num(), dim.ph.num()).setIdentity();
+            // build the identity matrices
+            mat<sizer.ph + 1, sizer.ph + 1> augId;
+            augId.resize((ph() + 1), (ph() + 1));
+            augId.setZero();
+            augId.block(1, 0, ph(), ph()).setIdentity();
 
-        mat<(dim.ph + Dim<1>()), (dim.ph + Dim<1>())> predHId;
-        predHId.resize((dim.ph.num() + 1), (dim.ph.num() + 1));
-        predHId.setIdentity();
+            mat<sizer.ph + 1, sizer.ph + 1> predHId;
+            predHId.resize((ph() + 1), (ph() + 1));
+            predHId.setIdentity();
 
-        mat<(dim.nu + dim.nx), (dim.nu + dim.nx)> extSpaceId;
-        extSpaceId.resize((dim.nu.num() + dim.nx.num()), (dim.nu.num() + dim.nx.num()));
-        extSpaceId.setIdentity();
+            mat<(sizer.nu + sizer.nx), (sizer.nu + sizer.nx)> extSpaceId;
+            extSpaceId.resize((nu() + nx()), (nu() + nx()));
+            extSpaceId.setIdentity();
 
-        Aeq.block(
-            0, 0,
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())),
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())))
-            = kroneckerProduct(predHId, -extSpaceId).eval() + kroneckerProduct(augId, ssA).eval();
+            Aeq.block(
+                0, 0,
+                ((ph() + 1) * (nu() + nx())),
+                ((ph() + 1) * (nu() + nx()))) = kroneckerProduct(predHId, -extSpaceId).eval() + kroneckerProduct(augId, ssA).eval();
 
-        mat<(dim.ph + Dim<1>()), dim.ph> idenBd;
-        idenBd.resize((dim.ph.num() + 1), dim.ph.num());
-        idenBd.setZero();
-        idenBd.block(1, 0, dim.ph.num(), dim.ph.num()).setIdentity();
+            mat<sizer.ph + 1, sizer.ph> idenBd;
+            idenBd.resize((ph() + 1), ph());
+            idenBd.setZero();
+            idenBd.block(1, 0, ph(), ph()).setIdentity();
 
-        Aeq.block(
-            0, ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())),
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())), (dim.ph.num() * dim.nu.num()))
-            = kroneckerProduct(idenBd, ssB).eval();
+            Aeq.block(
+                0, ((ph() + 1) * (nu() + nx())),
+                ((ph() + 1) * (nu() + nx())), (ph() * nu())) = kroneckerProduct(idenBd, ssB).eval();
 
-        // input, state and output constraints
-        mat<(((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + (((dim.ph + Dim<1>()) * dim.ny) + (dim.ph * dim.nu))), (((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + (dim.ph * dim.nu))> Aineq;
-        Aineq.resize(
-            (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (((dim.ph.num() + 1) * dim.ny.num()) + (dim.ph.num() * dim.nu.num()))),
-            (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (dim.ph.num() * dim.nu.num())));
-        Aineq.setZero();
+            // input, state and output constraints
+            mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu))), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> Aineq;
+            Aineq.resize(
+                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()))),
+                (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
+            Aineq.setZero();
 
-        // add state constraints terms
-        Aineq.block(
-                 0,
-                 0,
-                 ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())),
-                 ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())))
-            .setIdentity();
+            // add state constraints terms
+            Aineq.block(
+                     0,
+                     0,
+                     ((ph() + 1) * (nu() + nx())),
+                     ((ph() + 1) * (nu() + nx())))
+                .setIdentity();
 
-        // adding output Cx constraints terms and
-        // from the output matrix C we keep only the real system output
-        Aineq.block(
-            (dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num()),
-            0,
-            (dim.ph.num() + 1) * dim.ny.num(),
-            (dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num()))
-            = kroneckerProduct(predHId, ssC.middleRows(0, dim.ny.num())).eval();
+            // adding output Cx constraints terms and
+            // from the output matrix C we keep only the real system output
+            Aineq.block(
+                (ph() + 1) * (nu() + nx()),
+                0,
+                (ph() + 1) * ny(),
+                (ph() + 1) * (nu() + nx())) = kroneckerProduct(predHId, ssC.middleRows(0, ny())).eval();
 
-        cvec<((dim.ph + Dim<1>()) * (dim.nu + dim.nx))> eMinX, eMaxX;
-        eMinX.resize(((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())));
-        eMaxX.resize(((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())));
+            cvec<((sizer.ph + 1) * (sizer.nu + sizer.nx))> eMinX, eMaxX;
+            eMinX.resize(((ph() + 1) * (nu() + nx())));
+            eMaxX.resize(((ph() + 1) * (nu() + nx())));
 
-        cvec<dim.nu> tmpMinU, tmpMaxU;
-        tmpMinU.resize(dim.nu.num());
-        tmpMaxU.resize(dim.nu.num());
+            cvec<sizer.nu> tmpMinU, tmpMaxU;
+            tmpMinU.resize(nu());
+            tmpMaxU.resize(nu());
 
-        for (size_t i = 0; i < dim.ph.num() + 1; i++) {
-            if (i == dim.ph.num()) {
-                tmpMinU = minU.col(i - 1);
-                tmpMaxU = maxU.col(i - 1);
-            } else {
-                tmpMinU = minU.col(i);
-                tmpMaxU = maxU.col(i);
+            for (size_t i = 0; i < ph() + 1; i++)
+            {
+                if (i == ph())
+                {
+                    tmpMinU = minU.col(i - 1);
+                    tmpMaxU = maxU.col(i - 1);
+                }
+                else
+                {
+                    tmpMinU = minU.col(i);
+                    tmpMaxU = maxU.col(i);
+                }
+                eMinX.middleRows(i * (nu() + nx()), (nu() + nx())) << minX.col(i), tmpMinU;
+                eMaxX.middleRows(i * (nu() + nx()), (nu() + nx())) << maxX.col(i), tmpMaxU;
             }
-            eMinX.middleRows(i * (dim.nu.num() + dim.nx.num()), (dim.nu.num() + dim.nx.num())) << minX.col(i), tmpMinU;
-            eMaxX.middleRows(i * (dim.nu.num() + dim.nx.num()), (dim.nu.num() + dim.nx.num())) << maxX.col(i), tmpMaxU;
-        }
-
-        lineq.middleRows(
-            0,
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())))
-            = eMinX;
-
-        lineq.middleRows(
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())),
-            ((dim.ph.num() + 1) * dim.ny.num()))
-            = Eigen::Map<cvec<((dim.ph + Dim<1>()) * dim.ny)>>(minY.data(), minY.rows() * minY.cols());
-
-        uineq.middleRows(
-            0,
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())))
-            = eMaxX;
-
-        uineq.middleRows(
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())),
-            ((dim.ph.num() + 1) * dim.ny.num()))
-            = Eigen::Map<cvec<((dim.ph + Dim<1>()) * dim.ny)>>(maxY.data(), maxY.rows() * maxY.cols());
-
-        // add more constraints terms
-        Aineq.block(
-                 ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + ((dim.ph.num() + 1) * dim.ny.num()),
-                 ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())),
-                 (dim.ph.num() * dim.nu.num()),
-                 (dim.ph.num() * dim.nu.num()))
-            .setIdentity();
-
-        // add constraints on delta U to avoid computation
-        // of command inputs after the end of the control horizon
-        cvec<dim.nu> deltaU;
-        deltaU.resize(dim.nu.num());
-        deltaU.setOnes();
-        double minDeltaU, maxDeltaU;
-
-        for (size_t i = 0; i < dim.ph.num(); i++) {
-            minDeltaU = (i > dim.ch.num()) ? 0.0 : -inf;
-            maxDeltaU = (i > dim.ch.num()) ? 0.0 : inf;
 
             lineq.middleRows(
-                (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + ((dim.ph.num() + 1) * dim.ny.num())) + (i * dim.nu.num()),
-                dim.nu.num())
-                = deltaU * minDeltaU;
+                0,
+                ((ph() + 1) * (nu() + nx()))) = eMinX;
+
+            lineq.middleRows(
+                ((ph() + 1) * (nu() + nx())),
+                ((ph() + 1) * ny())) = Eigen::Map<cvec<((sizer.ph + 1) * sizer.ny)>>(minY.data(), minY.rows() * minY.cols());
+
             uineq.middleRows(
-                (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + ((dim.ph.num() + 1) * dim.ny.num())) + (i * dim.nu.num()),
-                dim.nu.num())
-                = deltaU * maxDeltaU;
+                0,
+                ((ph() + 1) * (nu() + nx()))) = eMaxX;
+
+            uineq.middleRows(
+                ((ph() + 1) * (nu() + nx())),
+                ((ph() + 1) * ny())) = Eigen::Map<cvec<((sizer.ph + 1) * sizer.ny)>>(maxY.data(), maxY.rows() * maxY.cols());
+
+            // add more constraints terms
+            Aineq.block(
+                     ((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny()),
+                     ((ph() + 1) * (nu() + nx())),
+                     (ph() * nu()),
+                     (ph() * nu()))
+                .setIdentity();
+
+            // add constraints on delta U to avoid computation
+            // of command inputs after the end of the control horizon
+            cvec<sizer.nu> deltaU;
+            deltaU.resize(nu());
+            deltaU.setOnes();
+            double minDeltaU, maxDeltaU;
+
+            for (size_t i = 0; i < ph(); i++)
+            {
+                minDeltaU = (i > ch()) ? 0.0 : -inf;
+                maxDeltaU = (i > ch()) ? 0.0 : inf;
+
+                lineq.middleRows(
+                    (((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny())) + (i * nu()),
+                    nu()) = deltaU * minDeltaU;
+                uineq.middleRows(
+                    (((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny())) + (i * nu()),
+                    nu()) = deltaU * maxDeltaU;
+            }
+
+            // creation of matrix A
+            mpcProblem.A.setZero();
+
+            mpcProblem.A.block(
+                0, 0,
+                ((ph() + 1) * (nu() + nx())),
+                ((ph() + 1) * (nu() + nx())) + (ph() * nu())) = Aeq;
+
+            mpcProblem.A.block(
+                ((ph() + 1) * (nu() + nx())), 0,
+                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()))),
+                (((ph() + 1) * (nu() + nx())) + (ph() * nu()))) = Aineq;
+
+            return true;
         }
 
-        // creation of matrix A
-        mpcProblem.A.setZero();
+        // the internal state space used is augmented
+        // to use the command increments as input of the system
+        mat<(sizer.nu + sizer.nx), (sizer.nu + sizer.nx)> ssA;
+        mat<(sizer.nu + sizer.nx), sizer.nu> ssB;
+        mat<(sizer.nu + sizer.ny), (sizer.nu + sizer.nx)> ssC;
 
-        mpcProblem.A.block(
-            0, 0,
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())),
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (dim.ph.num() * dim.nu.num()))
-            = Aeq;
+        // measured disturbances to states and
+        // also to the output model
+        mat<(sizer.nu + sizer.nx), sizer.ndu> ssBv;
+        mat<(sizer.nu + sizer.ny), sizer.ndu> ssDv;
 
-        mpcProblem.A.block(
-            ((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())), 0,
-            (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (((dim.ph.num() + 1) * dim.ny.num()) + (dim.ph.num() * dim.nu.num()))),
-            (((dim.ph.num() + 1) * (dim.nu.num() + dim.nx.num())) + (dim.ph.num() * dim.nu.num())))
-            = Aineq;
+        // objective function weights
+        // output, command and delta command
+        // tracking error w.r.t reference
+        mat<sizer.ny, sizer.ph + 1> wOutput;
+        mat<sizer.nu, sizer.ph + 1> wU;
+        mat<sizer.nu, sizer.ph> wDeltaU;
 
-        return true;
-    }
+        // state/cmd/output constraints
+        mat<sizer.nx, sizer.ph + 1> minX, maxX;
+        mat<sizer.ny, sizer.ph + 1> minY, maxY;
+        mat<sizer.nu, sizer.ph> minU, maxU;
 
-    // the internal state space used is augmented
-    // to use the command increments as input of the system
-    mat<(dim.nu + dim.nx), (dim.nu + dim.nx)> ssA;
-    mat<(dim.nu + dim.nx), dim.nu> ssB;
-    mat<(dim.nu + dim.ny), (dim.nu + dim.nx)> ssC;
-
-    // measured disturbances to states and
-    // also to the output model
-    mat<(dim.nu + dim.nx), dim.ndu> ssBv;
-    mat<(dim.nu + dim.ny), dim.ndu> ssDv;
-
-    // objective function weights
-    // output, command and delta command
-    // tracking error w.r.t reference
-    mat<dim.ny, (dim.ph + Dim<1>())> wOutput;
-    mat<dim.nu, (dim.ph + Dim<1>())> wU;
-    mat<dim.nu, dim.ph> wDeltaU;
-
-    // state/cmd/output constraints
-    mat<dim.nx, (dim.ph + Dim<1>())> minX, maxX;
-    mat<dim.ny, (dim.ph + Dim<1>())> minY, maxY;
-    mat<dim.nu, dim.ph> minU, maxU;
-
-    Problem mpcProblem;
-    cvec<((dim.ph + Dim<1>()) * (dim.nu + dim.nx))> leq, ueq;
-    cvec<(((dim.ph + Dim<1>()) * (dim.nu + dim.nx)) + (((dim.ph + Dim<1>()) * dim.ny) + (dim.ph * dim.nu)))> lineq, uineq;
-};
+        Problem mpcProblem;
+        cvec<((sizer.ph + 1) * (sizer.nu + sizer.nx))> leq, ueq;
+        cvec<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu)))> lineq, uineq;
+    };
 }

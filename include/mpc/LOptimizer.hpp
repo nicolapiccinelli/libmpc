@@ -5,324 +5,354 @@
 
 #include <osqp/osqp.h>
 
-namespace mpc {
-/**
- * @brief Linear MPC optimizer interface class
- * 
- * @tparam Tnx dimension of the state space
- * @tparam Tnu dimension of the input space
- * @tparam Tndu dimension of the measured disturbance space
- * @tparam Tny dimension of the output space
- * @tparam Tph length of the prediction horizon
- * @tparam Tch length of the control horizon
- */
-template <
-    int Tnx, int Tnu, int Tndu,
-    int Tny, int Tph, int Tch>
-class LOptimizer : public IOptimizer<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0> {
-private:
-    using IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::checkOrQuit;
-    using IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0>::dim;
-    LParameters lin_params;
-
-public:
-    LOptimizer() = default;
-
-    ~LOptimizer()
-    {
-        checkOrQuit();
-        clearData();
-    }
-
+namespace mpc
+{
     /**
-     * @brief Initialization hook override. Performing initialization in this
-     * method ensures the correct problem dimensions assigment has been
-     * already performed
+     * @brief Linear MPC optimizer interface class
+     *
+     * @tparam sizer.nx dimension of the state space
+     * @tparam sizer.nu dimension of the input space
+     * @tparam sizer.ndu dimension of the measured disturbance space
+     * @tparam sizer.ny dimension of the output space
+     * @tparam Tph length of the prediction horizon
+     * @tparam Tch length of the control horizon
      */
-    void onInit()
+    template <MPCSize sizer>
+    class LOptimizer : public IOptimizer<sizer>
     {
-        last_r.cmd.resize(dim.nu.num());
-        last_r.cmd.setZero();
+    private:
+        using IComponent<sizer>::checkOrQuit;
+        using IDimensionable<sizer>::nu;
+        using IDimensionable<sizer>::nx;
+        using IDimensionable<sizer>::ndu;
+        using IDimensionable<sizer>::ny;
+        using IDimensionable<sizer>::ph;
+        using IDimensionable<sizer>::ch;
+        using IDimensionable<sizer>::ineq;
+        using IDimensionable<sizer>::eq;
 
-        extInputMeas.resize(dim.ndu.num());
-        outSysRef.resize(dim.ny.num());
-        cmdSysRef.resize(dim.nu.num());
-        deltaCmdSysRef.resize(dim.nu.num());
+        LParameters lin_params;
 
-        outSysRef.setZero();
-        cmdSysRef.setZero();
-        deltaCmdSysRef.setZero();
-        extInputMeas.setZero();
+    public:
+        LOptimizer() = default;
 
-        currentSlack = 0;
-    }
+        ~LOptimizer()
+        {
+            checkOrQuit();
+            clearData();
+        }
 
-    /**
-     * @brief Set the proble builder
-     * 
-     * @param b optimal problem builder
-     */
-    void setBuilder(ProblemBuilder<Tnx, Tnu, Tndu, Tny, Tph, Tch>* b)
-    {
-        checkOrQuit();
-        builder = b;
-    }
+        /**
+         * @brief Initialization hook override. Performing initialization in this
+         * method ensures the correct problem dimensions assigment has been
+         * already performed
+         */
+        void onInit()
+        {
+            last_r.cmd.resize(nu());
+            last_r.cmd.setZero();
 
-    /**
-     * @brief Set the optmiziation parameters
-     * 
-     * @param param parameters desired
-     */
-    void setParameters(const Parameters& param)
-    {
-        checkOrQuit();
-        lin_params = *dynamic_cast<LParameters*>(const_cast<Parameters*>(&param));
+            extInputMeas.resize(ndu());
+            outSysRef.resize(ny());
+            cmdSysRef.resize(nu());
+            deltaCmdSysRef.resize(nu());
 
-        Logger::instance().log(Logger::log_type::DETAIL)
-            << "Setting tolerances and stopping criterias"
-            << std::endl;
-    }
+            outSysRef.setZero();
+            cmdSysRef.setZero();
+            deltaCmdSysRef.setZero();
+            extInputMeas.setZero();
 
-    /**
-     * @brief Set the references vector for the objective function
-     * 
-     * @param outRef reference for the output
-     * @param cmdRef reference for the optimal control input
-     * @param deltaCmdRef reference for the variation of the optimal control input
-     * @return true 
-     * @return false 
-     */
-    bool setReferences(
-        const cvec<Tny>& outRef,
-        const cvec<Tnu>& cmdRef,
-        const cvec<Tnu>& deltaCmdRef)
-    {
-        outSysRef = outRef;
-        cmdSysRef = cmdRef;
-        deltaCmdSysRef = deltaCmdRef;
+            currentSlack = 0;
+        }
 
-        return true;
-    }
+        /**
+         * @brief Set the proble builder
+         *
+         * @param b optimal problem builder
+         */
+        void setBuilder(ProblemBuilder<sizer> *b)
+        {
+            checkOrQuit();
+            builder = b;
+        }
 
-    /**
-     * @brief Set the exogenuos inputs vector
-     * 
-     * @param uMeas measured exogenuos input
-     * @return true 
-     * @return false 
-     */
-    bool setExogenuosInputs(const cvec<Tndu>& uMeas)
-    {
-        extInputMeas = uMeas;
-        return true;
-    }
+        /**
+         * @brief Set the optmiziation parameters
+         *
+         * @param param parameters desired
+         */
+        void setParameters(const Parameters &param)
+        {
+            checkOrQuit();
+            lin_params = *dynamic_cast<LParameters *>(const_cast<Parameters *>(&param));
 
-    /**
-     * @brief Implementation of the optimization step
-     * 
-     * @param x0 system's variables initial condition
-     * @param u0 control action initial condition for warm start
-     * @return Result<Tnu> optimization result
-     */
-    Result<Tnu> run(
-        const cvec<Tnx>& x0,
-        const cvec<Tnu>& u0)
-    {
-        checkOrQuit();
-        Result<Tnu> r;
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting tolerances and stopping criterias"
+                << std::endl;
+        }
 
-        auto& mpcProblem = builder->get(x0, u0, outSysRef, cmdSysRef, deltaCmdSysRef, extInputMeas);
+        /**
+         * @brief Set the references vector for the objective function
+         *
+         * @param outRef reference for the output
+         * @param cmdRef reference for the optimal control input
+         * @param deltaCmdRef reference for the variation of the optimal control input
+         * @return true
+         * @return false
+         */
+        bool setReferences(
+            const cvec<sizer.ny> &outRef,
+            const cvec<sizer.nu> &cmdRef,
+            const cvec<sizer.nu> &deltaCmdRef)
+        {
+            outSysRef = outRef;
+            cmdSysRef = cmdRef;
+            deltaCmdSysRef = deltaCmdRef;
 
-        smat P, A;
-        mpcProblem.getSparse(P, A);
+            return true;
+        }
 
-        Eigen::IOFormat OctaveFmt(Eigen::StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
-        Logger::instance().log(Logger::log_type::DETAIL) << "P = " << mpcProblem.P.format(OctaveFmt) << std::endl;
-        Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
-        Logger::instance().log(Logger::log_type::DETAIL) << "A = " << mpcProblem.A.format(OctaveFmt) << std::endl;
-        Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
-        Logger::instance().log(Logger::log_type::DETAIL) << "q = " << mpcProblem.q.format(OctaveFmt) << std::endl;
-        Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
-        Logger::instance().log(Logger::log_type::DETAIL) << "l = " << mpcProblem.l.format(OctaveFmt) << std::endl;
-        Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
-        Logger::instance().log(Logger::log_type::DETAIL) << "u = " << mpcProblem.u.format(OctaveFmt) << std::endl;
-        Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
+        /**
+         * @brief Set the exogenuos inputs vector
+         *
+         * @param uMeas measured exogenuos input
+         * @return true
+         * @return false
+         */
+        bool setExogenuosInputs(const cvec<sizer.ndu> &uMeas)
+        {
+            extInputMeas = uMeas;
+            return true;
+        }
 
-        // getting optimization problem size
-        int numVars = P.rows();
-        int numConstraints = A.rows();
+        /**
+         * @brief Implementation of the optimization step
+         *
+         * @param x0 system's variables initial condition
+         * @param u0 control action initial condition for warm start
+         * @return Result<sizer.nu> optimization result
+         */
+        Result<sizer.nu> run(
+            const cvec<sizer.nx> &x0,
+            const cvec<sizer.nu> &u0)
+        {
+            checkOrQuit();
+            Result<sizer.nu> r;
 
-        // clear and create the problem data struct
-        initData();
+            auto &mpcProblem = builder->get(x0, u0, outSysRef, cmdSysRef, deltaCmdSysRef, extInputMeas);
 
-        if (data) {
-            data->n = numVars;
-            data->m = numConstraints;
+            smat P, A;
+            mpcProblem.getSparse(P, A);
 
-            if (!createOsqpSparseMatrix(P, data->P)) {
-                Logger::instance().log(Logger::log_type::ERROR) << "Unable to create the P matrix" << std::endl;
+            Eigen::IOFormat OctaveFmt(Eigen::StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
+            Logger::instance().log(Logger::log_type::DETAIL) << "P = " << mpcProblem.P.format(OctaveFmt) << std::endl;
+            Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
+            Logger::instance().log(Logger::log_type::DETAIL) << "A = " << mpcProblem.A.format(OctaveFmt) << std::endl;
+            Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
+            Logger::instance().log(Logger::log_type::DETAIL) << "q = " << mpcProblem.q.format(OctaveFmt) << std::endl;
+            Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
+            Logger::instance().log(Logger::log_type::DETAIL) << "l = " << mpcProblem.l.format(OctaveFmt) << std::endl;
+            Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
+            Logger::instance().log(Logger::log_type::DETAIL) << "u = " << mpcProblem.u.format(OctaveFmt) << std::endl;
+            Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
+
+            // getting optimization problem size
+            int numVars = P.rows();
+            int numConstraints = A.rows();
+
+            // clear and create the problem data struct
+            initData();
+
+            if (data)
+            {
+                data->n = numVars;
+                data->m = numConstraints;
+
+                if (!createOsqpSparseMatrix(P, data->P))
+                {
+                    Logger::instance().log(Logger::log_type::ERROR) << "Unable to create the P matrix" << std::endl;
+                }
+
+                data->q = (c_float *)mpcProblem.q.data();
+
+                if (!createOsqpSparseMatrix(A, data->A))
+                {
+                    Logger::instance().log(Logger::log_type::ERROR) << "Unable to create the A matrix" << std::endl;
+                }
+
+                data->l = (c_float *)mpcProblem.l.data();
+                data->u = (c_float *)mpcProblem.u.data();
             }
 
-            data->q = (c_float*) mpcProblem.q.data();
+            // define solver settings as default
+            if (settings)
+            {
+                osqp_set_default_settings(settings);
 
-            if (!createOsqpSparseMatrix(A, data->A)) {
-                Logger::instance().log(Logger::log_type::ERROR) << "Unable to create the A matrix" << std::endl;
+                settings->alpha = lin_params.alpha;
+                settings->verbose = lin_params.verbose ? 1 : 0;
+                settings->rho = lin_params.rho;
+                settings->adaptive_rho = lin_params.adaptive_rho ? 1 : 0;
+                settings->eps_rel = lin_params.eps_rel;
+                settings->eps_abs = lin_params.eps_abs;
+                settings->eps_prim_inf = lin_params.eps_prim_inf;
+                settings->eps_dual_inf = lin_params.eps_dual_inf;
+                settings->max_iter = lin_params.maximum_iteration;
+                settings->polish = lin_params.polish ? 1 : 0;
             }
 
-            data->l = (c_float *) mpcProblem.l.data();
-            data->u = (c_float *) mpcProblem.u.data();
-        }
-
-        // define solver settings as default
-        if (settings) {
-            osqp_set_default_settings(settings);
-
-            settings->alpha = lin_params.alpha;
-            settings->verbose = lin_params.verbose ? 1 : 0;
-            settings->rho = lin_params.rho;
-            settings->adaptive_rho = lin_params.adaptive_rho ? 1 : 0;
-            settings->eps_rel = lin_params.eps_rel;
-            settings->eps_abs = lin_params.eps_abs;
-            settings->eps_prim_inf = lin_params.eps_prim_inf;
-            settings->eps_dual_inf = lin_params.eps_dual_inf;
-            settings->max_iter = lin_params.maximum_iteration;
-            settings->polish = lin_params.polish ? 1 : 0;            
-        }
-
-        // setup workspace
-        exitflag = osqp_setup(&work, data, settings);
-        if (exitflag > 0) {
-            Logger::instance().log(Logger::log_type::ERROR) << "Unable to solve " << exitflag << std::endl;
-        }
-
-        // solve problem
-        osqp_solve(work);
-
-        // if the solution is valid update the
-        if (work->solution->x != NULL) {
-            int index = 0;
-
-            cvec<dim.nu> optCmd;
-            optCmd.resize(dim.nu.num());
-
-            for (size_t i = ((dim.ph.num() + 1) * (dim.nx.num() + dim.nu.num())); i < (((dim.ph.num() + 1) * (dim.nx.num() + dim.nu.num())) + dim.nu.num()); i++) {
-                optCmd[index++] = work->solution->x[i];
+            // setup workspace
+            exitflag = osqp_setup(&work, data, settings);
+            if (exitflag > 0)
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "Unable to solve " << exitflag << std::endl;
             }
 
-            r.cmd = optCmd;
-            r.retcode = work->info->status_val;
-            r.cost = work->info->obj_val;
-            last_r = r;
-        } else {
-            r = last_r;
+            // solve problem
+            osqp_solve(work);
+
+            // if the solution is valid update the
+            if (work->solution->x != NULL)
+            {
+                int index = 0;
+
+                cvec<sizer.nu> optCmd;
+                optCmd.resize(nu());
+
+                for (size_t i = ((ph() + 1) * (nx() + nu())); i < (((ph() + 1) * (nx() + nu())) + nu()); i++)
+                {
+                    optCmd[index++] = work->solution->x[i];
+                }
+
+                r.cmd = optCmd;
+                r.retcode = work->info->status_val;
+                r.cost = work->info->obj_val;
+                last_r = r;
+            }
+            else
+            {
+                r = last_r;
+            }
+
+            clearData();
+            return r;
         }
 
-        clearData();
-        return r;
-    }
+    private:
+        /**
+         * @brief Create an osqp sparse matrix from a sparse eigen matrix
+         *
+         * @param eigenSparseMatrix sparse eigen matrix
+         * @param osqpSparseMatrix osqp sparse matrix
+         * @return true
+         * @return false
+         */
+        bool createOsqpSparseMatrix(const smat &eigenSparseMatrix, csc *&osqpSparseMatrix)
+        {
+            // Copying into a new sparse matrix to be sure to use a CSC matrix
+            // this may perform memory allocation, but this is already the case
+            // for allocating the osqpSparseMatrix
+            smat colMajorCopy = eigenSparseMatrix;
 
-private:
-    /**
-     * @brief Create an osqp sparse matrix from a sparse eigen matrix
-     * 
-     * @param eigenSparseMatrix sparse eigen matrix
-     * @param osqpSparseMatrix osqp sparse matrix
-     * @return true 
-     * @return false 
-     */
-    bool createOsqpSparseMatrix(const smat& eigenSparseMatrix, csc*& osqpSparseMatrix)
-    {
-        // Copying into a new sparse matrix to be sure to use a CSC matrix
-        // this may perform memory allocation, but this is already the case
-        // for allocating the osqpSparseMatrix
-        smat colMajorCopy = eigenSparseMatrix;
+            // get number of row, columns and nonZeros from Eigen SparseMatrix
+            c_int rows = colMajorCopy.rows();
+            c_int cols = colMajorCopy.cols();
+            c_int numberOfNonZeroCoeff = colMajorCopy.nonZeros();
 
-        // get number of row, columns and nonZeros from Eigen SparseMatrix
-        c_int rows = colMajorCopy.rows();
-        c_int cols = colMajorCopy.cols();
-        c_int numberOfNonZeroCoeff = colMajorCopy.nonZeros();
+            // get innerr and outer index
+            const int *outerIndexPtr = colMajorCopy.outerIndexPtr();
+            const int *innerNonZerosPtr = colMajorCopy.innerNonZeroPtr();
 
-        // get innerr and outer index
-        const int* outerIndexPtr = colMajorCopy.outerIndexPtr();
-        const int* innerNonZerosPtr = colMajorCopy.innerNonZeroPtr();
+            if (osqpSparseMatrix != nullptr)
+            {
+                return false;
+            }
 
-        if (osqpSparseMatrix != nullptr) {
-            return false;
-        }
+            // instantiate csc matrix
+            osqpSparseMatrix = csc_spalloc(rows, cols, numberOfNonZeroCoeff, 1, 0);
 
-        // instantiate csc matrix
-        osqpSparseMatrix = csc_spalloc(rows, cols, numberOfNonZeroCoeff, 1, 0);
-
-        int innerOsqpPosition = 0;
-        for (int k = 0; k < cols; k++) {
-            if (colMajorCopy.isCompressed()) {
-                osqpSparseMatrix->p[k] = static_cast<c_int>(outerIndexPtr[k]);
-            } else {
-                if (k == 0) {
-                    osqpSparseMatrix->p[k] = 0;
-                } else {
-                    osqpSparseMatrix->p[k] = osqpSparseMatrix->p[k - 1] + innerNonZerosPtr[k - 1];
+            int innerOsqpPosition = 0;
+            for (int k = 0; k < cols; k++)
+            {
+                if (colMajorCopy.isCompressed())
+                {
+                    osqpSparseMatrix->p[k] = static_cast<c_int>(outerIndexPtr[k]);
+                }
+                else
+                {
+                    if (k == 0)
+                    {
+                        osqpSparseMatrix->p[k] = 0;
+                    }
+                    else
+                    {
+                        osqpSparseMatrix->p[k] = osqpSparseMatrix->p[k - 1] + innerNonZerosPtr[k - 1];
+                    }
+                }
+                for (typename smat::InnerIterator it(colMajorCopy, k); it; ++it)
+                {
+                    osqpSparseMatrix->i[innerOsqpPosition] = static_cast<c_int>(it.row());
+                    osqpSparseMatrix->x[innerOsqpPosition] = static_cast<c_float>(it.value());
+                    innerOsqpPosition++;
                 }
             }
-            for (typename smat::InnerIterator it(colMajorCopy, k); it; ++it) {
-                osqpSparseMatrix->i[innerOsqpPosition] = static_cast<c_int>(it.row());
-                osqpSparseMatrix->x[innerOsqpPosition] = static_cast<c_float>(it.value());
-                innerOsqpPosition++;
+
+            osqpSparseMatrix->p[static_cast<int>(cols)] = static_cast<c_int>(innerOsqpPosition);
+            assert(innerOsqpPosition == numberOfNonZeroCoeff);
+            return true;
+        }
+
+        /**
+         * @brief Clear the current allocated osqp problem data structures
+         */
+        void clearData()
+        {
+            osqp_cleanup(work);
+
+            if (data)
+            {
+                if (data->A)
+                {
+                    csc_spfree(data->A);
+                }
+                if (data->P)
+                {
+                    csc_spfree(data->P);
+                }
+                c_free(data);
+            }
+
+            if (settings)
+            {
+                c_free(settings);
             }
         }
 
-        osqpSparseMatrix->p[static_cast<int>(cols)] = static_cast<c_int>(innerOsqpPosition);
-        assert(innerOsqpPosition == numberOfNonZeroCoeff);
-        return true;
-    }
+        /**
+         * @brief Initialize the osqp problem data structures
+         */
+        void initData()
+        {
+            settings = (OSQPSettings *)c_malloc(sizeof(OSQPSettings));
+            data = (OSQPData *)c_malloc(sizeof(OSQPData));
 
-    /**
-     * @brief Clear the current allocated osqp problem data structures
-     */
-    void clearData()
-    {
-        osqp_cleanup(work);
-
-        if (data) {
-            if (data->A) {
-                csc_spfree(data->A);
-            }
-            if (data->P) {
-                csc_spfree(data->P);
-            }
-            c_free(data);
+            data->P = nullptr;
+            data->A = nullptr;
         }
 
-        if (settings) {
-            c_free(settings);
-        }
-    }
+        OSQPWorkspace *work;
+        OSQPSettings *settings;
+        OSQPData *data;
+        c_int exitflag = 0;
 
-    /**
-     * @brief Initialize the osqp problem data structures
-     */
-    void initData()
-    {
-        settings = (OSQPSettings*)c_malloc(sizeof(OSQPSettings));
-        data = (OSQPData*)c_malloc(sizeof(OSQPData));
+        Result<sizer.nu> last_r;
+        double currentSlack;
+        bool hard;
 
-        data->P = nullptr;
-        data->A = nullptr;
-    }
+        cvec<sizer.ny> outSysRef;
+        cvec<sizer.nu> cmdSysRef, deltaCmdSysRef;
+        cvec<sizer.ndu> extInputMeas;
 
-    OSQPWorkspace* work;
-    OSQPSettings* settings;
-    OSQPData* data;
-    c_int exitflag = 0;
-
-    Result<Tnu> last_r;
-    double currentSlack;
-    bool hard;
-
-    cvec<Tny> outSysRef;
-    cvec<Tnu> cmdSysRef, deltaCmdSysRef;
-    cvec<Tndu> extInputMeas;
-
-    ProblemBuilder<Tnx, Tnu, Tndu, Tny, Tph, Tch>* builder;
-};
+        ProblemBuilder<sizer> *builder;
+    };
 } // namespace mpc

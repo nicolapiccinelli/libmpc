@@ -13,7 +13,7 @@ TEMPLATE_TEST_CASE_SIG(
     static constexpr int Tineq = 1;
     static constexpr int Teq = 1;
 
-    mpc::Mapping<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> mapping;
+    mpc::Mapping<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), 0, TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> mapping;
 
     mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
@@ -50,7 +50,7 @@ TEMPLATE_TEST_CASE_SIG(
     static constexpr int Tineq = 1;
     static constexpr int Teq = 1;
 
-    mpc::Mapping<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> mapping;
+    mpc::Mapping<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), 0, TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> mapping;
     mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     // input decision variables vector

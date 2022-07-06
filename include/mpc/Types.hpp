@@ -125,7 +125,7 @@ namespace mpc
      * @param c flag
      * @return constexpr int input dimension or -1
      */
-    inline constexpr int makeDim(const int n, bool c)
+    inline constexpr int make_dimension(const int n, bool c)
     {
         if (c)
         {
