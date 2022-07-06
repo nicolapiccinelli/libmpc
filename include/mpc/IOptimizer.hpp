@@ -16,10 +16,8 @@ namespace mpc {
  * @tparam Tineq number of the user inequality constraints
  * @tparam Teq number of the user equality constraints
  */
-template <
-    int Tnx, int Tnu, int Tndu, int Tny,
-    int Tph, int Tch, int Tineq, int Teq>
-class IOptimizer : public IComponent<Tnx, Tnu, Tndu, Tny, Tph, Tch, Tineq, Teq> {
+template <MPCSize sizer>
+class IOptimizer : public IComponent<sizer> {
 public:
     virtual ~IOptimizer() {}
 
@@ -43,6 +41,6 @@ public:
      * @param u0 control action initial condition for warm start
      * @return Result<Tnu> optimization result
      */
-    virtual Result<Tnu> run(const cvec<Tnx>& x0, const cvec<Tnu>& u0) = 0;
+    virtual Result<sizer.nu> run(const cvec<sizer.nx>& x0, const cvec<sizer.nu>& u0) = 0;
 };
 }

@@ -3,161 +3,120 @@
 #include <mpc/Dim.hpp>
 #include <mpc/Types.hpp>
 
-namespace mpc {
-
-/**
- * @brief Abstract class for all the classes which need access
- * to the problem dimensions and to the function handlers types
- * 
- * @tparam Tnx dimension of the state space
- * @tparam Tnu dimension of the input space
- * @tparam Tndu dimension of the measured disturbance space
- * @tparam Tny dimension of the output space
- * @tparam Tph length of the prediction horizon
- * @tparam Tch length of the control horizon
- * @tparam Tineq number of the user inequality constraints
- * @tparam Teq number of the user equality constraints
- */
-template <
-    int Tnx, int Tnu, int Tndu, int Tny,
-    int Tph, int Tch, int Tineq, int Teq>
-class IDimensionable {
-public:
-    IDimensionable()
-    {
-
-    }
-
-protected:
-    // this is used just to avoid explicit construction of this class
-    virtual ~IDimensionable() = default;
+namespace mpc
+{
 
     /**
-     * @brief Initialize the dimensions of the optimization problem
-     * and then invokes the onInit method to perform extra initialization.
-     * In case of static allocation the dimensions are inferred from the
-     * template class parameters
-     * 
-     * @param nx dimension of the state space
-     * @param nu dimension of the input space
-     * @param ndu dimension of the measured disturbance space
-     * @param ny dimension of the output space
-     * @param ph length of the prediction horizon
-     * @param ch length of the control horizon
-     * @param ineq number of the user inequality constraints
-     * @param eq number of the user equality constraints
+     * @brief Abstract class for all the classes which need access
+     * to the problem dimensions and to the function handlers types
+     *
+     * @tparam Tnx dimension of the state space
+     * @tparam Tnu dimension of the input space
+     * @tparam Tndu dimension of the measured disturbance space
+     * @tparam Tny dimension of the output space
+     * @tparam Tph length of the prediction horizon
+     * @tparam Tch length of the control horizon
+     * @tparam Tineq number of the user inequality constraints
+     * @tparam Teq number of the user equality constraints
      */
-    void setDimension(
-        int nx = Tnx, int nu = Tnu, int ndu = Tndu, int ny = Tny,
-        int ph = Tph, int ch = Tch, int ineq = Tineq, int eq = Teq)
+    template <MPCSize sizer>
+    class IDimensionable
     {
-        assert(nx >= 0 && nu >= 0 && ndu >= 0 && ny >= 0 && ph > 0 && ch > 0 && ineq >= 0 && eq >= 0);
-        dim.set(nx, nu, ndu, ny, ph, ch, ineq, eq);
-        onInit();
-    }
-
-    /**
-     * @brief The problem dimensions structure containing
-     * the instances of each dimension for static or dynamic
-     * access
-     */
-    struct MPCDims {
-        /**
-         * @brief Dimension of the state space
-         */
-        Dim<Tnx> nx;
-        /**
-         * @brief Dimension of the input space
-         */
-        Dim<Tnu> nu;
-        /**
-         * @brief Dimension of the measured disturbance space
-         */
-        Dim<Tndu> ndu;
-        /**
-         * @brief Dimension of the output space
-         */
-        Dim<Tny> ny;
-        /**
-         * @brief Dimension of the prediction horizon
-         */
-        Dim<Tph> ph;
-        /**
-         * @brief Dimension of the control horizon
-         */
-        Dim<Tch> ch;
-        /**
-         * @brief Number of the user inequality constraints
-         */
-        Dim<Tineq> ineq;
-        /**
-         * @brief Number of the user equality constraints
-         */
-        Dim<Teq> eq;
-
-        /**
-         * @brief Set the dynamic dimensions
-         * 
-         * @param nx Dimension of the state space
-         * @param nu Dimension of the input space
-         * @param ndu Dimension of the measured disturbance space
-         * @param ny Dimension of the output space
-         * @param ph Length of the prediction horizon
-         * @param ch Length of the control horizon
-         * @param ineq Number of the user inequality constraints
-         * @param eq Number of the user equality constraints
-         */
-        void set(
-            size_t nx, size_t nu, size_t ndu, size_t ny,
-            size_t ph, size_t ch, size_t ineq, size_t eq)
+    public:
+        IDimensionable()
         {
-            this->nx.setDynDim(nx);
-            this->nu.setDynDim(nu);
-            this->ndu.setDynDim(ndu);
-            this->ny.setDynDim(ny);
-            this->ph.setDynDim(ph);
-            this->ch.setDynDim(ch);
-            this->ineq.setDynDim(ineq);
-            this->eq.setDynDim(eq);
         }
+
+    protected:
+        // this is used just to avoid explicit construction of this class
+        virtual ~IDimensionable() = default;
+
+        /**
+         * @brief Initialize the dimensions of the optimization problem
+         * and then invokes the onInit method to perform extra initialization.
+         * In case of static allocation the dimensions are inferred from the
+         * template class parameters
+         *
+         * @param nx dimension of the state space
+         * @param nu dimension of the input space
+         * @param ndu dimension of the measured disturbance space
+         * @param ny dimension of the output space
+         * @param ph length of the prediction horizon
+         * @param ch length of the control horizon
+         * @param ineq number of the user inequality constraints
+         * @param eq number of the user equality constraints
+         */
+        void setDimension(
+            int nx = sizer.nx, int nu = sizer.nu, int ndu = sizer.ndu, int ny = sizer.ny,
+            int ph = sizer.ph, int ch = sizer.ch, int ineq = sizer.ineq, int eq = sizer.eq)
+        {
+            assert(nx >= 0 && nu >= 0 && ndu >= 0 && ny >= 0 && ph > 0 && ch > 0 && ineq >= 0 && eq >= 0);
+
+            runtime_size_nx = nx;
+            runtime_size_nu = nu;
+            runtime_size_ndu = ndu;
+            runtime_size_ny = ny;
+            runtime_size_ph = ph;
+            runtime_size_ch = ch;
+            runtime_size_ineq = ineq;
+            runtime_size_eq = eq;
+
+            onInit();
+        }
+
+        size_t nx() { return runtime_size_nx; }
+        size_t nu() { return runtime_size_nu; }
+        size_t ndu() { return runtime_size_ndu; }
+        size_t ny() { return runtime_size_ny; }
+        size_t ph() { return runtime_size_ph; }
+        size_t ch() { return runtime_size_ch; }
+        size_t ineq() { return runtime_size_ineq; }
+        size_t eq() { return runtime_size_eq; }
+
+        /**
+         * @brief Initialization hook used to perform sub-classes
+         * initialization procedure. Performing initialization in this
+         * method ensures the correct problem dimensions assigment has been
+         * already performed
+         */
+        virtual void onInit() = 0;
+
+        using ObjFunHandle = std::function<double(
+            mat<sizer.ph + 1, sizer.nx>,
+            mat<sizer.ph + 1, sizer.nu>,
+            double)>;
+
+        using IConFunHandle = std::function<void(
+            cvec<sizer.ineq> &,
+            mat<sizer.ph + 1, sizer.nx>,
+            mat<sizer.ph + 1, sizer.ny>,
+            mat<sizer.ph + 1, sizer.nu>,
+            double)>;
+
+        using EConFunHandle = std::function<void(
+            cvec<sizer.eq> &,
+            mat<sizer.ph + 1, sizer.nx>,
+            mat<sizer.ph + 1, sizer.nu>)>;
+
+        using StateFunHandle = std::function<void(
+            cvec<sizer.nx> &,
+            cvec<sizer.nx>,
+            cvec<sizer.nu>)>;
+
+        using OutFunHandle = std::function<void(
+            cvec<sizer.ny> &,
+            cvec<sizer.nx>,
+            cvec<sizer.nu>)>;
+
+    private:
+        size_t runtime_size_nx;
+        size_t runtime_size_nu;
+        size_t runtime_size_ndu;
+        size_t runtime_size_ny;
+        size_t runtime_size_ph;
+        size_t runtime_size_ch;
+        size_t runtime_size_ineq;
+        size_t runtime_size_eq;
     };
-
-    inline static MPCDims dim;
-
-    /**
-     * @brief Initialization hook used to perform sub-classes
-     * initialization procedure. Performing initialization in this
-     * method ensures the correct problem dimensions assigment has been
-     * already performed
-     */
-    virtual void onInit() = 0;
-
-    using ObjFunHandle = std::function<double(
-        mat<dim.ph + Dim<1>(), dim.nx>,
-        mat<dim.ph + Dim<1>(), dim.nu>,
-        double)>;
-
-    using IConFunHandle = std::function<void(
-        cvec<dim.ineq>&,
-        mat<dim.ph + Dim<1>(), dim.nx>,
-        mat<dim.ph + Dim<1>(), dim.ny>,
-        mat<dim.ph + Dim<1>(), dim.nu>,
-        double)>;
-
-    using EConFunHandle = std::function<void(
-        cvec<dim.eq>&,
-        mat<dim.ph + Dim<1>(), dim.nx>,
-        mat<dim.ph + Dim<1>(), dim.nu>)>;
-
-    using StateFunHandle = std::function<void(
-        cvec<dim.nx>&,
-        cvec<dim.nx>,
-        cvec<dim.nu>)>;
-
-    using OutFunHandle = std::function<void(
-        cvec<dim.ny>&,
-        cvec<dim.nx>,
-        cvec<dim.nu>)>;
-};
 
 } // namespace mpc

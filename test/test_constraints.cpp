@@ -3,7 +3,7 @@
 #include <catch2/catch_template_test_macros.hpp>
 
 TEMPLATE_TEST_CASE_SIG(
-    MPC_TEST_NAME("Checking missing user constraints"), 
+    MPC_TEST_NAME("Checking missing user constraints"),
     MPC_TEST_TAGS("[constraints][template]"),
     ((int Tnx, int Tnu, int Tny, int Tph, int Tch, int Tineq), Tnx, Tnu, Tny, Tph, Tch, Tineq),
     (1, 1, 1, 1, 1, 0), (5, 1, 1, 1, 1, 0), (5, 3, 1, 1, 1, 0),
@@ -11,38 +11,37 @@ TEMPLATE_TEST_CASE_SIG(
 {
     constexpr int Teq = Tineq;
 
-    mpc::Constraints<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> conFunc;
+    mpc::Constraints<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> conFunc;
     conFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     REQUIRE_FALSE(conFunc.hasEqConstraints());
     REQUIRE_FALSE(conFunc.hasIneqConstraints());
-    REQUIRE_FALSE(conFunc.hasOutputModel());    
+    REQUIRE_FALSE(conFunc.hasOutputModel());
 }
 
 TEMPLATE_TEST_CASE_SIG(
-    MPC_TEST_NAME("Checking model equality constraints"), 
+    MPC_TEST_NAME("Checking model equality constraints"),
     MPC_TEST_TAGS("[constraints][template]"),
     ((int Tnx, int Tnu, int Tny, int Tph, int Tch, int Tineq), Tnx, Tnu, Tny, Tph, Tch, Tineq),
     (2, 1, 1, 5, 5, 0))
 {
     constexpr int Teq = 0;
 
-    mpc::Constraints<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> conFunc;
+    mpc::Constraints<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> conFunc;
     conFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
-    mpc::Mapping<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> mapping;
+    mpc::Mapping<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> mapping;
     mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     conFunc.setMapping(mapping);
     conFunc.setContinuos(true);
     conFunc.setStateModel([](
-        mpc::cvec<TVAR(Tnx)> &dx,
-        mpc::cvec<TVAR(Tnx)> x,
-        mpc::cvec<TVAR(Tnu)> u)
-        {
+                              mpc::cvec<TVAR(Tnx)> &dx,
+                              mpc::cvec<TVAR(Tnx)> x,
+                              mpc::cvec<TVAR(Tnu)> u)
+                          {
             dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
-            dx[1] = x[0];
-        });
+            dx[1] = x[0]; });
 
     mpc::cvec<TVAR(Tnx)> x0;
     x0.resize(Tnx);
@@ -68,42 +67,40 @@ TEMPLATE_TEST_CASE_SIG(
 }
 
 TEMPLATE_TEST_CASE_SIG(
-    MPC_TEST_NAME("Checking user inequality constraints"), 
+    MPC_TEST_NAME("Checking user inequality constraints"),
     MPC_TEST_TAGS("[constraints][template]"),
     ((int Tnx, int Tnu, int Tny, int Tph, int Tch, int Tineq), Tnx, Tnu, Tny, Tph, Tch, Tineq),
     (2, 1, 1, 5, 5, 1))
 {
     constexpr int Teq = 0;
 
-    mpc::Constraints<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> conFunc;
+    mpc::Constraints<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> conFunc;
     conFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
-    mpc::Mapping<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> mapping;
+    mpc::Mapping<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> mapping;
     mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     conFunc.setMapping(mapping);
     conFunc.setContinuos(true);
     conFunc.setStateModel([](
-        mpc::cvec<TVAR(Tnx)> &dx,
-        mpc::cvec<TVAR(Tnx)> x,
-        mpc::cvec<TVAR(Tnu)> u) 
-    {
+                              mpc::cvec<TVAR(Tnx)> &dx,
+                              mpc::cvec<TVAR(Tnx)> x,
+                              mpc::cvec<TVAR(Tnu)> u)
+                          {
         dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
-        dx[1] = x[0];
-    });
+        dx[1] = x[0]; });
 
     conFunc.setIneqConstraints([](
-        mpc::cvec<TVAR(Tineq)> &eq_con,
-        mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
-        mpc::mat<TVAR(Tph + 1), TVAR(Tny)>,
-        mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>,
-        double) 
-    {
+                                   mpc::cvec<TVAR(Tineq)> &eq_con,
+                                   mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
+                                   mpc::mat<TVAR(Tph + 1), TVAR(Tny)>,
+                                   mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>,
+                                   double)
+                               {
         for (int i = 0; i < Tineq; i++)
         {
             eq_con[i] = x(0,0);
-        }
-    });
+        } });
 
     mpc::cvec<TVAR(Tnx)> x0;
     x0.resize(Tnx);
@@ -128,40 +125,38 @@ TEMPLATE_TEST_CASE_SIG(
 }
 
 TEMPLATE_TEST_CASE_SIG(
-    MPC_TEST_NAME("Checking user equality constraints"), 
+    MPC_TEST_NAME("Checking user equality constraints"),
     MPC_TEST_TAGS("[constraints][template]"),
     ((int Tnx, int Tnu, int Tny, int Tph, int Tch, int Tineq), Tnx, Tnu, Tny, Tph, Tch, Tineq),
     (2, 1, 1, 5, 5, 0))
 {
     constexpr int Teq = 1;
 
-    mpc::Constraints<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> conFunc;
+    mpc::Constraints<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> conFunc;
     conFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
-    mpc::Mapping<TVAR(Tnx), TVAR(Tnu), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq)> mapping;
+    mpc::Mapping<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> mapping;
     mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
     conFunc.setMapping(mapping);
     conFunc.setContinuos(true);
     conFunc.setStateModel([](
-        mpc::cvec<TVAR(Tnx)> &dx,
-        mpc::cvec<TVAR(Tnx)> x,
-        mpc::cvec<TVAR(Tnu)> u) 
-    {
+                              mpc::cvec<TVAR(Tnx)> &dx,
+                              mpc::cvec<TVAR(Tnx)> x,
+                              mpc::cvec<TVAR(Tnu)> u)
+                          {
         dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
-        dx[1] = x[0];
-    });
+        dx[1] = x[0]; });
 
     conFunc.setEqConstraints([Teq](
-        mpc::cvec<TVAR(Teq)> &eq_con,
-        mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
-        mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>) 
-    {
+                                 mpc::cvec<TVAR(Teq)> &eq_con,
+                                 mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
+                                 mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>)
+                             {
         for (int i = 0; i < Teq; i++)
         {
             eq_con[i] = x(0, 0);
-        }
-    });
+        } });
 
     mpc::cvec<TVAR(Tnx)> x0;
     x0.resize(Tnx);

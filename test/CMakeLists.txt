@@ -1,13 +1,16 @@
 if(UNIX)
-    set(CMAKE_CXX_FLAGS "-Wall -Werror -Wextra -std=c++17 -Wfatal-errors -Werror=return-type -g -O0 -no-pie -fno-pie")
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wfatal-errors -Werror=return-type -g -O0 -no-pie -fno-pie")
+    message("Adding g++ specific flags")
 endif()
 
 IF("${CMAKE_CXX_COMPILER_ID}" MATCHES "(Apple)?[Cc]lang")
-    set(CMAKE_CXX_FLAGS "-Wunused-command-line-argument")
+    set(CMAKE_CXX_FLAGS "-Wunused-command-line-argument -std=c++20 -Wall -Wextra -Wfatal-errors -Werror=return-type -g -O0 -fno-pie")
+    message("Adding clang specific flags")
 endif()
 
 if(WIN32)
     set(CMAKE_CXX_FLAGS "/std:c++17")
+    message("Adding mvcc specific flags")
 endif()
 
 set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
@@ -45,8 +48,9 @@ set(MPC_TEST_LIB_SOURCES
     "test_logger.cpp"
     "test_main.cpp")
 
-set(MPC_TEST_CASES_SOURCES    
+set(MPC_TEST_CASES_SOURCES
     "test_discrete_lti_siso.cpp"
+    "test_mutiple_instances.cpp"
     "test_vanderpol.cpp"
     "test_main.cpp")
 
