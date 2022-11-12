@@ -16,7 +16,6 @@ TEMPLATE_TEST_CASE_SIG(
 
     REQUIRE_FALSE(conFunc.hasEqConstraints());
     REQUIRE_FALSE(conFunc.hasIneqConstraints());
-    REQUIRE_FALSE(conFunc.hasOutputModel());
 }
 
 TEMPLATE_TEST_CASE_SIG(
@@ -33,15 +32,19 @@ TEMPLATE_TEST_CASE_SIG(
     mpc::Mapping<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> mapping;
     mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
-    conFunc.setMapping(mapping);
-    conFunc.setContinuos(true);
-    conFunc.setStateModel([](
+    mpc::Model<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> model;
+    model.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
+
+    model.setContinuos(true);
+    model.setStateModel([](
                               mpc::cvec<TVAR(Tnx)> &dx,
                               mpc::cvec<TVAR(Tnx)> x,
                               mpc::cvec<TVAR(Tnu)> u)
                           {
             dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
             dx[1] = x[0]; });
+
+    conFunc.setModel(model, mapping);
 
     mpc::cvec<TVAR(Tnx)> x0;
     x0.resize(Tnx);
@@ -80,16 +83,20 @@ TEMPLATE_TEST_CASE_SIG(
     mpc::Mapping<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> mapping;
     mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
-    conFunc.setMapping(mapping);
-    conFunc.setContinuos(true);
-    conFunc.setStateModel([](
+    mpc::Model<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> model;
+    model.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
+
+    model.setContinuos(true);
+    model.setStateModel([](
                               mpc::cvec<TVAR(Tnx)> &dx,
                               mpc::cvec<TVAR(Tnx)> x,
                               mpc::cvec<TVAR(Tnu)> u)
                           {
         dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
         dx[1] = x[0]; });
-
+    
+    conFunc.setModel(model, mapping);
+    
     conFunc.setIneqConstraints([](
                                    mpc::cvec<TVAR(Tineq)> &eq_con,
                                    mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
@@ -138,15 +145,19 @@ TEMPLATE_TEST_CASE_SIG(
     mpc::Mapping<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> mapping;
     mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
-    conFunc.setMapping(mapping);
-    conFunc.setContinuos(true);
-    conFunc.setStateModel([](
+    mpc::Model<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> model;
+    model.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
+
+    model.setContinuos(true);
+    model.setStateModel([](
                               mpc::cvec<TVAR(Tnx)> &dx,
                               mpc::cvec<TVAR(Tnx)> x,
                               mpc::cvec<TVAR(Tnu)> u)
                           {
         dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
         dx[1] = x[0]; });
+
+    conFunc.setModel(model, mapping);
 
     conFunc.setEqConstraints([Teq](
                                  mpc::cvec<TVAR(Teq)> &eq_con,

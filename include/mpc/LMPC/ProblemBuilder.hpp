@@ -217,15 +217,53 @@ namespace mpc
          * @return false
          */
         bool setObjective(
-            const mat<sizer.ny, sizer.ph + 1> &OWeight,
-            const mat<sizer.nu, sizer.ph + 1> &UWeight,
+            const mat<sizer.ny, sizer.ph> &OWeight,
+            const mat<sizer.nu, sizer.ph> &UWeight,
             const mat<sizer.nu, sizer.ph> &DeltaUWeight)
         {
             checkOrQuit();
 
-            wOutput = OWeight;
-            wU = UWeight;
+            wOutput.block(0, 1, ny(), ph()) = OWeight;
+            wOutput.col(0) = OWeight.col(0);
+
+            wU.block(0, 1, nu(), ph()) = UWeight;
+            wU.col(0) = UWeight.col(0);
+
             wDeltaU = DeltaUWeight;
+
+            return buildTITerms();
+        }
+
+        /**
+         * @brief Set the objective function weights
+         *
+         * @param OWeight weights for the output vector
+         * @param UWeight weights for the optimal control input vector
+         * @param DeltaUWeight weight for the variation of the optimal control input vector
+         * @return true
+         * @return false
+         */
+        bool setObjective(
+            const unsigned int index,
+            const cvec<sizer.ny> &OWeight,
+            const cvec<sizer.nu> &UWeight,
+            const cvec<sizer.nu> &DeltaUWeight)
+        {
+            checkOrQuit();
+
+            wOutput.block(0, index + 1, ny(), 1) = OWeight;
+            if (index == 0)
+            {
+                wOutput.col(0) = OWeight;
+            }
+
+            wU.block(0, index + 1, nu(), 1) = UWeight;
+            if (index == 0)
+            {
+                wU.col(0) = UWeight;
+            }
+
+            wDeltaU.block(0, index, nu(), 1) = DeltaUWeight;
 
             return buildTITerms();
         }
@@ -265,21 +303,84 @@ namespace mpc
         }
 
         /**
+         * @brief Set the state, input and output box constraints for a specific horizon step
+         *
+         * @param index index of the horizon step
+         * @param XMin minimum state vector
+         * @param UMin minimum input vector
+         * @param YMin minimum output vector
+         * @param XMax maximum state vector
+         * @param UMax maximum input vector
+         * @param YMax maximum output vector
+         * @return true
+         * @return false
+         */
+        bool setConstraints(
+            const unsigned int index,
+            const cvec<sizer.nx> XMin, const cvec<sizer.nu> UMin, const cvec<sizer.ny> YMin,
+            const cvec<sizer.nx> XMax, const cvec<sizer.nu> UMax, const cvec<sizer.ny> YMax)
+        {
+            checkOrQuit();
+
+            minX.block(0, index + 1, nx(), 1) = XMin;
+            if (index == 0)
+            {
+                minX.col(0) = XMin;
+            }
+
+            maxX.block(0, index + 1, nx(), 1) = XMax;
+            if (index == 0)
+            {
+                maxX.col(0) = XMax;
+            }
+
+            minY.block(0, index + 1, ny(), 1) = YMin;
+            if (index == 0)
+            {
+                minY.col(0) = YMin;
+            }
+
+            maxY.block(0, index + 1, ny(), 1) = YMax;
+            if (index == 0)
+            {
+                maxY.col(0) = YMax;
+            }
+
+            minU.block(0, index, nu(), 1) = UMin;
+            maxU.block(0, index, nu(), 1) = UMax;
+
+            return buildTITerms();
+        }
+
+        /**
+         * @brief Compute the relative output of the system based on the desired
+         * state and measured disturbance
+         * 
+         * @param desState desired state vector to project
+         * @param measDist measured disturbance vector
+         * @return cvec<sizer.ny> the output vector
+         */
+        cvec<sizer.ny> mapToOutput(cvec<sizer.nx> desState, cvec<sizer.ndu> measDist)
+        {
+            return ssC.block(0, 0, ny(), nx()) * desState + ssDv.block(0, 0, ny(), ndu()) * measDist;
+        }
+
+        /**
          * @brief Request the generation of a new MPC optimization problem
          *
          * @param x0 initial condition of the system's dynamics vector
-         * @param yRef output reference vector
-         * @param uRef control input reference vector
-         * @param deltaURef control input variation reference vector
-         * @param uMeas external disturbances vector
+         * @param yRef output reference matrix
+         * @param uRef control input reference matrix
+         * @param deltaURef control input variation reference matrix
+         * @param uMeas external disturbances matrix
          */
         const Problem &get(
             const cvec<sizer.nx> &x0,
             const cvec<sizer.nu> & /*u0*/,
-            const cvec<sizer.ny> &yRef,
-            const cvec<sizer.nu> &uRef,
-            const cvec<sizer.nu> &deltaURef,
-            const cvec<sizer.ndu> &uMeas)
+            const mat<sizer.ny, sizer.ph> &yRef,
+            const mat<sizer.nu, sizer.ph> &uRef,
+            const mat<sizer.nu, sizer.ph> &deltaURef,
+            const mat<sizer.ndu, sizer.ph> &uMeas)
         {
             // linear objective terms must be computed at each control loop since
             // it depends on the references and the refs can changes over time
@@ -289,44 +390,67 @@ namespace mpc
 
             cvec<(sizer.ny + sizer.nu)> eRef;
             eRef.resize(ny() + nu());
-            eRef << yRef, uRef;
 
             mpcProblem.q.setZero();
             leq.setZero();
 
             for (size_t i = 0; i < ph() + 1; i++)
             {
+                // definition of the references (this check is needed since at the first
+                // step of the prediction horizon there is the current state of the system)
+                cvec<sizer.ny> yRef_ex;
+                cvec<sizer.nu> uRef_ex;
+                cvec<sizer.nu> deltaURef_ex;
+                cvec<sizer.ndu> uMeas_ex;
+
+                if (i == 0)
+                {
+                    yRef_ex = yRef.col(0);
+                    uRef_ex = uRef.col(0);
+                    deltaURef_ex = deltaURef.col(0);
+                    uMeas_ex = uMeas.col(0);
+                }
+                else
+                {
+                    yRef_ex = yRef.col(i - 1);
+                    uRef_ex = uRef.col(i - 1);
+                    deltaURef_ex = deltaURef.col(i - 1);
+                    uMeas_ex = uMeas.col(i - 1);
+                }
+
+                eRef << yRef_ex, uRef_ex;
+
                 wExtendedState.block(0, 0, ny(), ny()) = wOutput.col(i).asDiagonal();
                 wExtendedState.block(
                     ny(), ny(),
                     nu(), nu()) = wU.col(i).asDiagonal();
 
                 mpcProblem.q.middleRows(
-                    i * (nx() + nu()), nx() + nu()) = ssC.transpose() * wExtendedState * (-eRef + (ssDv * uMeas));
+                    i * (nx() + nu()), nx() + nu()) = ssC.transpose() * wExtendedState * (-eRef + (ssDv * uMeas_ex));
 
                 // the command increments stop at the last prediction horizon step
                 if (i < ph())
                 {
                     mpcProblem.q.middleRows(
                         ((ph() + 1) * (nu() + nx())) + (i * nu()),
-                        nu()) = -(wDeltaU.col(i).asDiagonal() * deltaURef);
+                        nu()) = -(wDeltaU.col(i).asDiagonal() * deltaURef_ex);
                 }
 
                 // the first entry of the state evolution is the initial condition of the states
                 if (i > 0)
                 {
-                    leq.middleRows(i * (nx() + nu()), nx() + nu()) = -ssBv * uMeas;
+                    leq.middleRows(i * (nx() + nu()), nx() + nu()) = -ssBv * uMeas_ex;
                 }
 
                 // let's add on the output part of the system
                 // any contribution of the exogenous inputs on the output function
                 lineq.middleRows(
                     (i * ny()) + ((ph() + 1) * (nu() + nx())),
-                    ny()) -= ssDv.block(0, 0, ny(), ndu()) * uMeas;
+                    ny()) -= ssDv.block(0, 0, ny(), ndu()) * uMeas_ex;
 
                 uineq.middleRows(
                     (i * ny()) + ((ph() + 1) * (nu() + nx())),
-                    ny()) -= ssDv.block(0, 0, ny(), ndu()) * uMeas;
+                    ny()) -= ssDv.block(0, 0, ny(), ndu()) * uMeas_ex;
             }
 
             // state evolution depends on the initial condition and

@@ -93,7 +93,8 @@ int DiscreteLtiSiso()
     mpc::cvec<TVAR(Tny)> modelY(Tny);
     modelY << 0;
 
-    optsolver.getLastResult();
+    auto res = optsolver.getLastResult();
+    auto seq = optsolver.getOptimalSequence();
     return 0;
 }
 

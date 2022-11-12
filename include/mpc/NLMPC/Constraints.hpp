@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mpc/Base.hpp>
+#include <mpc/NLMPC/Base.hpp>
 
 namespace mpc
 {
@@ -46,7 +46,7 @@ namespace mpc
 
         Constraints() : Base<sizer>()
         {
-            ctime = false;
+            
         }
 
         ~Constraints() = default;
@@ -77,18 +77,6 @@ namespace mpc
         }
 
         /**
-         * @brief Return if the dynamical system has an output function
-         *
-         * @return true
-         * @return false
-         */
-        bool hasOutputModel()
-        {
-            checkOrQuit();
-            return outUser != nullptr;
-        }
-
-        /**
          * @brief Return if the dynamical system has user defined inequality constraints
          *
          * @return true
@@ -110,49 +98,6 @@ namespace mpc
         {
             checkOrQuit();
             return eqUser != nullptr;
-        }
-
-        /**
-         * @brief Set if the provided dynamical model is in continuos time
-         *
-         * @param isContinuous system dynamics is defined in countinuos time
-         * @param Ts discretization sample time, in general this is the inverse of the control loop frequency
-         * @return true
-         * @return false
-         */
-        bool setContinuos(bool isContinuous, double Ts = 0)
-        {
-            ts = Ts;
-            ctime = isContinuous;
-            return true;
-        }
-
-        /**
-         * @brief Set the system's states update function (e.g. the vector field)
-         *
-         * @param handle function handler
-         * @return true
-         * @return false
-         */
-        bool setStateModel(
-            const typename Base<sizer>::StateFunHandle handle)
-        {
-            checkOrQuit();
-            return fUser = handle, true;
-        }
-
-        /**
-         * @brief Set the system's output function (e.g. the state/output mapping)
-         *
-         * @param handle function handler
-         * @return true
-         * @return false
-         */
-        bool setOutputModel(
-            const typename Base<sizer>::OutFunHandle handle)
-        {
-            checkOrQuit();
-            return outUser = handle, true;
         }
 
         /**
@@ -206,7 +151,7 @@ namespace mpc
                 Ymat.resize(ph() + 1, ny());
                 Ymat.setZero();
 
-                if (hasOutputModel())
+                if (model.hasOutputModel())
                 {
                     for (size_t i = 0; i < ph() + 1; i++)
                     {
@@ -214,7 +159,7 @@ namespace mpc
                         YmatRow.resize(ny());
                         YmatRow.setZero();
 
-                        outUser(YmatRow, Xmat.row(i), Umat.row(i));
+                        model.outUser(YmatRow, Xmat.row(i), Umat.row(i));
                         Ymat.row(i) = YmatRow;
                     }
                 }
@@ -504,7 +449,7 @@ namespace mpc
             Tx = mapping.StateScaling().asDiagonal();
 
             // TODO bind for continuos time
-            if (ctime)
+            if (model.isContinuosTime)
             {
                 //#pragma omp parallel for
                 for (size_t i = 0; i < ph(); i++)
@@ -514,19 +459,19 @@ namespace mpc
                     cvec<sizer.nx> xk;
                     xk = Xmat.row(i).transpose();
 
-                    double h = ts / 2.0;
+                    double h = model.sampleTime / 2.0;
                     cvec<sizer.nx> xk1;
                     xk1 = Xmat.row(i + 1).transpose();
 
                     cvec<sizer.nx> fk;
                     fk.resize(nx());
 
-                    fUser(fk, xk, uk);
+                    model.fUser(fk, xk, uk);
 
                     cvec<sizer.nx> fk1;
                     fk1.resize(nx());
 
-                    fUser(fk1, xk1, uk);
+                    model.fUser(fk1, xk1, uk);
 
                     ceq.middleRows(ic, nx()) = xk + (h * (fk + fk1)) - xk1;
                     ceq.middleRows(ic, nx()) = ceq.middleRows(ic, nx()).array() / mapping.StateScaling().array();
@@ -574,7 +519,7 @@ namespace mpc
                     cvec<sizer.nx> xk1;
                     xk1.resize(nx());
 
-                    fUser(xk1, xk, uk);
+                    model.fUser(xk1, xk, uk);
 
                     ceq.middleRows(ic, nx()) = Xmat.row(i + 1).transpose() - xk1;
                     ceq.middleRows(ic, nx()) = ceq.middleRows(ic, nx()).array() / mapping.StateScaling().array();
@@ -666,7 +611,7 @@ namespace mpc
                     y0.resize(ph() + 1, ny());
                     y0.setZero();
 
-                    if (hasOutputModel())
+                    if (model.hasOutputModel())
                     {
                         for (size_t k = 0; k < ph() + 1; k++)
                         {
@@ -674,7 +619,7 @@ namespace mpc
                             y0Row.resize(ny());
                             y0Row.setZero();
 
-                            outUser(y0Row, x0.row(k), u0.row(k));
+                            model.outUser(y0Row, x0.row(k), u0.row(k));
                             y0.row(k) = y0Row;
                         }
                     }
@@ -715,7 +660,7 @@ namespace mpc
                     y0.resize(ph() + 1, ny());
                     y0.setZero();
 
-                    if (hasOutputModel())
+                    if (model.hasOutputModel())
                     {
                         for (size_t k = 0; k < ph() + 1; k++)
                         {
@@ -723,7 +668,7 @@ namespace mpc
                             y0Row.resize(ny());
                             y0Row.setZero();
 
-                            outUser(y0Row, x0.row(k), u0.row(k));
+                            model.outUser(y0Row, x0.row(k), u0.row(k));
                             y0.row(k) = y0Row;
                         }
                     }
@@ -752,7 +697,7 @@ namespace mpc
                 y0.resize(ph() + 1, ny());
                 y0.setZero();
 
-                if (hasOutputModel())
+                if (model.hasOutputModel())
                 {
                     for (size_t k = 0; k < ph() + 1; k++)
                     {
@@ -760,7 +705,7 @@ namespace mpc
                         y0Row.resize(ny());
                         y0Row.setZero();
 
-                        outUser(y0Row, x0.row(k), u0.row(k));
+                        model.outUser(y0Row, x0.row(k), u0.row(k));
                         y0.row(k) = y0Row;
                     }
                 }
@@ -784,7 +729,7 @@ namespace mpc
             y0.resize(ph() + 1, ny());
             y0.setZero();
 
-            if (hasOutputModel())
+            if (model.hasOutputModel())
             {
                 for (size_t i = 0; i < ph() + 1; i++)
                 {
@@ -792,7 +737,7 @@ namespace mpc
                     y0Row.resize(ny());
                     y0Row.setZero();
 
-                    outUser(y0Row, x0.row(i), u0.row(i));
+                    model.outUser(y0Row, x0.row(i), u0.row(i));
                     y0.row(i) = y0Row;
                 }
             }
@@ -806,7 +751,7 @@ namespace mpc
             // if so, let's compute the output along the horizon
             y0.setZero();
 
-            if (hasOutputModel())
+            if (model.hasOutputModel())
             {
                 for (size_t i = 0; i < ph() + 1; i++)
                 {
@@ -814,7 +759,7 @@ namespace mpc
                     y0Row.resize(ny());
                     y0Row.setZero();
 
-                    outUser(y0Row, x0.row(i), u0.row(i));
+                    model.outUser(y0Row, x0.row(i), u0.row(i));
                     y0.row(i) = y0Row;
                 }
             }
@@ -959,7 +904,7 @@ namespace mpc
                 x0(i) = x0(i) + dx;
                 cvec<sizer.nx> f;
                 f.resize(nx());
-                fUser(f, x0, u0);
+                model.fUser(f, x0, u0);
                 x0(i) = x0(i) - dx;
                 cvec<sizer.nx> df;
                 df = (f - f0) / dx;
@@ -982,15 +927,13 @@ namespace mpc
                 u0(k) = u0(k) + du;
                 cvec<sizer.nx> f;
                 f.resize(nx());
-                fUser(f, x0, u0);
+                model.fUser(f, x0, u0);
                 u0(k) = u0(k) - du;
                 cvec<sizer.nx> df;
                 df = (f - f0) / du;
                 Jmv.block(0, i, nx(), 1) = df;
             }
         }
-
-        bool ctime;
 
         cvec<sizer.ph * sizer.nx> ceq;
         mat<(sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1, sizer.ph * sizer.nx> Jceq;
@@ -1004,17 +947,15 @@ namespace mpc
         cvec<sizer.ineq> cineq_user;
         mat<(sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1, sizer.ineq> Jcineq_user;
 
-        typename Base<sizer>::StateFunHandle fUser = nullptr;
         typename Base<sizer>::IConFunHandle ieqUser = nullptr;
         typename Base<sizer>::EConFunHandle eqUser = nullptr;
-        typename Base<sizer>::OutFunHandle outUser = nullptr;
 
         using Base<sizer>::mapping;
+        using Base<sizer>::model;
         using Base<sizer>::x0;
         using Base<sizer>::Xmat;
         using Base<sizer>::Umat;
         using Base<sizer>::e;
-        using Base<sizer>::ts;
         using Base<sizer>::niteration;
     };
 } // namespace mpc

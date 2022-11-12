@@ -1,10 +1,10 @@
 #pragma once
 
-#include <mpc/Constraints.hpp>
+#include <mpc/NLMPC/Constraints.hpp>
 #include <mpc/IOptimizer.hpp>
 #include <mpc/Logger.hpp>
-#include <mpc/Mapping.hpp>
-#include <mpc/Objective.hpp>
+#include <mpc/NLMPC/Mapping.hpp>
+#include <mpc/NLMPC/Objective.hpp>
 #include <mpc/Types.hpp>
 
 #include <nlopt.hpp>
@@ -36,6 +36,11 @@ namespace mpc
         using IDimensionable<sizer>::ineq;
         using IDimensionable<sizer>::eq;
 
+        using IOptimizer<sizer>::currentSlack;
+        using IOptimizer<sizer>::hard;
+        using IOptimizer<sizer>::result;
+        using IOptimizer<sizer>::sequence;
+
     public:
         NLOptimizer() = default;
 
@@ -56,22 +61,31 @@ namespace mpc
 
             setParameters(NLParameters());
 
-            last_r.cmd.resize(nu());
-            last_r.cmd.setZero();
+            result.cmd.resize(nu());
+            result.cmd.setZero();
+
+            sequence.state.resize(ph(), nx());
+            sequence.state.setZero();
+            sequence.input.resize(ph(), nu());
+            sequence.input.setZero();
+            sequence.output.resize(ph(), ny());
+            sequence.output.setZero();
 
             currentSlack = 0;
         }
 
         /**
-         * @brief Set the mapping object
+         * @brief Set the model and the mapping object references
          *
-         * @param m mapping reference
+         * @param sysModel the model object
+         * @param map the mapping object
          */
-        void setMapping(Mapping<sizer> &m)
+        void setModel(Model<sizer> &sysModel, Mapping<sizer> &map)
         {
             checkOrQuit();
 
-            mapping = m;
+            mapping = map;
+            model = sysModel;
         }
 
         /**
@@ -261,9 +275,8 @@ namespace mpc
          *
          * @param x0 system's variables initial condition
          * @param u0 control action initial condition for warm start
-         * @return Result<sizer.nu> optimization result
          */
-        Result<sizer.nu> run(
+        void run(
             const cvec<sizer.nx> &x0,
             const cvec<sizer.nu> &u0)
         {
@@ -357,7 +370,29 @@ namespace mpc
                     << "Optimal predicted output vector\n"
                     << Umat
                     << std::endl;
+
                 r.cmd = Umat.row(0);
+
+                sequence.state = Xmat.block(1, 0, ph(), nx());
+                sequence.input = Umat.block(1, 0, ph(), nu());
+
+                if (model.hasOutputModel())
+                {
+                    mat<sizer.ph, sizer.ny> Ymat;
+                    Ymat.resize(ph(), ny());
+                    Ymat.setZero();
+
+                    for (size_t i = 1; i < ph() + 1; i++)
+                    {
+                        cvec<sizer.ny> YmatRow;
+                        YmatRow.resize(ny());
+                        YmatRow.setZero();
+
+                        model.outUser(YmatRow, Xmat.row(i), Umat.row(i));
+                        Ymat.row(i - 1) = YmatRow;
+                    }
+                    sequence.output = Ymat;
+                }
             }
             catch (const std::exception &e)
             {
@@ -365,12 +400,17 @@ namespace mpc
                     << "No optimal solution found: "
                     << e.what()
                     << std::endl;
-                r.cmd = last_r.cmd;
+
+                r.cost = mpc::inf;
+                r.cmd = result.cmd;
                 r.retcode = -1;
+
+                sequence.state.setZero();
+                sequence.input.setZero();
+                sequence.output.setZero();
             }
 
-            last_r = r;
-            return r;
+            result = r;
         }
 
     private:
@@ -519,10 +559,8 @@ namespace mpc
         }
 
         nlopt::opt *innerOpt;
-        Result<sizer.nu> last_r;
-        double currentSlack;
-        bool hard;
 
         Mapping<sizer> mapping;
+        Model<sizer> model;
     };
 } // namespace mpc

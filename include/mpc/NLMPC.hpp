@@ -2,9 +2,9 @@
 
 #include <mpc/IMPC.hpp>
 
-#include <mpc/Constraints.hpp>
-#include <mpc/Objective.hpp>
-#include <mpc/NLOptimizer.hpp>
+#include <mpc/NLMPC/Constraints.hpp>
+#include <mpc/NLMPC/Objective.hpp>
+#include <mpc/NLMPC/NLOptimizer.hpp>
 
 namespace mpc
 {
@@ -76,7 +76,7 @@ namespace mpc
                 << " sec(s)"
                 << std::endl;
 
-            auto res = conF.setContinuos(true, ts);
+            auto res = model.setContinuos(true, ts);
             return res;
         }
 
@@ -100,9 +100,9 @@ namespace mpc
         {
             mapping.setInputScaling(scaling);
 
-            objF.setMapping(mapping);
-            conF.setMapping(mapping);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setMapping(mapping);
+            objF.setModel(model, mapping);
+            conF.setModel(model, mapping);
+            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
         }
 
         /**
@@ -115,9 +115,9 @@ namespace mpc
         {
             mapping.setStateScaling(scaling);
 
-            objF.setMapping(mapping);
-            conF.setMapping(mapping);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setMapping(mapping);
+            objF.setModel(model, mapping);
+            conF.setModel(model, mapping);
+            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
         }
 
         /**
@@ -168,7 +168,11 @@ namespace mpc
                 << "Setting state space function handle"
                 << std::endl;
 
-            bool res = conF.setStateModel(handle);
+            bool res = model.setStateModel(handle);
+
+            objF.setModel(model, mapping);
+            conF.setModel(model, mapping);
+            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
 
             Logger::instance().log(Logger::log_type::DETAIL)
                 << "Binding state space constraints"
@@ -192,7 +196,13 @@ namespace mpc
                 << "Setting output function handle"
                 << std::endl;
 
-            return conF.setOutputModel(handle);
+            bool res = model.setOutputModel(handle);
+            
+            objF.setModel(model, mapping);
+            conF.setModel(model, mapping);
+            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
+
+            return res;
         }
 
         /**
@@ -235,7 +245,7 @@ namespace mpc
 
     protected:
         /**
-         * @brief Initilization hook for the linear interface
+         * @brief Initilization hook for the interface
          */
         void onSetup()
         {
@@ -244,6 +254,11 @@ namespace mpc
                 ph(), ch(), ineq(),
                 eq());
 
+            model.initialize(
+                nx(), nu(), 0, ny(),
+                ph(), ch(), ineq(),
+                eq());
+                
             mapping.initialize(
                 nx(), nu(), 0, ny(),
                 ph(), ch(), ineq(),
@@ -260,9 +275,9 @@ namespace mpc
                 ph(), ch(), ineq(),
                 eq());
 
-            objF.setMapping(mapping);
-            conF.setMapping(mapping);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setMapping(mapping);
+            objF.setModel(model, mapping);
+            conF.setModel(model, mapping);
+            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
 
             Logger::instance().log(Logger::log_type::INFO)
                 << "Mapping assignment done"
@@ -281,9 +296,8 @@ namespace mpc
     private:
         Objective<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> objF;
         Constraints<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> conF;
+        Model<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> model;
         Mapping<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> mapping;
-
-        using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::result;
     };
 
 } // namespace mpc

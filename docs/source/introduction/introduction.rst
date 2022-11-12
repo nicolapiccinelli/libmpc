@@ -6,7 +6,7 @@ Introduction
 ============
 
 **libmpc++** is a free/open-source library for solving **linear** and **non-linear** Model Predictive Control (MPC). The library is
-written in standard C++17 and provides static and dynamic memory allocation via templated interfacing classes. It is available on
+written in standard C++20 and provides static and dynamic memory allocation via templated interfacing classes. It is available on
 Linux, MacOs and Windows and comes with a limited set of dependecies. It provides:
 
 * Support for linear and non-linear MPC optimal control problem formulation

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <mpc/IOptimizer.hpp>
-#include <mpc/ProblemBuilder.hpp>
+#include <mpc/LMPC/ProblemBuilder.hpp>
 
 #include <osqp/osqp.h>
 
@@ -31,6 +31,11 @@ namespace mpc
         using IDimensionable<sizer>::ineq;
         using IDimensionable<sizer>::eq;
 
+        using IOptimizer<sizer>::currentSlack;
+        using IOptimizer<sizer>::hard;
+        using IOptimizer<sizer>::result;
+        using IOptimizer<sizer>::sequence;
+
         LParameters lin_params;
 
     public:
@@ -49,13 +54,20 @@ namespace mpc
          */
         void onInit()
         {
-            last_r.cmd.resize(nu());
-            last_r.cmd.setZero();
+            result.cmd.resize(nu());
+            result.cmd.setZero();
 
-            extInputMeas.resize(ndu());
-            outSysRef.resize(ny());
-            cmdSysRef.resize(nu());
-            deltaCmdSysRef.resize(nu());
+            sequence.state.resize(ph(), nx());
+            sequence.state.setZero();
+            sequence.input.resize(ph(), nu());
+            sequence.input.setZero();
+            sequence.output.resize(ph(), ny());
+            sequence.output.setZero();
+
+            extInputMeas.resize(ndu(), ph());
+            outSysRef.resize(ny(), ph());
+            cmdSysRef.resize(nu(), ph());
+            deltaCmdSysRef.resize(nu(), ph());
 
             outSysRef.setZero();
             cmdSysRef.setZero();
@@ -92,7 +104,7 @@ namespace mpc
         }
 
         /**
-         * @brief Set the references vector for the objective function
+         * @brief Set the references matrices for the objective function
          *
          * @param outRef reference for the output
          * @param cmdRef reference for the optimal control input
@@ -101,9 +113,9 @@ namespace mpc
          * @return false
          */
         bool setReferences(
-            const cvec<sizer.ny> &outRef,
-            const cvec<sizer.nu> &cmdRef,
-            const cvec<sizer.nu> &deltaCmdRef)
+            const mat<sizer.ny, sizer.ph> &outRef,
+            const mat<sizer.nu, sizer.ph> &cmdRef,
+            const mat<sizer.nu, sizer.ph> &deltaCmdRef)
         {
             outSysRef = outRef;
             cmdSysRef = cmdRef;
@@ -113,15 +125,54 @@ namespace mpc
         }
 
         /**
-         * @brief Set the exogenuos inputs vector
+         * @brief Set the references vector for the objective function for a specific horizon step
+         *
+         * @param index index of the horizon step
+         * @param outRef reference for the output
+         * @param cmdRef reference for the optimal control input
+         * @param deltaCmdRef reference for the variation of the optimal control input
+         * @return true
+         * @return false
+         */
+        bool setReferences(
+            const unsigned int index,
+            const cvec<sizer.ny> &outRef,
+            const cvec<sizer.nu> &cmdRef,
+            const cvec<sizer.nu> &deltaCmdRef)
+        {
+            outSysRef.col(index) = outRef;
+            cmdSysRef.col(index) = cmdRef;
+            deltaCmdSysRef.col(index) = deltaCmdRef;
+
+            return true;
+        }
+
+        /**
+         * @brief Set the exogenuos inputs matrix
          *
          * @param uMeas measured exogenuos input
          * @return true
          * @return false
          */
-        bool setExogenuosInputs(const cvec<sizer.ndu> &uMeas)
+        bool setExogenuosInputs(const mat<sizer.ndu, sizer.ph> &uMeas)
         {
             extInputMeas = uMeas;
+            return true;
+        }
+
+        /**
+         * @brief Set the exogenuos inputs vector for a specific horizon step
+         *
+         * @param index index of the horizon step
+         * @param uMeas measured exogenuos input
+         * @return true
+         * @return false
+         */
+        bool setExogenuosInputs(
+            const unsigned int index, 
+            const cvec<sizer.ndu> &uMeas)
+        {
+            extInputMeas.col(index) = uMeas;
             return true;
         }
 
@@ -130,9 +181,8 @@ namespace mpc
          *
          * @param x0 system's variables initial condition
          * @param u0 control action initial condition for warm start
-         * @return Result<sizer.nu> optimization result
          */
-        Result<sizer.nu> run(
+        void run(
             const cvec<sizer.nx> &x0,
             const cvec<sizer.nu> &u0)
         {
@@ -211,7 +261,8 @@ namespace mpc
             // solve problem
             osqp_solve(work);
 
-            // if the solution is valid update the
+            // if the solution is valid update the solution otherwise
+            // keep the last feasible solution
             if (work->solution->x != NULL)
             {
                 int index = 0;
@@ -227,15 +278,36 @@ namespace mpc
                 r.cmd = optCmd;
                 r.retcode = work->info->status_val;
                 r.cost = work->info->obj_val;
-                last_r = r;
+                result = r;
+
+                // loop over the rows of the optimal sequence
+                for (size_t i = 1; i < ph() + 1; i++)
+                {
+                    for (size_t j = 0; j < nx(); j++)
+                    {
+                        sequence.state.row(i - 1)[j] = work->solution->x[i * (nx() + nu()) + j];
+                    }
+
+                    for (size_t j = 0; j < nu(); j++)
+                    {
+                        sequence.input.row(i - 1)[j] = work->solution->x[((ph() + 1) * (nx() + nu())) + (i * nu()) + j];
+                    }
+
+                    sequence.output.row(i - 1) = builder->mapToOutput(sequence.state.row(i - 1), extInputMeas.col(i - 1));
+                }
             }
             else
             {
-                r = last_r;
+                r.cost = mpc::inf;
+                r.cmd = result.cmd;
+                r.retcode = -1;
+
+                sequence.state.setZero();
+                sequence.input.setZero();
+                sequence.output.setZero();
             }
 
             clearData();
-            return r;
         }
 
     private:
@@ -345,13 +417,9 @@ namespace mpc
         OSQPData *data;
         c_int exitflag = 0;
 
-        Result<sizer.nu> last_r;
-        double currentSlack;
-        bool hard;
-
-        cvec<sizer.ny> outSysRef;
-        cvec<sizer.nu> cmdSysRef, deltaCmdSysRef;
-        cvec<sizer.ndu> extInputMeas;
+        mat<sizer.ny, sizer.ph> outSysRef;
+        mat<sizer.nu, sizer.ph> cmdSysRef, deltaCmdSysRef;
+        mat<sizer.ndu, sizer.ph> extInputMeas;
 
         ProblemBuilder<sizer> *builder;
     };

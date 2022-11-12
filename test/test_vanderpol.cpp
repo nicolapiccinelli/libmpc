@@ -68,6 +68,7 @@ int VanderPol()
 
     for (;;) {
         r = optsolver.step(modelX, r.cmd);
+        auto seq = optsolver.getOptimalSequence();
         stateEq(modeldX, modelX, r.cmd);
         modelX += modeldX * ts;
         if (std::fabs(modelX[0]) <= 1e-2 && std::fabs(modelX[1]) <= 1e-1) {
