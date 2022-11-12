@@ -131,6 +131,11 @@ namespace mpc
             return optPtr->result;
         }
 
+        /**
+         * @brief Get the Optimal Sequence object
+         * 
+         * @return OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph> last optimal sequence (zeros if optimization fails)
+         */
         OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph> getOptimalSequence()
         {
             return optPtr->sequence;
