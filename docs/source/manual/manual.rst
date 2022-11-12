@@ -184,7 +184,7 @@ This example shows how to regulate a quadcopter about a reference state with con
     InputW << 0.1, 0.1, 0.1, 0.1;
     DeltaInputW << 0, 0, 0, 0;
 
-    lmpc.setObjectiveWeights(OutputW, InputW, DeltaInputW);
+    lmpc.setObjectiveWeights(OutputW, InputW, DeltaInputW, {0, pred_hor});
 
     mpc::cvec<Tnx> xmin, xmax;
     xmin << -M_PI / 6, -M_PI / 6, -mpc::inf, -mpc::inf, -mpc::inf, -1,
@@ -206,14 +206,15 @@ This example shows how to regulate a quadcopter about a reference state with con
     umax << 13, 13, 13, 13;
     umax.array() -= u0;
 
-    lmpc.setConstraints(xmin, umin, ymin, xmax, umax, ymax);
+    lmpc.setConstraints(xmin, umin, ymin, xmax, umax, ymax, {0, pred_hor});
 
     mpc::cvec<Tny> yRef;
     yRef << 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
-    lmpc.setReferences(yRef, mpc::cvec<Tnu>::Zero(), mpc::cvec<Tnu>::Zero());
+    lmpc.setReferences(yRef, mpc::cvec<Tnu>::Zero(), mpc::cvec<Tnu>::Zero(), {0, pred_hor});
 
     auto res = lmpc.step(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
+    lmpc.getOptimalSequence();
 
 Non-linear MPC (LMPC)
 ---------------------
@@ -261,6 +262,7 @@ This example shows how to drives the states of a Van der Pol oscillator to zero 
 
     for (;;) {
         r = nlmpc.step(modelX, r.cmd);
+        auto seq = nlmpc.getOptimalSequence();
         stateEq(modeldX, modelX, r.cmd);
         modelX += modeldX * ts;
 

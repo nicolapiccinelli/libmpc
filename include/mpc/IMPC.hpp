@@ -66,9 +66,6 @@ namespace mpc
         void onInit()
         {
             onSetup();
-
-            result.cmd.resize(nu());
-            result.cmd.setZero();
         };
 
         /**
@@ -113,7 +110,7 @@ namespace mpc
                 << std::endl;
 
             auto start = std::chrono::steady_clock::now();
-            result = optPtr->run(x0, lastU);
+            optPtr->run(x0, lastU);
             auto stop = std::chrono::steady_clock::now();
 
             Logger::instance().log(Logger::log_type::INFO)
@@ -121,7 +118,7 @@ namespace mpc
                 << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count()
                 << " (ms)"
                 << std::endl;
-            return result;
+            return optPtr->result;
         }
 
         /**
@@ -131,7 +128,12 @@ namespace mpc
          */
         Result<sizer.nu> getLastResult()
         {
-            return result;
+            return optPtr->result;
+        }
+
+        OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph> getOptimalSequence()
+        {
+            return optPtr->sequence;
         }
 
     protected:
@@ -145,6 +147,5 @@ namespace mpc
         virtual void onModelUpdate(const cvec<sizer.nx>) = 0;
 
         IOptimizer<sizer> *optPtr;
-        Result<sizer.nu> result;
     };
 }

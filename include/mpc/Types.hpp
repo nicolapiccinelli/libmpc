@@ -100,7 +100,7 @@ namespace mpc
     template <int Tnu = Eigen::Dynamic>
     struct Result
     {
-        Result(): retcode(0), cost(0)
+        Result() : retcode(0), cost(0)
         {
             cmd.setZero();
         }
@@ -108,6 +108,22 @@ namespace mpc
         int retcode;
         double cost;
         cvec<Tnu> cmd;
+    };
+
+    template <
+        int Tnx = Eigen::Dynamic,
+        int Tny = Eigen::Dynamic,
+        int Tnu = Eigen::Dynamic,
+        int Tph = Eigen::Dynamic>
+    struct OptSequence
+    {
+        OptSequence()
+        {
+        }
+
+        mat<Tph, Tnx> state;
+        mat<Tph, Tny> output;
+        mat<Tph, Tnu> input;
     };
 
     enum constraints_type

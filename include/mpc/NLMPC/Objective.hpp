@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mpc/Base.hpp>
+#include <mpc/NLMPC/Base.hpp>
 
 namespace mpc {
 

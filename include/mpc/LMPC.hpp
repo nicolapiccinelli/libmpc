@@ -1,8 +1,8 @@
 #pragma once
 
 #include <mpc/IMPC.hpp>
-#include <mpc/LOptimizer.hpp>
-#include <mpc/ProblemBuilder.hpp>
+#include <mpc/LMPC/LOptimizer.hpp>
+#include <mpc/LMPC/ProblemBuilder.hpp>
 
 namespace mpc
 {
@@ -93,50 +93,21 @@ namespace mpc
         }
 
         /**
-         * @brief Set the state, input and output box constraints, the constraints are applied equally
-         * along the prediction horizon
+         * @brief Set the state, input and output box constraints
          *
-         * @param XMin minimum state vector
-         * @param UMin minimum input vector
-         * @param YMin minimum output vector
-         * @param XMax maximum state vector
-         * @param UMax maximum input vector
-         * @param YMax maximum output vector
+         * @param XMinMat minimum state matrix
+         * @param UMinMat minimum input matrix
+         * @param YMinMat minimum output matrix
+         * @param XMaxMat maximum state matrix
+         * @param UMaxMat maximum input matrix
+         * @param YMaxMat maximum output matrix
          * @return true
          * @return false
          */
         bool setConstraints(
-            const cvec<Tnx> XMin, const cvec<Tnu> UMin, const cvec<Tny> YMin,
-            const cvec<Tnx> XMax, const cvec<Tnu> UMax, const cvec<Tny> YMax)
+            const mat<Tnx, Tph> XMinMat, const mat<Tnu, Tph> UMinMat, const mat<Tny, Tph> YMinMat,
+            const mat<Tnx, Tph> XMaxMat, const mat<Tnu, Tph> UMaxMat, const mat<Tny, Tph> YMaxMat)
         {
-
-            // replicate the bounds all along the prediction horizon
-            mat<Tnx, Tph> XMinMat, XMaxMat;
-            mat<Tny, Tph> YMinMat, YMaxMat;
-            mat<Tnu, Tph> UMinMat, UMaxMat;
-
-            XMinMat.resize(nx(), ph());
-            YMinMat.resize(ny(), ph());
-            UMinMat.resize(nu(), ph());
-
-            XMaxMat.resize(nx(), ph());
-            YMaxMat.resize(ny(), ph());
-            UMaxMat.resize(nu(), ph());
-
-            for (size_t i = 0; i < ph(); i++)
-            {
-                XMinMat.col(i) = XMin;
-                XMaxMat.col(i) = XMax;
-                YMinMat.col(i) = YMin;
-                YMaxMat.col(i) = YMax;
-
-                if (i < ph())
-                {
-                    UMinMat.col(i) = UMin;
-                    UMaxMat.col(i) = UMax;
-                }
-            }
-
             Logger::instance().log(Logger::log_type::DETAIL) << "Setting constraints" << std::endl;
             return builder.setConstraints(
                 XMinMat, UMinMat, YMinMat,
@@ -144,41 +115,163 @@ namespace mpc
         }
 
         /**
+         * @brief Set the state, input and output box constraints, the constraints are applied equally
+         * along the specified prediction horizon segment
+         *
+         * @param XMin minimum state vector
+         * @param UMin minimum input vector
+         * @param YMin minimum output vector
+         * @param XMax maximum state vector
+         * @param UMax maximum input vector
+         * @param YMax maximum output vector
+         * @param slice slice of the prediction horizon step [start end]
+         * (if both ends re set to -1 the whole prediction horizon is used)
+         * @return true
+         * @return false
+         */
+        bool setConstraints(
+            const cvec<Tnx> XMin, const cvec<Tnu> UMin, const cvec<Tny> YMin,
+            const cvec<Tnx> XMax, const cvec<Tnu> UMax, const cvec<Tny> YMax,
+            const std::array<int, 2> slice)
+        {
+            size_t start = slice[0];
+            size_t end = slice[1];
+
+            if (start >= end || start > ph() || end > ph() || start + end > ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
+                return false;
+            }
+
+            if (start == -1 && end == -1)
+            {
+                // replicate all along the prediction horizon
+                mat<Tnx, Tph> XMinMat, XMaxMat;
+                mat<Tny, Tph> YMinMat, YMaxMat;
+                mat<Tnu, Tph> UMinMat, UMaxMat;
+
+                XMinMat.resize(nx(), ph());
+                YMinMat.resize(ny(), ph());
+                UMinMat.resize(nu(), ph());
+
+                XMaxMat.resize(nx(), ph());
+                YMaxMat.resize(ny(), ph());
+                UMaxMat.resize(nu(), ph());
+
+                for (size_t i = 0; i < ph(); i++)
+                {
+                    XMinMat.col(i) = XMin;
+                    XMaxMat.col(i) = XMax;
+                    YMinMat.col(i) = YMin;
+                    YMaxMat.col(i) = YMax;
+
+                    if (i < ph())
+                    {
+                        UMinMat.col(i) = UMin;
+                        UMaxMat.col(i) = UMax;
+                    }
+                }
+
+                Logger::instance().log(Logger::log_type::DETAIL) << "Setting constraints equally on the horizon" << std::endl;
+                return builder.setConstraints(
+                    XMinMat, UMinMat, YMinMat,
+                    XMaxMat, UMaxMat, YMaxMat);
+            }
+            else
+            {
+                bool ret = true;
+
+                for (size_t i = start; i < end; i++)
+                {
+                    Logger::instance().log(Logger::log_type::DETAIL) << "Setting constraints for the step " << i << std::endl;
+                    ret = ret && builder.setConstraints(i, XMin, UMin, YMin, XMax, UMax, YMax);
+                }
+
+                return ret;
+            }
+        }
+
+        /**
          * @brief Set the objective function weights, the weights are applied equally
-         * along the prediction horizon
+         * along the specified prediction horizon segment
          *
          * @param OWeight weights for the output vector
          * @param UWeight weights for the optimal control input vector
          * @param DeltaUWeight weight for the variation of the optimal control input vector
+         * @param slice slice of the prediction horizon step [start end]
+         * (if both ends re set to -1 the whole prediction horizon is used)
+         * @return true
+         * @return false
+         */
+        bool setObjectiveWeights(
+            const mat<Tny, Tph> &OWeightMat,
+            const mat<Tnu, Tph> &UWeightMat,
+            const mat<Tnu, Tph> &DeltaUWeightMat)
+        {
+            Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights" << std::endl;
+            return builder.setObjective(OWeightMat, UWeightMat, DeltaUWeightMat);
+        }
+
+        /**
+         * @brief Set the objective function weights, the weights are applied equally
+         * along the specified prediction horizon segment
+         *
+         * @param OWeight weights for the output vector
+         * @param UWeight weights for the optimal control input vector
+         * @param DeltaUWeight weight for the variation of the optimal control input vector
+         * @param slice slice of the prediction horizon step where to apply the constraints [start end]
+         * (if both ends re set to -1 the whole prediction horizon is used)
          * @return true
          * @return false
          */
         bool setObjectiveWeights(
             const cvec<Tny> &OWeight,
             const cvec<Tnu> &UWeight,
-            const cvec<Tnu> &DeltaUWeight)
+            const cvec<Tnu> &DeltaUWeight,
+            const std::array<int, 2> slice)
         {
-            // replicate the weights all along the prediction horizon
-            mat<Tny, (Size(Tph) + 1)> OWeightMat;
-            mat<Tnu, (Size(Tph) + 1)> UWeightMat;
-            mat<Tnu, Tph> DeltaUWeightMat;
+            size_t start = slice[0];
+            size_t end = slice[1];
 
-            OWeightMat.resize(ny(), ph() + 1);
-            UWeightMat.resize(nu(), ph() + 1);
-            DeltaUWeightMat.resize(nu(), ph());
-
-            for (size_t i = 0; i < ph() + 1; i++)
+            if (start >= end || start > ph() || end > ph() || start + end > ph())
             {
-                OWeightMat.col(i) = OWeight;
-                UWeightMat.col(i) = UWeight;
-                if (i < ph())
-                {
-                    DeltaUWeightMat.col(i) = DeltaUWeight;
-                }
+                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
+                return false;
             }
 
-            Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights" << std::endl;
-            return builder.setObjective(OWeightMat, UWeightMat, DeltaUWeightMat);
+            if (start == -1 && end == -1)
+            {
+                // replicate all along the prediction horizon
+                mat<Tny, Tph> OWeightMat;
+                mat<Tnu, Tph> UWeightMat;
+                mat<Tnu, Tph> DeltaUWeightMat;
+
+                OWeightMat.resize(ny(), ph());
+                UWeightMat.resize(nu(), ph());
+                DeltaUWeightMat.resize(nu(), ph());
+
+                for (size_t i = 0; i < ph(); i++)
+                {
+                    OWeightMat.col(i) = OWeight;
+                    UWeightMat.col(i) = UWeight;
+                    DeltaUWeightMat.col(i) = DeltaUWeight;
+                }
+
+                Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights equally on the horizon" << std::endl;
+                return builder.setObjective(OWeightMat, UWeightMat, DeltaUWeightMat);
+            }
+            else
+            {
+                bool ret = true;
+
+                for (size_t i = start; i < end; i++)
+                {
+                    Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights for the step " << i << std::endl;
+                    ret = ret && builder.setObjective(i, OWeight, UWeight, DeltaUWeight);
+                }
+
+                return ret;
+            }
         }
 
         /**
@@ -226,13 +319,63 @@ namespace mpc
          * @return false
          */
         bool setExogenuosInputs(
-            const cvec<Tndu> &uMeas)
+            const mat<Tndu, Tph> &uMeasMat)
         {
-            return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenuosInputs(uMeas);
+            return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenuosInputs(uMeasMat);
         }
 
         /**
-         * @brief Set the references vector for the objective function
+         * @brief Set the exogenuos inputs vector, the exogenuos inputs are assumed to be constant
+         * along the specified prediction horizon segment
+         *
+         * @param uMeas measured exogenuos input
+         * @param slice slice of the prediction horizon [start end]
+         * (if both ends re set to -1 the whole prediction horizon is used)
+         * @return true
+         * @return false
+         */
+        bool setExogenuosInputs(
+            const cvec<Tndu> &uMeas,
+            const std::array<int, 2> slice)
+        {
+            size_t start = slice[0];
+            size_t end = slice[1];
+
+            if (start >= end || start > ph() || end > ph() || start + end > ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
+                return false;
+            }
+
+            if (start == -1 && end == -1)
+            {
+                // replicate all along the prediction horizon
+                mat<Tndu, Tph> uMeasMat;
+
+                uMeasMat.resize(ndu(), ph());
+
+                for (size_t i = 0; i < ph(); i++)
+                {
+                    uMeasMat.col(i) = uMeas;
+                }
+
+                return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenuosInputs(uMeasMat);
+            }
+            else
+            {
+                bool ret = true;
+
+                for (size_t i = start; i < end; i++)
+                {
+                    ret = ret && ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenuosInputs(i, uMeas);
+                }
+
+                return ret;
+            }
+        }
+
+        /**
+         * @brief Set the references matrix for the objective function
          *
          * @param outRef reference for the output
          * @param cmdRef reference for the optimal control input
@@ -241,11 +384,72 @@ namespace mpc
          * @return false
          */
         bool setReferences(
+            const mat<Tny, Tph> outRefMat,
+            const mat<Tnu, Tph> cmdRefMat,
+            const mat<Tnu, Tph> deltaCmdRefMat)
+        {
+            return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setReferences(outRefMat, cmdRefMat, deltaCmdRefMat);
+        }
+
+        /**
+         * @brief Set the references vector for the objective function, the references are assumed to be constant
+         * along the specified prediction horizon segment
+         *
+         * @param outRef reference for the output
+         * @param cmdRef reference for the optimal control input
+         * @param deltaCmdRef reference for the variation of the optimal control input
+         * @param slice slice of the prediction horizon step [start end]
+         * (if both ends re set to -1 the whole prediction horizon is used)
+         * @return true
+         * @return false
+         */
+        bool setReferences(
             const cvec<Tny> outRef,
             const cvec<Tnu> cmdRef,
-            const cvec<Tnu> deltaCmdRef)
+            const cvec<Tnu> deltaCmdRef,
+            const std::array<int, 2> slice)
         {
-            return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setReferences(outRef, cmdRef, deltaCmdRef);
+            size_t start = slice[0];
+            size_t end = slice[1];
+
+            if (start >= end || start > ph() || end > ph() || start + end > ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
+                return false;
+            }
+
+            if (start == -1 && end == -1)
+            {
+                // replicate all along the prediction horizon
+                mat<Tny, Tph> outRefMat;
+                mat<Tnu, Tph> cmdRefMat;
+                mat<Tnu, Tph> deltaCmdRefMat;
+
+                outRefMat.resize(ny(), ph());
+                cmdRefMat.resize(nu(), ph());
+                deltaCmdRefMat.resize(nu(), ph());
+
+                for (size_t i = 0; i < ph(); i++)
+                {
+                    outRefMat.col(i) = outRef;
+                    cmdRefMat.col(i) = cmdRef;
+                    deltaCmdRefMat.col(i) = deltaCmdRef;
+                }
+
+                return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setReferences(outRefMat, cmdRefMat, deltaCmdRefMat);
+            }
+            else
+            {
+                bool ret = true;
+
+                for (size_t i = start; i < end; i++)
+                {
+                    Logger::instance().log(Logger::log_type::DETAIL) << "Setting references for the step " << i << std::endl;
+                    ret = ret && ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setReferences(i, outRef, cmdRef, deltaCmdRef);
+                }
+
+                return ret;
+            }
         }
 
     protected:
@@ -275,6 +479,5 @@ namespace mpc
 
     private:
         ProblemBuilder<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> builder;
-        using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::result;
     };
 } // namespace mpc

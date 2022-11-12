@@ -1,15 +1,15 @@
 #pragma once
 
 #include <mpc/IComponent.hpp>
-#include <mpc/Mapping.hpp>
+#include <mpc/NLMPC/Mapping.hpp>
+#include <mpc/NLMPC/Model.hpp>
 #include <mpc/Types.hpp>
 
 namespace mpc
 {
 
     /**
-     * @brief Abstract base class for the linear and non-linear mpc
-     * interfaces
+     * @brief Abstract base class for non-linear mpc components
      *
      * @tparam Tnx dimension of the state space
      * @tparam Tnu dimension of the input space
@@ -28,7 +28,6 @@ namespace mpc
         Base() : IComponent<sizer>()
         {
             e = 0;
-            ts = 0;
             niteration = 0;
         }
 
@@ -41,13 +40,15 @@ namespace mpc
         void onInit() = 0;
 
         /**
-         * @brief Set the mapping object reference
+         * @brief Set the model and the mapping object references
          *
-         * @param m the mapping object
+         * @param sysModel the model object
+         * @param map the mapping object
          */
-        void setMapping(Mapping<sizer> &m)
+        void setModel(Model<sizer> &sysModel, Mapping<sizer> &map)
         {
-            mapping = m;
+            mapping = map;
+            model = sysModel;
         }
 
         /**
@@ -66,13 +67,13 @@ namespace mpc
 
     protected:
         Mapping<sizer> mapping;
+        Model<sizer> model;
 
         cvec<sizer.nx> x0;
         mat<sizer.ph + 1, sizer.nx> Xmat;
         mat<sizer.ph + 1, sizer.nu> Umat;
 
         double e;
-        double ts;
     };
 
 } // namespace mpc

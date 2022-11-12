@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.0] - 2022-11-12
+### Added
+- Added support in linear mpc to define the references, weights, constraints and exogenous inputs different in each prediction step
+- Added general support to the retrival of the optimal sequence (state, input and output)
+
+### Changed
+- The API to set the references, weights constraints and exogenous inputs using vector now requires a span of the horizon (Breaking changes)
+- Added new APIs to define the references, weights, constraints and exogenous inputs matrices to the whole horizon
+- Internal structure of the library has been refactored to separate non-linear and linear classes
+
 ## [0.0.9] - 2022-07-06
 ### Added
 - Added support for multiple mpc instances in the same executable
