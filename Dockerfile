@@ -85,20 +85,20 @@ RUN git clone --recursive https://github.com/osqp/osqp /tmp/osqp \
     && cmake \ 
         -G "Unix Makefiles" \
         .. \
-    && cmake --build . \
-    && cmake --build . --target install \
+    && make -j$(($(nproc)-1)) \
+    && make install \
     && rm -rf /tmp/*
 
 
-RUN git clone https://github.com/catchorg/Catch2.git /tmp/catch2 \
-    && cd /tmp/catch2 \
+RUN git clone https://github.com/catchorg/Catch2.git /tmp/Catch2 \
+    && cd /tmp/Catch2 \
     && mkdir build \
     && cd build \
     && cmake \ 
         -D BUILD_TESTING=OFF \
         .. \
-    && cmake --build . \
-    && cmake --build . --target install \
+    && make -j$(($(nproc)-1)) \
+    && make install \
     && rm -rf /tmp/*
 
 # # Set Clang as the default compiler

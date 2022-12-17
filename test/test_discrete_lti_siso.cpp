@@ -95,6 +95,10 @@ int DiscreteLtiSiso()
 
     auto res = optsolver.getLastResult();
     auto seq = optsolver.getOptimalSequence();
+    
+    (void) res;
+    (void) seq;
+
     return 0;
 }
 
