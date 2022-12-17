@@ -90,6 +90,9 @@ RUN git clone --recursive https://github.com/osqp/osqp /tmp/osqp \
     && rm -rf /tmp/*
 
 
+##############################
+# Catch2
+##############################
 RUN git clone https://github.com/catchorg/Catch2.git /tmp/Catch2 \
     && cd /tmp/Catch2 \
     && mkdir build \
@@ -101,6 +104,6 @@ RUN git clone https://github.com/catchorg/Catch2.git /tmp/Catch2 \
     && make install \
     && rm -rf /tmp/*
 
-# # Set Clang as the default compiler
+# # (Optional) Set Clang as the default compiler
 # ENV CC=/usr/bin/clang
 # ENV CXX=/usr/bin/clang++
