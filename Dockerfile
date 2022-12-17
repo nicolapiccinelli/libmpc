@@ -1,8 +1,7 @@
-FROM ubuntu:focal
+FROM ubuntu:latest
 
 ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /
-
 
 ##############################
 # Core tools
@@ -12,15 +11,19 @@ RUN apt-get update -y -qq \
     && apt-get install -y -qq --no-install-recommends \
         apt-utils \
         lsb-release \
-        ca-certificates \
-        apt-transport-https \
-        software-properties-common \
         build-essential \
-        pkg-config \
+        software-properties-common \
+        ca-certificates \
+        gpg-agent \
         wget \
         git \
         cmake \
-        gpg-agent \
+        lcov \
+        gcc \
+        clang \
+        clang-tidy \
+        clang-format \
+        libomp-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -28,19 +31,13 @@ RUN apt-get update -y -qq \
 ##############################
 # Non-root user Setup
 ##############################
+ARG USERNAME=dev
 RUN apt-get update -qq \
     && apt-get install -y --no-install-recommends \
         sudo \
         gosu \
-        locales \
-    && locale-gen en_US.UTF-8 \
-    && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
-    && rm -rf /var/lib/apt/lists/*
-ENV LANG en_US.UTF-8
-
-# Create a (non-root) user
-ARG USERNAME=dev
-RUN useradd --create-home --home-dir /home/$USERNAME --shell /bin/bash --user-group --groups adm,video,sudo,dialout $USERNAME \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --home-dir /home/$USERNAME --shell /bin/bash --user-group --groups adm,sudo $USERNAME \
     && echo $USERNAME:$USERNAME | chpasswd \
     && echo $USERNAME ALL=\(ALL\) NOPASSWD:ALL >> /etc/sudoers \
     && touch home/$USERNAME/.sudo_as_admin_successful \
@@ -93,20 +90,17 @@ RUN git clone --recursive https://github.com/osqp/osqp /tmp/osqp \
     && rm -rf /tmp/*
 
 
-##############################
-# Clang
-##############################
-ARG CLANG_VERSION="15"
-RUN wget https://apt.llvm.org/llvm.sh \
-    && chmod +x llvm.sh \
-    && bash llvm.sh ${CLANG_VERSION} all \
-    && ln /usr/bin/clang-${CLANG_VERSION} -f /usr/bin/clang \
-    && ln /usr/bin/clang++-${CLANG_VERSION} -f /usr/bin/clang++ \
-    && ln /usr/bin/clang-tidy-${CLANG_VERSION} -f /usr/bin/clang-tidy \
-    && ln /usr/bin/clang-format-${CLANG_VERSION} -f /usr/bin/clang-format \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN git clone https://github.com/catchorg/Catch2.git /tmp/catch2 \
+    && cd /tmp/catch2 \
+    && mkdir build \
+    && cd build \
+    && cmake \ 
+        -D BUILD_TESTING=OFF \
+        .. \
+    && cmake --build . \
+    && cmake --build . --target install \
+    && rm -rf /tmp/*
 
-# Set Clang as the default compiler
-ENV CC=/usr/bin/clang
-ENV CXX=/usr/bin/clang++
+# # Set Clang as the default compiler
+# ENV CC=/usr/bin/clang
+# ENV CXX=/usr/bin/clang++

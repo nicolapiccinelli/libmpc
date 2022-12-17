@@ -5,6 +5,7 @@ cd "$(dirname "$0")"
 mkdir -p build && cd build
 
 # Build Library
-cmake -D CMAKE_BUILD_TYPE=Release .. 
-make
-sudo make install
+cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_EXPORT_COMPILE_COMMANDS=ON .. 
+make 
+make test
+make install
