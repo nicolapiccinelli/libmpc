@@ -159,7 +159,7 @@ TEMPLATE_TEST_CASE_SIG(
 
     conFunc.setModel(model, mapping);
 
-    conFunc.setEqConstraints([Teq](
+    conFunc.setEqConstraints([](
                                  mpc::cvec<TVAR(Teq)> &eq_con,
                                  mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
                                  mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>)
