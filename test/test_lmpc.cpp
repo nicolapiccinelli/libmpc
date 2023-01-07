@@ -130,8 +130,9 @@ TEST_CASE(
     REQUIRE(optsolver.setExogenuosInputs(mpc::cvec<num_dinputs>::Zero(), {0, pred_hor}));
 
     auto res = optsolver.step(mpc::cvec<num_states>::Zero(), mpc::cvec<num_inputs>::Zero());
-    // auto seq = optsolver.getOptimalSequence();
-
+    auto seq = optsolver.getOptimalSequence();
+    (void) seq;
+    
     mpc::cvec<4> testRes;
     testRes << -0.9916, 1.74839, -0.9916, 1.74839;
 
