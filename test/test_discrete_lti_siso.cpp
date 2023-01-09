@@ -1,3 +1,7 @@
+/*
+ *   Copyright (c) 2023 Nicola Piccinelli
+ *   All rights reserved.
+ */
 #include "basic.hpp"
 #include <catch2/catch_test_macros.hpp>
 
@@ -41,39 +45,42 @@ int DiscreteLtiSiso()
     D << 0;
 
     auto stateEq = [=](
-        mpc::cvec<TVAR(Tnx)>& dx,
-        mpc::cvec<TVAR(Tnx)> x,
-        mpc::cvec<TVAR(Tnu)> u)
+                       mpc::cvec<TVAR(Tnx)> &dx,
+                       const mpc::cvec<TVAR(Tnx)> &x,
+                       const mpc::cvec<TVAR(Tnu)> &u,
+                       const unsigned int &)
     {
-        dx = A*x + B*u; 
+        dx = A*x + B*u;
     };
     optsolver.setStateSpaceFunction(stateEq);
 
     auto outEq = [=](
-        mpc::cvec<TVAR(Tny)>& y,
-        mpc::cvec<TVAR(Tnx)> x,
-        mpc::cvec<TVAR(Tnu)> u)
+                     mpc::cvec<TVAR(Tny)> &y,
+                     const mpc::cvec<TVAR(Tnx)>& x,
+                     const mpc::cvec<TVAR(Tnu)>& u,
+                     const unsigned int&)
     {
-        y = C*x + D*u; 
+        y = C*x + D*u;
     };
 
     optsolver.setOutputFunction(outEq);
 
     auto objEq = [](
-        mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
-        mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> u,
-        double)
+                     const mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> &x,
+                     const mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> &u,
+                     const mpc::mat<TVAR(Tph + 1), TVAR(Tny)> &y,
+                     const double &)
     {
-        return x.array().square().sum() + u.array().square().sum();
+        return x.array().square().sum() + u.array().square().sum() +  y.array().square().sum();
     };
     optsolver.setObjectiveFunction(objEq);
 
     auto conIneq = [=](
-        mpc::cvec<TVAR(Tineq)>& ineq,
-        mpc::mat<TVAR(Tph + 1), TVAR(Tnx)>,
-        mpc::mat<TVAR(Tph + 1), TVAR(Tny)>,
-        mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> u,
-        double)
+                       mpc::cvec<TVAR(Tineq)> &ineq,
+                       const mpc::mat<TVAR(Tph + 1), TVAR(Tnx)>&,
+                       const mpc::mat<TVAR(Tph + 1), TVAR(Tny)>&,
+                       const mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>& u,
+                       const double&)
     {
         for (int i = 0; i <= Tph; i++)
         {
@@ -95,6 +102,10 @@ int DiscreteLtiSiso()
 
     auto res = optsolver.getLastResult();
     auto seq = optsolver.getOptimalSequence();
+    
+    (void) res;
+    (void) seq;
+
     return 0;
 }
 

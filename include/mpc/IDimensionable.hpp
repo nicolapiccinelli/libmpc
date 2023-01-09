@@ -1,3 +1,7 @@
+/*
+ *   Copyright (c) 2023 Nicola Piccinelli
+ *   All rights reserved.
+ */
 #pragma once
 
 #include <mpc/Dim.hpp>
@@ -81,32 +85,69 @@ namespace mpc
          */
         virtual void onInit() = 0;
 
+        /**
+         * @brief User-defined function handle for the non-linear MPC
+         * objective function. The arguments of the function are the
+         * state, output and input vectors along the horizon while the last
+         * term is the slack variable. The function must return the 
+         * scalar value of the objective function
+         */
         using ObjFunHandle = std::function<double(
-            mat<sizer.ph + 1, sizer.nx>,
-            mat<sizer.ph + 1, sizer.nu>,
-            double)>;
+            const mat<sizer.ph + 1, sizer.nx> &,
+            const mat<sizer.ph + 1, sizer.ny> &,
+            const mat<sizer.ph + 1, sizer.nu> &,
+            const double &)>;
 
+        /**
+         * @brief User-defined function handle for the non-linear MPC
+         * inequality constraints function. The arguments of the function 
+         * are the inequality vector containg the value of each term and the
+         * current state, output and input vectors along the horizon. The last
+         * term is the slack variable
+         */
         using IConFunHandle = std::function<void(
             cvec<sizer.ineq> &,
-            mat<sizer.ph + 1, sizer.nx>,
-            mat<sizer.ph + 1, sizer.ny>,
-            mat<sizer.ph + 1, sizer.nu>,
-            double)>;
+            const mat<sizer.ph + 1, sizer.nx> &,
+            const mat<sizer.ph + 1, sizer.ny> &,
+            const mat<sizer.ph + 1, sizer.nu> &,
+            const double &)>;
 
+        /**
+         * @brief User-defined function handle for the non-linear MPC
+         * equality constraints function. The arguments of the function
+         * are the equality vector containg the value of each term and the
+         * current state and input vectors along the horizon
+         */
         using EConFunHandle = std::function<void(
             cvec<sizer.eq> &,
-            mat<sizer.ph + 1, sizer.nx>,
-            mat<sizer.ph + 1, sizer.nu>)>;
+            const mat<sizer.ph + 1, sizer.nx> &,
+            const mat<sizer.ph + 1, sizer.nu> &)>;
 
+        /**
+         * @brief User-defined function handle for the non-linear MPC
+         * dynamical system model. The arguments of the function are the
+         * vector field (or next state) and the current state and input
+         * vectors along the horizon. The last argument is the step of 
+         * the horizon on which the system output is evaluated
+         */
         using StateFunHandle = std::function<void(
             cvec<sizer.nx> &,
-            cvec<sizer.nx>,
-            cvec<sizer.nu>)>;
+            const cvec<sizer.nx> &,
+            const cvec<sizer.nu> &,
+            const unsigned int &)>;
 
+        /**
+         * @brief User-defined function handle for the non-linear MPC
+         * dynamical system output model. The arguments of the function are
+         * the system output and the current state and input vectors along
+         * the horizon. The last argument is the step of the horizon on which
+         * the system output is evaluated
+         */
         using OutFunHandle = std::function<void(
             cvec<sizer.ny> &,
-            cvec<sizer.nx>,
-            cvec<sizer.nu>)>;
+            const cvec<sizer.nx> &,
+            const cvec<sizer.nu> &,
+            const unsigned int &)>;
 
     private:
         size_t runtime_size_nx;

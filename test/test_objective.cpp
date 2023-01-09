@@ -1,3 +1,7 @@
+/*
+ *   Copyright (c) 2023 Nicola Piccinelli
+ *   All rights reserved.
+ */
 #include "basic.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_template_test_macros.hpp>
@@ -23,12 +27,11 @@ TEMPLATE_TEST_CASE_SIG(
 
     objFunc.setModel(model, mapping);
     objFunc.setObjective([](
-        mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
-        mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> u,
-        double) 
-    {
-        return x.array().square().sum() + u.array().square().sum();
-    });
+                             const mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> &x,
+                             const mpc::mat<TVAR(Tph + 1), TVAR(Tny)> &,
+                             const mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> &u,
+                             const double &)
+                         { return x.array().square().sum() + u.array().square().sum(); });
 
     mpc::cvec<TVAR(Tnx)> x0;
     x0.resize(Tnx);

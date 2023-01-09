@@ -229,25 +229,30 @@ This example shows how to drives the states of a Van der Pol oscillator to zero 
     nlmpc.setContinuosTimeModel(ts);
 
     auto stateEq = [&](mpc::cvec<Tnx>& dx,
-                       mpc::cvec<Tnx> x,
-                       mpc::cvec<Tnu> u) {
+                       const mpc::cvec<Tnx>& x,
+                       const mpc::cvec<Tnu>& u) {
         dx(0) = ((1.0 - (x(1) * x(1))) * x(0)) - x(1) + u(0);
         dx(1) = x(0);
     };
 
-    nlmpc.setStateSpaceFunction(stateEq);
+    nlmpc.setStateSpaceFunction([&](mpc::cvec<Tnx> &dx,
+                                    const mpc::cvec<Tnx>& x,
+                                    const mpc::cvec<Tnu>& u,
+                                    const unsigned int&)
+                                    { stateEq(dx, x, u); });
 
-    nlmpc.setObjectiveFunction([&](mpc::mat<Tph + 1, Tnx> x,
-                                   mpc::mat<Tph + 1, Tnu> u,
-                                   double) {
+    nlmpc.setObjectiveFunction([&](const mpc::mat<Tph + 1, Tnx>& x,
+                                   const mpc::mat<Tph + 1, Tny>& y,
+                                   const mpc::mat<Tph + 1, Tnu>& u,
+                                   const double&) {
         return x.array().square().sum() + u.array().square().sum();
     });
 
     nlmpc.setIneqConFunction([&](mpc::cvec<ineq_c>& in_con,
-                                 mpc::mat<Tph + 1, Tnx>,
-                                 mpc::mat<Tph + 1, Tny>,
-                                 mpc::mat<Tph + 1, Tnu> u,
-                                 double) {
+                                 const mpc::mat<Tph + 1, Tnx>&,
+                                 const mpc::mat<Tph + 1, Tny>&,
+                                 const mpc::mat<Tph + 1, Tnu>& u,
+                                 const double&) {
         for (int i = 0; i < ineq_c; i++) {
             in_con(i) = u(i, 0) - 0.5;
         }

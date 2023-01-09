@@ -1,3 +1,7 @@
+/*
+ *   Copyright (c) 2023 Nicola Piccinelli
+ *   All rights reserved.
+ */
 #include "basic.hpp"
 #include <catch2/catch_test_macros.hpp>
 
@@ -30,32 +34,38 @@ int VanderPol()
     optsolver.setContinuosTimeModel(ts);
 
     auto stateEq = [&](
-                       mpc::cvec<TVAR(num_states)>& dx,
-                       mpc::cvec<TVAR(num_states)> x,
-                       mpc::cvec<TVAR(num_inputs)> u) {
+                       mpc::cvec<TVAR(num_states)> &dx,
+                       const mpc::cvec<TVAR(num_states)>& x,
+                       const mpc::cvec<TVAR(num_inputs)>& u)
+    {
         dx(0) = ((1.0 - (x(1) * x(1))) * x(0)) - x(1) + u(0);
         dx(1) = x(0);
     };
 
-    optsolver.setStateSpaceFunction(stateEq);
+    optsolver.setStateSpaceFunction([&](
+                                        mpc::cvec<TVAR(num_states)> &dx,
+                                        const mpc::cvec<TVAR(num_states)>& x,
+                                        const mpc::cvec<TVAR(num_inputs)>& u,
+                                        const unsigned int&)
+                                    { stateEq(dx, x, u); });
 
     optsolver.setObjectiveFunction([&](
-                                       mpc::mat<TVAR(pred_hor + 1), TVAR(num_states)> x,
-                                       mpc::mat<TVAR(pred_hor + 1), TVAR(num_inputs)> u,
-                                       double) {
-        return x.array().square().sum() + u.array().square().sum();
-    });
+                                       const mpc::mat<TVAR(pred_hor + 1), TVAR(num_states)> &x,
+                                       const mpc::mat<TVAR(pred_hor + 1), TVAR(num_output)> &,
+                                       const mpc::mat<TVAR(pred_hor + 1), TVAR(num_inputs)> &u,
+                                       double)
+                                   { return x.array().square().sum() + u.array().square().sum(); });
 
     optsolver.setIneqConFunction([&](
-                                     mpc::cvec<TVAR(ineq_c)>& in_con,
-                                     mpc::mat<TVAR(pred_hor + 1), TVAR(num_states)>,
-                                     mpc::mat<TVAR(pred_hor + 1), TVAR(num_output)>,
-                                     mpc::mat<TVAR(pred_hor + 1), TVAR(num_inputs)> u,
-                                     double) {
+                                     mpc::cvec<TVAR(ineq_c)> &in_con,
+                                     const mpc::mat<TVAR(pred_hor + 1), TVAR(num_states)>&,
+                                     const mpc::mat<TVAR(pred_hor + 1), TVAR(num_output)>&,
+                                     const mpc::mat<TVAR(pred_hor + 1), TVAR(num_inputs)>& u,
+                                     const double&)
+                                 {
         for (int i = 0; i < ineq_c; i++) {
             in_con(i) = u(i, 0) - 0.5;
-        }
-    });
+        } });
 
     mpc::cvec<TVAR(num_states)> modelX, modeldX;
     modelX.resize(num_states);
@@ -66,12 +76,15 @@ int VanderPol()
 
     auto r = optsolver.getLastResult();
 
-    for (;;) {
+    for (;;)
+    {
         r = optsolver.step(modelX, r.cmd);
         auto seq = optsolver.getOptimalSequence();
+        (void) seq;
         stateEq(modeldX, modelX, r.cmd);
         modelX += modeldX * ts;
-        if (std::fabs(modelX[0]) <= 1e-2 && std::fabs(modelX[1]) <= 1e-1) {
+        if (std::fabs(modelX[0]) <= 1e-2 && std::fabs(modelX[1]) <= 1e-1)
+        {
             break;
         }
     }
