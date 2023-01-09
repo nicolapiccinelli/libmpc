@@ -1,3 +1,7 @@
+/*
+ *   Copyright (c) 2023 Nicola Piccinelli
+ *   All rights reserved.
+ */
 #pragma once
 
 #include <mpc/NLMPC/Constraints.hpp>
@@ -375,24 +379,7 @@ namespace mpc
 
                 sequence.state = Xmat.block(1, 0, ph(), nx());
                 sequence.input = Umat.block(1, 0, ph(), nu());
-
-                if (model.hasOutputModel())
-                {
-                    mat<sizer.ph, sizer.ny> Ymat;
-                    Ymat.resize(ph(), ny());
-                    Ymat.setZero();
-
-                    for (size_t i = 1; i < ph() + 1; i++)
-                    {
-                        cvec<sizer.ny> YmatRow;
-                        YmatRow.resize(ny());
-                        YmatRow.setZero();
-
-                        model.outUser(YmatRow, Xmat.row(i), Umat.row(i));
-                        Ymat.row(i - 1) = YmatRow;
-                    }
-                    sequence.output = Ymat;
-                }
+                sequence.output = model.getOutput(Xmat, Umat).block(1, 0, ph(), ny());
             }
             catch (const std::exception &e)
             {

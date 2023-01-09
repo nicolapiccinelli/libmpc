@@ -1,0 +1,8 @@
+
+services:
+  default:
+    user: dev
+    image: dev_image
+    volumes:
+      - ../:/MPC:cached
+    tty: true # Equivalent to "docker run -t"

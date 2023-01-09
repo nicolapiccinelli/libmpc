@@ -1,3 +1,7 @@
+/*
+ *   Copyright (c) 2023 Nicola Piccinelli
+ *   All rights reserved.
+ */
 #pragma once
 
 #include <mpc/IMPC.hpp>
@@ -134,18 +138,9 @@ namespace mpc
             const cvec<Tnx> XMax, const cvec<Tnu> UMax, const cvec<Tny> YMax,
             const std::array<int, 2> slice)
         {
-            size_t start = slice[0];
-            size_t end = slice[1];
-
-            if (start >= end || start > ph() || end > ph() || start + end > ph())
+            // Replicate all along the prediction horizon
+            if (slice[0] == -1 && slice[1] == -1)
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
-                return false;
-            }
-
-            if (start == -1 && end == -1)
-            {
-                // replicate all along the prediction horizon
                 mat<Tnx, Tph> XMinMat, XMaxMat;
                 mat<Tny, Tph> YMinMat, YMaxMat;
                 mat<Tnu, Tph> UMinMat, UMaxMat;
@@ -176,6 +171,16 @@ namespace mpc
                 return builder.setConstraints(
                     XMinMat, UMinMat, YMinMat,
                     XMaxMat, UMaxMat, YMaxMat);
+            }
+
+            // Replicate on segment of the prediction horizon
+            size_t start = static_cast<size_t>(slice[0]);
+            size_t end = static_cast<size_t>(slice[1]);
+
+            if (start >= end || start > ph() || end > ph() || start + end > ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
+                return false;
             }
             else
             {
@@ -230,18 +235,9 @@ namespace mpc
             const cvec<Tnu> &DeltaUWeight,
             const std::array<int, 2> slice)
         {
-            size_t start = slice[0];
-            size_t end = slice[1];
-
-            if (start >= end || start > ph() || end > ph() || start + end > ph())
+            // Replicate all along the prediction horizon
+            if (slice[0] == -1 && slice[1] == -1)
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
-                return false;
-            }
-
-            if (start == -1 && end == -1)
-            {
-                // replicate all along the prediction horizon
                 mat<Tny, Tph> OWeightMat;
                 mat<Tnu, Tph> UWeightMat;
                 mat<Tnu, Tph> DeltaUWeightMat;
@@ -259,6 +255,16 @@ namespace mpc
 
                 Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights equally on the horizon" << std::endl;
                 return builder.setObjective(OWeightMat, UWeightMat, DeltaUWeightMat);
+            }
+
+            // Replicate on segment of the prediction horizon
+            size_t start = static_cast<size_t>(slice[0]);
+            size_t end = static_cast<size_t>(slice[1]);
+
+            if (start >= end || start > ph() || end > ph() || start + end > ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
+                return false;
             }
             else
             {
@@ -338,18 +344,9 @@ namespace mpc
             const cvec<Tndu> &uMeas,
             const std::array<int, 2> slice)
         {
-            size_t start = slice[0];
-            size_t end = slice[1];
-
-            if (start >= end || start > ph() || end > ph() || start + end > ph())
+            // Replicate all along the prediction horizon
+            if (slice[0] == -1 && slice[1] == -1)
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
-                return false;
-            }
-
-            if (start == -1 && end == -1)
-            {
-                // replicate all along the prediction horizon
                 mat<Tndu, Tph> uMeasMat;
 
                 uMeasMat.resize(ndu(), ph());
@@ -360,6 +357,16 @@ namespace mpc
                 }
 
                 return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenuosInputs(uMeasMat);
+            }
+
+            // Replicate on segment of the prediction horizon
+            size_t start = static_cast<size_t>(slice[0]);
+            size_t end = static_cast<size_t>(slice[1]);
+
+            if (start >= end || start > ph() || end > ph() || start + end > ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
+                return false;
             }
             else
             {
@@ -409,18 +416,9 @@ namespace mpc
             const cvec<Tnu> deltaCmdRef,
             const std::array<int, 2> slice)
         {
-            size_t start = slice[0];
-            size_t end = slice[1];
-
-            if (start >= end || start > ph() || end > ph() || start + end > ph())
+            // Replicate all along the prediction horizon
+            if (slice[0] == -1 && slice[1] == -1)
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
-                return false;
-            }
-
-            if (start == -1 && end == -1)
-            {
-                // replicate all along the prediction horizon
                 mat<Tny, Tph> outRefMat;
                 mat<Tnu, Tph> cmdRefMat;
                 mat<Tnu, Tph> deltaCmdRefMat;
@@ -437,6 +435,16 @@ namespace mpc
                 }
 
                 return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setReferences(outRefMat, cmdRefMat, deltaCmdRefMat);
+            }
+
+            // Replicate on segment of the prediction horizon
+            size_t start = static_cast<size_t>(slice[0]);
+            size_t end = static_cast<size_t>(slice[1]);
+
+            if (start >= end || start > ph() || end > ph() || start + end > ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
+                return false;
             }
             else
             {

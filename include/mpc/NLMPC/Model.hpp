@@ -1,3 +1,7 @@
+/*
+ *   Copyright (c) 2023 Nicola Piccinelli
+ *   All rights reserved.
+ */
 #pragma once
 
 #include <mpc/IComponent.hpp>
@@ -44,7 +48,6 @@ namespace mpc
          */
         void onInit()
         {
-
         }
 
         /**
@@ -57,6 +60,39 @@ namespace mpc
         {
             checkOrQuit();
             return outUser != nullptr;
+        }
+
+        /**
+         * @brief Get the output vector from the model
+         *
+         * @param Xmat the state vectors sequence along the prediction horizon
+         * @param Umat the input vectors sequence along the prediction horizon
+         * @return mat<sizer.ph + 1, sizer.ny> the output vector sequence along the prediction horizon
+         */
+        mat<sizer.ph + 1, sizer.ny> getOutput(
+            const mat<(sizer.ph + 1), sizer.nx>& Xmat,
+            const mat<(sizer.ph + 1), sizer.nu>& Umat)
+        {
+            checkOrQuit();
+
+            mat<sizer.ph + 1, sizer.ny> Ymat;
+            Ymat.resize(ph() + 1, ny());
+            Ymat.setZero();
+
+            if (hasOutputModel())
+            {
+                for (size_t i = 0; i < ph() + 1; i++)
+                {
+                    cvec<sizer.ny> YmatRow;
+                    YmatRow.resize(ny());
+                    YmatRow.setZero();
+
+                    outUser(YmatRow, Xmat.row(i), Umat.row(i), i);
+                    Ymat.row(i) = YmatRow;
+                }
+            }
+
+            return Ymat;
         }
 
         /**
@@ -85,7 +121,7 @@ namespace mpc
             const typename IDimensionable<sizer>::StateFunHandle handle)
         {
             checkOrQuit();
-            return fUser = handle, true;
+            return vectorField = handle, true;
         }
 
         /**
@@ -105,7 +141,9 @@ namespace mpc
         bool isContinuosTime;
         double sampleTime;
 
-        typename IDimensionable<sizer>::StateFunHandle fUser = nullptr;
+        typename IDimensionable<sizer>::StateFunHandle vectorField = nullptr;
+
+    private:
         typename IDimensionable<sizer>::OutFunHandle outUser = nullptr;
     };
 } // namespace mpc

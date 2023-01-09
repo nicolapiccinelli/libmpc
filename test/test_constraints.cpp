@@ -1,3 +1,7 @@
+/*
+ *   Copyright (c) 2023 Nicola Piccinelli
+ *   All rights reserved.
+ */
 #include "basic.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_template_test_macros.hpp>
@@ -37,10 +41,11 @@ TEMPLATE_TEST_CASE_SIG(
 
     model.setContinuos(true);
     model.setStateModel([](
-                              mpc::cvec<TVAR(Tnx)> &dx,
-                              mpc::cvec<TVAR(Tnx)> x,
-                              mpc::cvec<TVAR(Tnu)> u)
-                          {
+                            mpc::cvec<TVAR(Tnx)> &dx,
+                            const mpc::cvec<TVAR(Tnx)> &x,
+                            const mpc::cvec<TVAR(Tnu)> &u,
+                            const unsigned int& p)
+                        {
             dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
             dx[1] = x[0]; });
 
@@ -88,21 +93,22 @@ TEMPLATE_TEST_CASE_SIG(
 
     model.setContinuos(true);
     model.setStateModel([](
-                              mpc::cvec<TVAR(Tnx)> &dx,
-                              mpc::cvec<TVAR(Tnx)> x,
-                              mpc::cvec<TVAR(Tnu)> u)
-                          {
+                            mpc::cvec<TVAR(Tnx)> &dx,
+                            const mpc::cvec<TVAR(Tnx)>& x,
+                            const mpc::cvec<TVAR(Tnu)>& u,
+                            const unsigned int& p)
+                        {
         dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
         dx[1] = x[0]; });
-    
+
     conFunc.setModel(model, mapping);
-    
+
     conFunc.setIneqConstraints([](
                                    mpc::cvec<TVAR(Tineq)> &eq_con,
-                                   mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
-                                   mpc::mat<TVAR(Tph + 1), TVAR(Tny)>,
-                                   mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>,
-                                   double)
+                                   const mpc::mat<TVAR(Tph + 1), TVAR(Tnx)>& x,
+                                   const mpc::mat<TVAR(Tph + 1), TVAR(Tny)>&,
+                                   const mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>&,
+                                   const double&)
                                {
         for (int i = 0; i < Tineq; i++)
         {
@@ -150,19 +156,20 @@ TEMPLATE_TEST_CASE_SIG(
 
     model.setContinuos(true);
     model.setStateModel([](
-                              mpc::cvec<TVAR(Tnx)> &dx,
-                              mpc::cvec<TVAR(Tnx)> x,
-                              mpc::cvec<TVAR(Tnu)> u)
-                          {
+                            mpc::cvec<TVAR(Tnx)> &dx,
+                            const mpc::cvec<TVAR(Tnx)>& x,
+                            const mpc::cvec<TVAR(Tnu)>& u,
+                            const unsigned int& p)
+                        {
         dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
         dx[1] = x[0]; });
 
     conFunc.setModel(model, mapping);
 
-    conFunc.setEqConstraints([Teq](
+    conFunc.setEqConstraints([](
                                  mpc::cvec<TVAR(Teq)> &eq_con,
-                                 mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> x,
-                                 mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>)
+                                 const mpc::mat<TVAR(Tph + 1), TVAR(Tnx)>& x,
+                                 const mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>&)
                              {
         for (int i = 0; i < Teq; i++)
         {

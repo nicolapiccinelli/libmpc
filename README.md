@@ -21,3 +21,15 @@ If you are a developer, to setup the debug environment you also need to install:
 ## Usage
 The latest version of libmpc++ is available from GitHub https://github.com/nicolapiccinelli/libmpc/releases and does not require any
 installation process other than the one required by its dependecies.
+
+## Development Container
+Docker is helpful for creating a stable localized development environment. Install Docker with the convenience script:
+```console
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+```
+
+You can build the development image with the command below. Note that the image will be tagged with the name specified after the '-t' option.
+```console
+docker build -t dev_image .
+```

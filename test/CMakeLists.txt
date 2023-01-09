@@ -4,12 +4,12 @@ if(UNIX)
 endif()
 
 IF("${CMAKE_CXX_COMPILER_ID}" MATCHES "(Apple)?[Cc]lang")
-    set(CMAKE_CXX_FLAGS "-Wunused-command-line-argument -std=c++20 -Wall -Wextra -Wfatal-errors -Werror=return-type -g -O0 -fno-pie")
+    set(CMAKE_CXX_FLAGS "-Wunused-command-line-argument -std=c++20 -Wall -Wextra -Wfatal-errors -Werror=return-type -g -O0")
     message("Adding clang specific flags")
 endif()
 
 if(WIN32)
-    set(CMAKE_CXX_FLAGS "/std:c++17")
+    set(CMAKE_CXX_FLAGS "/std:c++20")
     message("Adding mvcc specific flags")
 endif()
 

@@ -1,3 +1,7 @@
+/*
+ *   Copyright (c) 2023 Nicola Piccinelli
+ *   All rights reserved.
+ */
 #pragma once
 
 #include <mpc/NLMPC/Base.hpp>
@@ -46,7 +50,6 @@ namespace mpc
 
         Constraints() : Base<sizer>()
         {
-            
         }
 
         ~Constraints() = default;
@@ -147,23 +150,7 @@ namespace mpc
             {
                 // check if the output function of the system is defined
                 // if so, let's compute the output along the horizon
-                mat<(sizer.ph + 1), sizer.ny> Ymat;
-                Ymat.resize(ph() + 1, ny());
-                Ymat.setZero();
-
-                if (model.hasOutputModel())
-                {
-                    for (size_t i = 0; i < ph() + 1; i++)
-                    {
-                        cvec<sizer.ny> YmatRow;
-                        YmatRow.resize(ny());
-                        YmatRow.setZero();
-
-                        model.outUser(YmatRow, Xmat.row(i), Umat.row(i));
-                        Ymat.row(i) = YmatRow;
-                    }
-                }
-
+                mat<(sizer.ph + 1), sizer.ny> Ymat = model.getOutput(Xmat, Umat);
                 ieqUser(cineq_user, Xmat, Ymat, Umat, e);
 
                 mat<sizer.ineq, (sizer.ph * sizer.nx)> Jieqx;
@@ -394,7 +381,7 @@ namespace mpc
             const mat<Tnc, (sizer.ph * sizer.nu)> &Jmanvar,
             const cvec<Tnc> &Jcon)
         {
-            //#pragma omp parallel for
+            // #pragma omp parallel for
             for (size_t i = 0; i < ph(); i++)
             {
                 Jres.middleRows(i * nx(), nx()) = Jstate.middleCols(i * nx(), nx()).transpose();
@@ -403,7 +390,7 @@ namespace mpc
             mat<Tnc, sizer.ph * sizer.nu> Jmanvar_mat;
             Jmanvar_mat.resize(Jres.cols(), ph() * nu());
 
-            //#pragma omp parallel for
+            // #pragma omp parallel for
             for (size_t i = 0; i < ph(); i++)
             {
                 Jmanvar_mat.block(0, i * nu(), Jres.cols(), nu()) = Jmanvar.middleCols(i * nu(), nu());
@@ -451,7 +438,7 @@ namespace mpc
             // TODO bind for continuos time
             if (model.isContinuosTime)
             {
-                //#pragma omp parallel for
+                // #pragma omp parallel for
                 for (size_t i = 0; i < ph(); i++)
                 {
                     cvec<sizer.nu> uk;
@@ -466,12 +453,12 @@ namespace mpc
                     cvec<sizer.nx> fk;
                     fk.resize(nx());
 
-                    model.fUser(fk, xk, uk);
+                    model.vectorField(fk, xk, uk, i);
 
                     cvec<sizer.nx> fk1;
                     fk1.resize(nx());
 
-                    model.fUser(fk1, xk1, uk);
+                    model.vectorField(fk1, xk1, uk, i);
 
                     ceq.middleRows(ic, nx()) = xk + (h * (fk + fk1)) - xk1;
                     ceq.middleRows(ic, nx()) = ceq.middleRows(ic, nx()).array() / mapping.StateScaling().array();
@@ -484,7 +471,7 @@ namespace mpc
                         mat<sizer.nx, sizer.nu> Bk;
                         Bk.resize(nx(), nu());
 
-                        computeStateEqJacobian(Ak, Bk, fk, xk, uk);
+                        computeStateEqJacobian(Ak, Bk, fk, xk, uk, i);
 
                         mat<sizer.nx, sizer.nx> Ak1;
                         Ak1.resize(nx(), nx());
@@ -492,7 +479,7 @@ namespace mpc
                         mat<sizer.nx, sizer.nu> Bk1;
                         Bk1.resize(nx(), nu());
 
-                        computeStateEqJacobian(Ak1, Bk1, fk1, xk1, uk);
+                        computeStateEqJacobian(Ak1, Bk1, fk1, xk1, uk, i);
 
                         if (i > 0)
                         {
@@ -508,7 +495,7 @@ namespace mpc
             }
             else
             {
-                //#pragma omp parallel for
+                // #pragma omp parallel for
                 for (size_t i = 0; i < ph(); i++)
                 {
                     cvec<sizer.nu> uk;
@@ -519,7 +506,7 @@ namespace mpc
                     cvec<sizer.nx> xk1;
                     xk1.resize(nx());
 
-                    model.fUser(xk1, xk, uk);
+                    model.vectorField(xk1, xk, uk, i);
 
                     ceq.middleRows(ic, nx()) = Xmat.row(i + 1).transpose() - xk1;
                     ceq.middleRows(ic, nx()) = ceq.middleRows(ic, nx()).array() / mapping.StateScaling().array();
@@ -532,7 +519,7 @@ namespace mpc
                         mat<sizer.nx, sizer.nu> Bk;
                         Bk.resize(nx(), nu());
 
-                        computeStateEqJacobian(Ak, Bk, xk1, xk, uk);
+                        computeStateEqJacobian(Ak, Bk, xk1, xk, uk, i);
 
                         Ak = Sx * Ak * Tx;
                         Bk = Sx * Bk;
@@ -584,17 +571,10 @@ namespace mpc
             Jcone.setZero();
 
             mat<(sizer.ph + 1), sizer.nx> Xa;
-            Xa = x0.cwiseAbs();
-            //#pragma omp parallel for
-            for (int i = 0; i < (int)Xa.rows(); i++)
-            {
-                for (int j = 0; j < (int)Xa.cols(); j++)
-                {
-                    Xa(i, j) = (Xa(i, j) < 1) ? 1 : Xa(i, j);
-                }
-            }
+            Xa = x0.cwiseAbs().unaryExpr([](double d)
+                                         { return (d < 1) ? 1 : d; });
 
-            //#pragma omp parallel for
+            // #pragma omp parallel for
             for (size_t i = 0; i < ph(); i++)
             {
                 for (size_t j = 0; j < nx(); j++)
@@ -607,22 +587,7 @@ namespace mpc
 
                     // check if the output function of the system is defined
                     // if so, let's compute the output along the horizon
-                    mat<(sizer.ph + 1), sizer.ny> y0;
-                    y0.resize(ph() + 1, ny());
-                    y0.setZero();
-
-                    if (model.hasOutputModel())
-                    {
-                        for (size_t k = 0; k < ph() + 1; k++)
-                        {
-                            mpc::cvec<sizer.ny> y0Row;
-                            y0Row.resize(ny());
-                            y0Row.setZero();
-
-                            model.outUser(y0Row, x0.row(k), u0.row(k));
-                            y0.row(k) = y0Row;
-                        }
-                    }
+                    mat<(sizer.ph + 1), sizer.ny> y0 = model.getOutput(x0, u0);
 
                     ieqUser(f, x0, y0, u0, e);
                     x0(ix, j) = x0(ix, j) - dx;
@@ -633,17 +598,10 @@ namespace mpc
             }
 
             mat<(sizer.ph + 1), sizer.nu> Ua;
-            Ua = u0.cwiseAbs();
-            //#pragma omp parallel for
-            for (int i = 0; i < (int)Ua.rows(); i++)
-            {
-                for (int j = 0; j < (int)Ua.cols(); j++)
-                {
-                    Ua(i, j) = (Ua(i, j) < 1) ? 1 : Ua(i, j);
-                }
-            }
+            Ua = u0.cwiseAbs().unaryExpr([](double d)
+                                         { return (d < 1) ? 1 : d; });
 
-            //#pragma omp parallel for
+            // #pragma omp parallel for
             for (size_t i = 0; i < (ph() - 1); i++)
                 // TODO support measured disturbaces
                 for (size_t j = 0; j < nu(); j++)
@@ -656,22 +614,7 @@ namespace mpc
 
                     // check if the output function of the system is defined
                     // if so, let's compute the output along the horizon
-                    mat<(sizer.ph + 1), sizer.ny> y0;
-                    y0.resize(ph() + 1, ny());
-                    y0.setZero();
-
-                    if (model.hasOutputModel())
-                    {
-                        for (size_t k = 0; k < ph() + 1; k++)
-                        {
-                            mpc::cvec<sizer.ny> y0Row;
-                            y0Row.resize(ny());
-                            y0Row.setZero();
-
-                            model.outUser(y0Row, x0.row(k), u0.row(k));
-                            y0.row(k) = y0Row;
-                        }
-                    }
+                    mat<(sizer.ph + 1), sizer.ny> y0 = model.getOutput(x0, u0);
 
                     ieqUser(f, x0, y0, u0, e);
                     u0(i, k) = u0(i, k) - du;
@@ -681,38 +624,22 @@ namespace mpc
                 }
 
             // TODO support measured disturbaces
-            //#pragma omp parallel for
+            // #pragma omp parallel for
             for (size_t j = 0; j < nu(); j++)
             {
-                int k = j;
-                double du = dv * Ua.array()(k);
-                u0((ph() - 1), k) = u0((ph() - 1), k) + du;
-                u0(ph(), k) = u0(ph(), k) + du;
+                double du = dv * Ua.array()(j);
+                u0((ph() - 1), j) = u0((ph() - 1), j) + du;
+                u0(ph(), j) = u0(ph(), j) + du;
                 cvec<sizer.ineq> f;
                 f.resize(ineq());
 
                 // check if the output function of the system is defined
                 // if so, let's compute the output along the horizon
-                mat<(sizer.ph + 1), sizer.ny> y0;
-                y0.resize(ph() + 1, ny());
-                y0.setZero();
-
-                if (model.hasOutputModel())
-                {
-                    for (size_t k = 0; k < ph() + 1; k++)
-                    {
-                        mpc::cvec<sizer.ny> y0Row;
-                        y0Row.resize(ny());
-                        y0Row.setZero();
-
-                        model.outUser(y0Row, x0.row(k), u0.row(k));
-                        y0.row(k) = y0Row;
-                    }
-                }
+                mat<(sizer.ph + 1), sizer.ny> y0 = model.getOutput(x0, u0);
 
                 ieqUser(f, x0, y0, u0, e);
-                u0((ph() - 1), k) = u0((ph() - 1), k) - du;
-                u0(ph(), k) = u0(ph(), k) - du;
+                u0((ph() - 1), j) = u0((ph() - 1), j) - du;
+                u0(ph(), j) = u0(ph(), j) - du;
                 cvec<sizer.ineq> df;
                 df = (f - f0) / du;
                 Jconmv.middleCols(((ph() - 1) * nu()), nu()).col(j) = df;
@@ -725,22 +652,7 @@ namespace mpc
 
             // check if the output function of the system is defined
             // if so, let's compute the output along the horizon
-            mat<(sizer.ph + 1), sizer.ny> y0;
-            y0.resize(ph() + 1, ny());
-            y0.setZero();
-
-            if (model.hasOutputModel())
-            {
-                for (size_t i = 0; i < ph() + 1; i++)
-                {
-                    mpc::cvec<sizer.ny> y0Row;
-                    y0Row.resize(ny());
-                    y0Row.setZero();
-
-                    model.outUser(y0Row, x0.row(i), u0.row(i));
-                    y0.row(i) = y0Row;
-                }
-            }
+            mat<(sizer.ph + 1), sizer.ny> y0 = model.getOutput(x0, u0);
 
             ieqUser(f1, x0, y0, u0, e0 + de);
 
@@ -749,20 +661,7 @@ namespace mpc
 
             // check if the output function of the system is defined
             // if so, let's compute the output along the horizon
-            y0.setZero();
-
-            if (model.hasOutputModel())
-            {
-                for (size_t i = 0; i < ph() + 1; i++)
-                {
-                    mpc::cvec<sizer.ny> y0Row;
-                    y0Row.resize(ny());
-                    y0Row.setZero();
-
-                    model.outUser(y0Row, x0.row(i), u0.row(i));
-                    y0.row(i) = y0Row;
-                }
-            }
+            y0 = model.getOutput(x0, u0);
 
             ieqUser(f2, x0, y0, u0, e0 - de);
             Jcone = (f1 - f2) / (2 * de);
@@ -791,17 +690,10 @@ namespace mpc
             Jconmv.setZero();
 
             mat<(sizer.ph + 1), sizer.nx> Xa;
-            Xa = x0.cwiseAbs();
-            //#pragma omp parallel for
-            for (int i = 0; i < (int)Xa.rows(); i++)
-            {
-                for (int j = 0; j < (int)Xa.cols(); j++)
-                {
-                    Xa(i, j) = (Xa(i, j) < 1) ? 1 : Xa(i, j);
-                }
-            }
+            Xa = x0.cwiseAbs().unaryExpr([](double d)
+                                         { return (d < 1) ? 1 : d; });
 
-            //#pragma omp parallel for
+            // #pragma omp parallel for
             for (size_t i = 0; i < ph(); i++)
             {
                 for (size_t j = 0; j < nx(); j++)
@@ -820,17 +712,10 @@ namespace mpc
             }
 
             mat<(sizer.ph + 1), sizer.nu> Ua;
-            Ua = u0.cwiseAbs();
-            //#pragma omp parallel for
-            for (int i = 0; i < (int)Ua.rows(); i++)
-            {
-                for (int j = 0; j < (int)Ua.cols(); j++)
-                {
-                    Ua(i, j) = (Ua(i, j) < 1) ? 1 : Ua(i, j);
-                }
-            }
+            Ua = u0.cwiseAbs().unaryExpr([](double d)
+                                         { return (d < 1) ? 1 : d; });
 
-            //#pragma omp parallel for
+            // #pragma omp parallel for
             for (size_t i = 0; i < (ph() - 1); i++)
             {
                 // TODO support measured disturbaces
@@ -850,7 +735,7 @@ namespace mpc
             }
 
             // TODO support measured disturbaces
-            //#pragma omp parallel for
+            // #pragma omp parallel for
             for (size_t j = 0; j < nu(); j++)
             {
                 int k = j;
@@ -882,7 +767,8 @@ namespace mpc
             mat<sizer.nx, sizer.nu> &Jmv,
             cvec<sizer.nx> f0,
             cvec<sizer.nx> x0,
-            cvec<sizer.nu> u0)
+            cvec<sizer.nu> u0,
+            unsigned int p)
         {
             Jx.setZero();
             Jmv.setZero();
@@ -890,35 +776,27 @@ namespace mpc
             double dv = 1e-6;
 
             cvec<sizer.nx> Xa;
-            Xa = x0.cwiseAbs();
-            //#pragma omp parallel for
-            for (size_t i = 0; i < nx(); i++)
-            {
-                Xa(i) = (Xa(i) < 1) ? 1 : Xa(i);
-            }
+            Xa = x0.cwiseAbs().unaryExpr([](double d)
+                                         { return (d < 1) ? 1 : d; });
 
-            //#pragma omp parallel for
+            // #pragma omp parallel for
             for (size_t i = 0; i < nx(); i++)
             {
                 double dx = dv * Xa(i);
                 x0(i) = x0(i) + dx;
                 cvec<sizer.nx> f;
                 f.resize(nx());
-                model.fUser(f, x0, u0);
+                model.vectorField(f, x0, u0, p);
                 x0(i) = x0(i) - dx;
                 cvec<sizer.nx> df;
                 df = (f - f0) / dx;
                 Jx.block(0, i, nx(), 1) = df;
             }
 
-            cvec<sizer.nu> Ua = u0.cwiseAbs();
-            //#pragma omp parallel for
-            for (size_t i = 0; i < nu(); i++)
-            {
-                Ua(i) = (Ua(i) < 1) ? 1 : Ua(i);
-            }
+            cvec<sizer.nu> Ua = u0.cwiseAbs().unaryExpr([](double d)
+                                                        { return (d < 1) ? 1 : d; });
 
-            //#pragma omp parallel for
+            // #pragma omp parallel for
             for (size_t i = 0; i < nu(); i++)
             {
                 // TODO support measured disturbaces
@@ -927,7 +805,7 @@ namespace mpc
                 u0(k) = u0(k) + du;
                 cvec<sizer.nx> f;
                 f.resize(nx());
-                model.fUser(f, x0, u0);
+                model.vectorField(f, x0, u0, p);
                 u0(k) = u0(k) - du;
                 cvec<sizer.nx> df;
                 df = (f - f0) / du;

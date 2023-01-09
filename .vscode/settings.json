@@ -87,5 +87,6 @@
         "__functional_03": "cpp",
         "__functional_base": "cpp"
     },
-    "restructuredtext.confPath": "${workspaceFolder}/docs/source"
+    "restructuredtext.confPath": "${workspaceFolder}/docs/source",
+    "testMate.cpp.test.executables": "${workspaceFolder}/bin/*"
 }

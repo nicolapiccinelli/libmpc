@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0] - 2023-01-09
+
+### Added
+- Improved performances of non-linear mpc
+### Changed
+- Added support in non-linear for output penalization in objective function (Breaking change)
+- In non-linear prediction step index is now available in the model update function (Breaking change)
+
 ## [0.1.0] - 2022-11-12
 ### Added
 - Added support in linear mpc to define the references, weights, constraints and exogenous inputs different in each prediction step
