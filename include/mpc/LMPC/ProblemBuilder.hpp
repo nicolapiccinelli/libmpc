@@ -71,9 +71,9 @@ namespace mpc
             // objective_vector is q
             cvec<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> q;
             // constraint_matrix is A
-            mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu)))), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> A;
+            mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu))) + (sizer.ph + 1)), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> A;
             // lower_bounds is l and upper_bounds is u
-            cvec<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu))))> l, u;
+            cvec<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu))) + (sizer.ph + 1))> l, u;
         };
 
         ProblemBuilder() = default;
@@ -106,11 +106,16 @@ namespace mpc
             minU.resize(nu(), ph());
             maxU.resize(nu(), ph());
 
+            sMin.resize(ph() + 1);
+            sMax.resize(ph() + 1);
+            sMultiplier.resize((ph() + 1), (ph() + 1) * (nu() + nx()));
+
             leq.resize(((ph() + 1) * (nu() + nx())));
             ueq.resize(((ph() + 1) * (nu() + nx())));
 
-            lineq.resize((((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()))));
-            uineq.resize((((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()))));
+            lineq.resize((((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))));
+            uineq.resize((((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))));
+            ineq_offset.resize((((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))));
 
             ssA.setZero();
             ssB.setZero();
@@ -122,15 +127,24 @@ namespace mpc
             wU.setZero();
             wDeltaU.setZero();
 
-            minX.setZero();
-            maxX.setZero();
-            minY.setZero();
-            maxY.setZero();
-            minU.setZero();
-            maxU.setZero();
+            // setting the box constraints to -inf and inf
+            minX.setConstant(-inf);
+            minY.setConstant(-inf);
+            minU.setConstant(-inf);
+            maxX.setConstant(inf);
+            maxY.setConstant(inf);
+            maxU.setConstant(inf);
+
+            // setting the scalar constraints to -inf and inf
+            sMin.setConstant(-inf);
+            sMax.setConstant(inf);
+
+            // multiplier is defaulted to zero
+            sMultiplier.setZero();
 
             leq.setZero();
             ueq.setZero();
+
             lineq.setZero();
             uineq.setZero();
 
@@ -140,18 +154,21 @@ namespace mpc
             mpcProblem.q.resize(
                 (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
             mpcProblem.A.resize(
-                (((ph() + 1) * (nu() + nx())) + ((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()))),
+                (((ph() + 1) * (nu() + nx())) + ((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))),
                 (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
             mpcProblem.l.resize(
-                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu())))));
+                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu())) + (ph() + 1))));
             mpcProblem.u.resize(
-                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu())))));
+                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu())) + (ph() + 1))));
 
             mpcProblem.P.setZero();
             mpcProblem.q.setZero();
             mpcProblem.A.setZero();
             mpcProblem.l.setZero();
             mpcProblem.u.setZero();
+
+            // let's build the time invariant terms using the default conditions
+            buildTimeInvariantTems();
         }
 
         /**
@@ -170,7 +187,12 @@ namespace mpc
         {
             checkOrQuit();
 
-            // augmenting to system to store the command input of the current timestep
+            // state vector [x(t) x_u(t)], where x_u(t) = u(t-1)
+            // we are augmenting the system to store the command input of the current timestep
+            // the system we are using is the following:
+            // x(t + 1) = A x(t) + B u(t-1) + B Delta_u(t)
+            // x_u(t + 1) = x_u(t) + Delta_u(t)
+
             ssA.block(0, 0, nx(), nx()) = A;
             ssA.block(0, nx(), nx(), nu()) = B;
             ssA.block(nx(), 0, nu(), nx()).setZero();
@@ -180,10 +202,12 @@ namespace mpc
             ssB.block(nx(), 0, nu(), nu()).setIdentity();
 
             // we put on the output also the command to allow its penalization
+            // NOTE: here we have that at horizon step p we have in output the
+            // command applied at the step p-1
             ssC.block(0, 0, ny(), nx()) = C;
             ssC.block(ny(), nx(), nu(), nu()).setIdentity();
 
-            return buildTITerms();
+            return buildTimeInvariantTems();
         }
 
         /**
@@ -208,7 +232,7 @@ namespace mpc
             ssDv.setZero();
             ssDv.block(0, 0, ny(), ndu()) = Dd;
 
-            return buildTITerms();
+            return buildTimeInvariantTems();
         }
 
         /**
@@ -235,7 +259,7 @@ namespace mpc
 
             wDeltaU = DeltaUWeight;
 
-            return buildTITerms();
+            return buildTimeInvariantTems();
         }
 
         /**
@@ -248,7 +272,7 @@ namespace mpc
          * @return false
          */
         bool setObjective(
-            const unsigned int index,
+            const unsigned int &index,
             const cvec<sizer.ny> &OWeight,
             const cvec<sizer.nu> &UWeight,
             const cvec<sizer.nu> &DeltaUWeight)
@@ -269,7 +293,83 @@ namespace mpc
 
             wDeltaU.block(0, index, nu(), 1) = DeltaUWeight;
 
-            return buildTITerms();
+            return buildTimeInvariantTems();
+        }
+
+        /**
+         * @brief Set the scalar constraint for a specific horizon step
+         *
+         * @param index index of the horizon step
+         * @param min the lower bound
+         * @param max the upper bound
+         * @param X the constant term multiplied to the state
+         * @param U the constant term multiplied to the input
+         * @return true
+         * @return false
+         */
+        bool setScalarConstraint(
+            const unsigned index,
+            const double &min, const double &max,
+            const cvec<sizer.nx> &X, const cvec<sizer.nu> &U)
+        {
+            checkOrQuit();
+
+            sMin[index + 1] = min;
+            if (index == 0)
+            {
+                sMin(0) = min;
+            }
+
+            sMax[index + 1] = max;
+            if (index == 0)
+            {
+                sMax(0) = max;
+            }
+
+            for (size_t i = 0; i < ph() + 1; i++)
+            {
+                for (size_t j = 0; j < ph() + 1; j++)
+                {
+                    sMultiplier.block(i, j * ph(), 1, nx()) = X.transpose();
+                    sMultiplier.block(i, (j * ph()) + nx(), 1, nu()) = U.transpose();
+                }
+            }
+
+            return buildTimeInvariantTems();
+        }
+
+        /**
+         * @brief Set the scalar constraint
+         *
+         * @param MinMat the lower bound
+         * @param MaxMat the upper bound
+         * @param X the constant term multiplied to the state
+         * @param U the constant term multiplied to the input
+         * @return true
+         * @return false
+         */
+        bool setScalarConstraint(
+            const cvec<sizer.ph> &MinMat, const cvec<sizer.ph> &MaxMat,
+            const cvec<sizer.nx> &X, const cvec<sizer.nu> &U)
+        {
+            checkOrQuit();
+
+            sMin.segment(1, ph()) = MinMat;
+            sMin(0) = MinMat(0);
+
+            sMax.segment(1, ph()) = MaxMat;
+            sMax(0) = MaxMat(0);
+
+            for (size_t i = 0; i < ph() + 1; i++)
+            {
+                for (size_t j = 0; j < ph() + 1; j++)
+                {
+                    sMultiplier.block(i, j * ph(), 1, nx()) = X.transpose();
+                    sMultiplier.block(i, (j * ph()) + nx(), 1, nu()) = U.transpose();
+                }
+            }
+
+            return buildTimeInvariantTems();
         }
 
         /**
@@ -303,7 +403,7 @@ namespace mpc
             minU = UMin;
             maxU = UMax;
 
-            return buildTITerms();
+            return buildTimeInvariantTems();
         }
 
         /**
@@ -320,9 +420,9 @@ namespace mpc
          * @return false
          */
         bool setConstraints(
-            const unsigned int index,
-            const cvec<sizer.nx> XMin, const cvec<sizer.nu> UMin, const cvec<sizer.ny> YMin,
-            const cvec<sizer.nx> XMax, const cvec<sizer.nu> UMax, const cvec<sizer.ny> YMax)
+            const unsigned int &index,
+            const cvec<sizer.nx> &XMin, const cvec<sizer.nu> &UMin, const cvec<sizer.ny> &YMin,
+            const cvec<sizer.nx> &XMax, const cvec<sizer.nu> &UMax, const cvec<sizer.ny> &YMax)
         {
             checkOrQuit();
 
@@ -353,18 +453,18 @@ namespace mpc
             minU.block(0, index, nu(), 1) = UMin;
             maxU.block(0, index, nu(), 1) = UMax;
 
-            return buildTITerms();
+            return buildTimeInvariantTems();
         }
 
         /**
          * @brief Compute the relative output of the system based on the desired
          * state and measured disturbance
-         * 
+         *
          * @param desState desired state vector to project
          * @param measDist measured disturbance vector
          * @return cvec<sizer.ny> the output vector
          */
-        cvec<sizer.ny> mapToOutput(cvec<sizer.nx> desState, cvec<sizer.ndu> measDist)
+        cvec<sizer.ny> mapToOutput(const cvec<sizer.nx> &desState, const cvec<sizer.ndu> &measDist)
         {
             return ssC.block(0, 0, ny(), nx()) * desState + ssDv.block(0, 0, ny(), ndu()) * measDist;
         }
@@ -380,7 +480,7 @@ namespace mpc
          */
         const Problem &get(
             const cvec<sizer.nx> &x0,
-            const cvec<sizer.nu> & /*u0*/,
+            const cvec<sizer.nu> &u0,
             const mat<sizer.ny, sizer.ph> &yRef,
             const mat<sizer.nu, sizer.ph> &uRef,
             const mat<sizer.nu, sizer.ph> &deltaURef,
@@ -397,6 +497,13 @@ namespace mpc
 
             mpcProblem.q.setZero();
             leq.setZero();
+
+            ineq_offset.setZero();
+
+            // creation of bounds and here is the right place to take into account
+            // of the measured exogenous inputs on the output (we are gonna treat them as offsets)
+            mpcProblem.l.setZero();
+            mpcProblem.u.setZero();
 
             for (size_t i = 0; i < ph() + 1; i++)
             {
@@ -448,26 +555,18 @@ namespace mpc
 
                 // let's add on the output part of the system
                 // any contribution of the exogenous inputs on the output function
-                lineq.middleRows(
+                ineq_offset.middleRows(
                     (i * ny()) + ((ph() + 1) * (nu() + nx())),
-                    ny()) -= ssDv.block(0, 0, ny(), ndu()) * uMeas_ex;
-
-                uineq.middleRows(
-                    (i * ny()) + ((ph() + 1) * (nu() + nx())),
-                    ny()) -= ssDv.block(0, 0, ny(), ndu()) * uMeas_ex;
+                    ny()) = -ssDv.block(0, 0, ny(), ndu()) * uMeas_ex;
             }
 
             // state evolution depends on the initial condition and
             // on the exogeneous inputs so they are changes over time
             leq.middleRows(0, nx()) = -x0;
+            leq.middleRows(nx(), nu()) = -u0;
 
             // set lower and upper bound equal in order to have equality constraints
             ueq = leq;
-
-            // creation of bounds and here is the right place to take into account
-            // of the measured exogenous inputs on the output (we are gonna treat them as offsets)
-            mpcProblem.l.setZero();
-            mpcProblem.u.setZero();
 
             mpcProblem.l.middleRows(
                 0, (ph() + 1) * (nu() + nx())) = leq;
@@ -477,11 +576,11 @@ namespace mpc
 
             mpcProblem.l.middleRows(
                 (ph() + 1) * (nu() + nx()),
-                ((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny()) + (ph() * nu())) = lineq;
+                ((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1)) = lineq + ineq_offset;
 
             mpcProblem.u.middleRows(
                 (ph() + 1) * (nu() + nx()),
-                ((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny()) + (ph() * nu())) = uineq;
+                ((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1)) = uineq + ineq_offset;
 
             return mpcProblem;
         }
@@ -493,7 +592,7 @@ namespace mpc
          * @return true
          * @return false
          */
-        bool buildTITerms()
+        bool buildTimeInvariantTems()
         {
             // quadratic objective
             mat<(sizer.nu + sizer.ny), (sizer.nu + sizer.ny)> wExtendedState;
@@ -556,9 +655,9 @@ namespace mpc
                 ((ph() + 1) * (nu() + nx())), (ph() * nu())) = kroneckerProduct(idenBd, ssB).eval();
 
             // input, state and output constraints
-            mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu))), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> Aineq;
+            mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu)) + (sizer.ph + 1)), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> Aineq;
             Aineq.resize(
-                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()))),
+                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))),
                 (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
             Aineq.setZero();
 
@@ -646,6 +745,22 @@ namespace mpc
                     nu()) = deltaU * maxDeltaU;
             }
 
+            // insert a scalar constraint
+            // TODO add support for multple scalar constraints
+            Aineq.block(
+                ((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny()) + (ph() * nu()),
+                0,
+                ph() + 1,
+                (ph() + 1) * (nu() + nx())) = sMultiplier;
+
+            lineq.middleRows(
+                ((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny()) + (ph() * nu()),
+                ph() + 1) = sMin;
+
+            uineq.middleRows(
+                ((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny()) + (ph() * nu()),
+                ph() + 1) = sMax;
+
             // creation of matrix A
             mpcProblem.A.setZero();
 
@@ -656,7 +771,7 @@ namespace mpc
 
             mpcProblem.A.block(
                 ((ph() + 1) * (nu() + nx())), 0,
-                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()))),
+                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu())) + (ph() + 1)),
                 (((ph() + 1) * (nu() + nx())) + (ph() * nu()))) = Aineq;
 
             return true;
@@ -685,8 +800,13 @@ namespace mpc
         mat<sizer.ny, sizer.ph + 1> minY, maxY;
         mat<sizer.nu, sizer.ph> minU, maxU;
 
+        // scalar constraint
+        cvec<sizer.ph + 1> sMin;
+        cvec<sizer.ph + 1> sMax;
+        mat<sizer.ph + 1, (sizer.ph + 1) * (sizer.nx + sizer.nu)> sMultiplier;
+
         Problem mpcProblem;
         cvec<((sizer.ph + 1) * (sizer.nu + sizer.nx))> leq, ueq;
-        cvec<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu)))> lineq, uineq;
+        cvec<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu)) + (sizer.ph + 1))> lineq, uineq, ineq_offset;
     };
 }

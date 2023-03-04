@@ -172,27 +172,29 @@ namespace mpc
                     XMinMat, UMinMat, YMinMat,
                     XMaxMat, UMaxMat, YMaxMat);
             }
-
-            // Replicate on segment of the prediction horizon
-            size_t start = static_cast<size_t>(slice[0]);
-            size_t end = static_cast<size_t>(slice[1]);
-
-            if (start >= end || start > ph() || end > ph() || start + end > ph())
-            {
-                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
-                return false;
-            }
             else
             {
-                bool ret = true;
+                // Replicate on segment of the prediction horizon
+                size_t start = static_cast<size_t>(slice[0]);
+                size_t end = static_cast<size_t>(slice[1]);
 
-                for (size_t i = start; i < end; i++)
+                if (start >= end || start > ph() || end > ph() || start + end > ph())
                 {
-                    Logger::instance().log(Logger::log_type::DETAIL) << "Setting constraints for the step " << i << std::endl;
-                    ret = ret && builder.setConstraints(i, XMin, UMin, YMin, XMax, UMax, YMax);
+                    Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
+                    return false;
                 }
+                else
+                {
+                    bool ret = true;
 
-                return ret;
+                    for (size_t i = start; i < end; i++)
+                    {
+                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting constraints for the step " << i << std::endl;
+                        ret = ret && builder.setConstraints(i, XMin, UMin, YMin, XMax, UMax, YMax);
+                    }
+
+                    return ret;
+                }
             }
         }
 
@@ -215,6 +217,121 @@ namespace mpc
         {
             Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights" << std::endl;
             return builder.setObjective(OWeightMat, UWeightMat, DeltaUWeightMat);
+        }
+
+        /**
+         * @brief Set the state, input and output box constraints on a specific horizon step
+         *
+         * @param index the index to apply the constraint
+         * @param XMin minimum state vector
+         * @param UMin minimum input vector
+         * @param YMin minimum output vector
+         * @param XMax maximum state vector
+         * @param UMax maximum input vector
+         * @param YMax maximum output vector
+         * @return true
+         * @return false
+         */
+        bool setConstraints(const unsigned int index,
+                            const cvec<Tnx> XMin, const cvec<Tnu> UMin, const cvec<Tny> YMin,
+                            const cvec<Tnx> XMax, const cvec<Tnu> UMax, const cvec<Tny> YMax)
+        {
+            if (index >= ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "Horizon index out of bounds" << std::endl;
+                return false;
+            }
+
+            Logger::instance().log(Logger::log_type::DETAIL) << "Setting constraints for the step " << index << std::endl;
+            return builder.setConstraints(index, XMin, UMin, YMin, XMax, UMax, YMax);
+        }
+
+        /**
+         * @brief Set the scalar constraints, the constraints are applied equally
+         * along the prediction horizon segment
+         *
+         * @param Min lower bound
+         * @param Max upper bound
+         * @param X the vector applied to the state variables
+         * @param U the vector applied to the manipulated variables
+         * @param slice slice of the prediction horizon step where to apply the constraints [start end]
+         * (if both ends re set to -1 the whole prediction horizon is used)
+         * @return true
+         * @return false
+         */
+        bool setScalarConstraint(
+            const double min, const double max,
+            const cvec<Tnx> X, const cvec<Tnu> U,
+            const std::array<int, 2> slice)
+        {
+            // Replicate all along the prediction horizon
+            if (slice[0] == -1 && slice[1] == -1)
+            {
+                // replicate the bounds all along the prediction horizon
+                cvec<Tph> Min, Max;
+
+                Min.resize(ph());
+                Max.resize(ph());
+
+                for (size_t i = 0; i < ph(); i++)
+                {
+                    Min.row(i) << min;
+                    Max.row(i) << max;
+                }
+
+                Logger::instance().log(Logger::log_type::DETAIL) << "Setting scalar constraint equally on the horizon" << std::endl;
+                return builder.setScalarConstraint(Min, Max, X, U);
+            }
+            else
+            {
+                // Replicate on segment of the prediction horizon
+                size_t start = static_cast<size_t>(slice[0]);
+                size_t end = static_cast<size_t>(slice[1]);
+
+                if (start >= end || start > ph() || end > ph() || start + end > ph())
+                {
+                    Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
+                    return false;
+                }
+                else
+                {
+                    bool ret = true;
+
+                    for (size_t i = start; i < end; i++)
+                    {
+                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting scalar constraints for the step " << i << std::endl;
+                        ret = ret && builder.setScalarConstraint(i, min, max, X, U);
+                    }
+
+                    return ret;
+                }
+            }
+        }
+
+        /**
+         * @brief Set the scalar constraints on a specific horizon step
+         *
+         * @param index the index to apply the constraint
+         * @param min lower bound
+         * @param max upper bound
+         * @param X the vector applied to the state variables
+         * @param U the vector applied to the manipulated variables
+         * @return true
+         * @return false
+         */
+        bool setScalarConstraint(
+            const unsigned int index,
+            const double min, const double max,
+            const cvec<Tnx> X, const cvec<Tnu> U)
+        {
+            if (index >= ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "Horizon index out of bounds" << std::endl;
+                return false;
+            }
+
+            Logger::instance().log(Logger::log_type::DETAIL) << "Setting scalar constraint" << std::endl;
+            return builder.setScalarConstraint(index, min, max, X, U);
         }
 
         /**
@@ -466,14 +583,9 @@ namespace mpc
          */
         void onSetup()
         {
-            builder.initialize(
-                nx(), nu(), ndu(), ny(),
-                ph(), ch());
-
+            builder.initialize(nx(), nu(), ndu(), ny(), ph(), ch());
             optPtr = new LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>();
-            optPtr->initialize(
-                nx(), nu(), ndu(), ny(),
-                ph(), ch());
+            optPtr->initialize(nx(), nu(), ndu(), ny(), ph(), ch());
 
             ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setBuilder(&builder);
         }

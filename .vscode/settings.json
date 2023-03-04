@@ -85,7 +85,13 @@
         "locale": "cpp",
         "__config": "cpp",
         "__functional_03": "cpp",
-        "__functional_base": "cpp"
+        "__functional_base": "cpp",
+        "__bit_reference": "cpp",
+        "ios": "cpp",
+        "__split_buffer": "cpp",
+        "queue": "cpp",
+        "stack": "cpp",
+        "valarray": "cpp"
     },
     "restructuredtext.confPath": "${workspaceFolder}/docs/source",
     "testMate.cpp.test.executables": "${workspaceFolder}/bin/*"

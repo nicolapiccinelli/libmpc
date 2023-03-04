@@ -7,30 +7,30 @@
 #include <catch2/catch_template_test_macros.hpp>
 
 TEST_CASE(
-    MPC_TEST_NAME("Linear example"),
+    MPC_TEST_NAME("Linear quadrotor example"),
     MPC_TEST_TAGS("[linear]"))
 {
-    constexpr int num_states = 12;
-    constexpr int num_output = 12;
-    constexpr int num_inputs = 4;
-    constexpr int num_dinputs = 4;
-    constexpr int pred_hor = 10;
-    constexpr int ctrl_hor = 10;
+    constexpr int Tnx = 12;
+    constexpr int Tny = 12;
+    constexpr int Tnu = 4;
+    constexpr int Tndu = 4;
+    constexpr int Tph = 10;
+    constexpr int Tch = 10;
 
 #ifdef MPC_DYNAMIC
     mpc::LMPC<> optsolver(
-        num_states, num_inputs, num_dinputs, num_output,
-        pred_hor, ctrl_hor);
+        Tnx, Tnu, Tndu, Tny,
+        Tph, Tch);
 #else
     mpc::LMPC<
-        TVAR(num_states), TVAR(num_inputs), TVAR(num_dinputs), TVAR(num_output),
-        TVAR(pred_hor), TVAR(ctrl_hor)>
+        TVAR(Tnx), TVAR(Tnu), TVAR(Tndu), TVAR(Tny),
+        TVAR(Tph), TVAR(Tch)>
         optsolver;
 #endif
 
     optsolver.setLoggerLevel(mpc::Logger::log_level::NONE);
 
-    mpc::mat<num_states, num_states> Ad;
+    mpc::mat<Tnx, Tnx> Ad;
     Ad << 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0,
         0, 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0,
         0, 0, 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0,
@@ -44,7 +44,7 @@ TEST_CASE(
         0, -0.9734, 0, 0, 0, 0, 0, -0.0488, 0, 0, 0.9846, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.9846;
 
-    mpc::mat<num_states, num_inputs> Bd;
+    mpc::mat<Tnx, Tnu> Bd;
     Bd << 0, -0.0726, 0, 0.0726,
         -0.0726, 0, 0.0726, 0,
         -0.0152, 0.0152, -0.0152, 0.0152,
@@ -58,35 +58,35 @@ TEST_CASE(
         0.0236, 0, -0.0236, 0,
         0.2107, 0.2107, 0.2107, 0.2107;
 
-    mpc::mat<num_output, num_states> Cd;
+    mpc::mat<Tny, Tnx> Cd;
     Cd.setIdentity();
 
-    mpc::mat<num_output, num_inputs> Dd;
+    mpc::mat<Tny, Tnu> Dd;
     Dd.setZero();
 
     optsolver.setStateSpaceModel(Ad, Bd, Cd);
 
     optsolver.setDisturbances(
-        mpc::mat<num_states, num_dinputs>::Zero(),
-        mpc::mat<num_output, num_dinputs>::Zero());
+        mpc::mat<Tnx, Tndu>::Zero(),
+        mpc::mat<Tny, Tndu>::Zero());
 
-    mpc::mat<num_inputs, pred_hor> InputWMat, DeltaInputWMat;
-    mpc::mat<num_output, pred_hor> OutputWMat;
+    mpc::mat<Tnu, Tph> InputWMat, DeltaInputWMat;
+    mpc::mat<Tny, Tph> OutputWMat;
 
     REQUIRE(optsolver.setObjectiveWeights(OutputWMat, InputWMat, DeltaInputWMat));
 
-    mpc::cvec<num_inputs> InputW, DeltaInputW;
-    mpc::cvec<num_output> OutputW;
+    mpc::cvec<Tnu> InputW, DeltaInputW;
+    mpc::cvec<Tny> OutputW;
 
     OutputW << 0, 0, 10, 10, 10, 10, 0, 0, 0, 5, 5, 5;
     InputW << 0.1, 0.1, 0.1, 0.1;
     DeltaInputW << 0, 0, 0, 0;
 
-    REQUIRE(optsolver.setObjectiveWeights(OutputW, InputW, DeltaInputW, {0, pred_hor}));
+    REQUIRE(optsolver.setObjectiveWeights(OutputW, InputW, DeltaInputW, {0, Tph}));
 
-    mpc::mat<num_states, pred_hor> xminmat, xmaxmat;
-    mpc::mat<num_output, pred_hor> yminmat, ymaxmat;
-    mpc::mat<num_inputs, pred_hor> uminmat, umaxmat;
+    mpc::mat<Tnx, Tph> xminmat, xmaxmat;
+    mpc::mat<Tny, Tph> yminmat, ymaxmat;
+    mpc::mat<Tnu, Tph> uminmat, umaxmat;
 
     xminmat.setZero();
     xmaxmat.setZero();
@@ -97,48 +97,50 @@ TEST_CASE(
 
     REQUIRE(optsolver.setConstraints(xminmat, uminmat, yminmat, xmaxmat, umaxmat, ymaxmat));
 
-    mpc::cvec<num_states> xmin, xmax;
+    mpc::cvec<Tnx> xmin, xmax;
     xmin << -M_PI / 6, -M_PI / 6, -mpc::inf, -mpc::inf, -mpc::inf, -1,
         -mpc::inf, -mpc::inf, -mpc::inf, -mpc::inf, -mpc::inf, -mpc::inf;
 
     xmax << M_PI / 6, M_PI / 6, mpc::inf, mpc::inf, mpc::inf, mpc::inf,
         mpc::inf, mpc::inf, mpc::inf, mpc::inf, mpc::inf, mpc::inf;
 
-    mpc::cvec<num_output> ymin, ymax;
+    mpc::cvec<Tny> ymin, ymax;
     ymin.setOnes();
     ymin *= -mpc::inf;
     ymax.setOnes();
     ymax *= mpc::inf;
 
-    mpc::cvec<num_inputs> umin, umax;
+    mpc::cvec<Tnu> umin, umax;
     double u0 = 10.5916;
     umin << 9.6, 9.6, 9.6, 9.6;
     umin.array() -= u0;
     umax << 13, 13, 13, 13;
     umax.array() -= u0;
 
-    REQUIRE(optsolver.setConstraints(xmin, umin, ymin, xmax, umax, ymax, {0, pred_hor}));
+    REQUIRE(optsolver.setConstraints(xmin, umin, ymin, xmax, umax, ymax, {0, Tph}));
     REQUIRE(optsolver.setConstraints(xmin, umin, ymin, xmax, umax, ymax, {0, 1}));
+    
+    REQUIRE(optsolver.setScalarConstraint(-mpc::inf, mpc::inf, mpc::cvec<Tnx>::Ones(), mpc::cvec<Tnu>::Ones(), {-1, -1}));
+    REQUIRE(optsolver.setScalarConstraint(0, -mpc::inf, mpc::inf, mpc::cvec<Tnx>::Ones(), mpc::cvec<Tnu>::Ones()));
 
-    REQUIRE(optsolver.setReferences(mpc::mat<num_output, pred_hor>::Zero(), mpc::mat<num_inputs, pred_hor>::Zero(), mpc::mat<num_inputs, pred_hor>::Zero()));
+    REQUIRE(optsolver.setReferences(mpc::mat<Tny, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero()));
 
-    mpc::cvec<num_output> yRef;
+    mpc::cvec<Tny> yRef;
     yRef << 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
-    REQUIRE(optsolver.setReferences(yRef, mpc::cvec<num_inputs>::Zero(), mpc::cvec<num_inputs>::Zero(), {0, pred_hor}));
+    REQUIRE(optsolver.setReferences(yRef, mpc::cvec<Tnu>::Zero(), mpc::cvec<Tnu>::Zero(), {0, Tph}));
 
     mpc::LParameters params;
     params.maximum_iteration = 250;
     optsolver.setOptimizerParameters(params);
 
-    REQUIRE(optsolver.setExogenuosInputs(mpc::mat<num_dinputs, pred_hor>::Zero()));
-    REQUIRE(optsolver.setExogenuosInputs(mpc::cvec<num_dinputs>::Zero(), {0, pred_hor}));
+    REQUIRE(optsolver.setExogenuosInputs(mpc::mat<Tndu, Tph>::Zero()));
+    REQUIRE(optsolver.setExogenuosInputs(mpc::cvec<Tndu>::Zero(), {0, Tph}));
 
-    auto res = optsolver.step(mpc::cvec<num_states>::Zero(), mpc::cvec<num_inputs>::Zero());
+    auto res = optsolver.step(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
     auto seq = optsolver.getOptimalSequence();
-    (void) seq;
-    
+    (void)seq;
+
     mpc::cvec<4> testRes;
     testRes << -0.9916, 1.74839, -0.9916, 1.74839;
-
     REQUIRE(res.cmd.isApprox(testRes, 1e-4));
 }

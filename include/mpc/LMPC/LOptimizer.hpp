@@ -173,7 +173,7 @@ namespace mpc
          * @return false
          */
         bool setExogenuosInputs(
-            const unsigned int index, 
+            const unsigned int index,
             const cvec<sizer.ndu> &uMeas)
         {
             extInputMeas.col(index) = uMeas;
@@ -269,36 +269,38 @@ namespace mpc
             // keep the last feasible solution
             if (work->solution->x != NULL)
             {
-                int index = 0;
-
-                cvec<sizer.nu> optCmd;
-                optCmd.resize(nu());
-
-                for (size_t i = ((ph() + 1) * (nx() + nu())); i < (((ph() + 1) * (nx() + nu())) + nu()); i++)
+                Logger::instance().log(Logger::log_type::DETAIL) << "Optimal vector: " << std::endl;
+                for (size_t i = 0; i < (size_t) P.rows(); i++)
                 {
-                    optCmd[index++] = work->solution->x[i];
+                    Logger::instance().log(Logger::log_type::DETAIL) << work->solution->x[i] << std::endl;
                 }
-
-                r.cmd = optCmd;
-                r.retcode = work->info->status_val;
-                r.cost = work->info->obj_val;
-                result = r;
 
                 // loop over the rows of the optimal sequence
                 for (size_t i = 1; i < ph() + 1; i++)
                 {
+                    // from the extended state vector [x,x_u] we take the first nx entries
+                    // to get the optimal sequence of system state
                     for (size_t j = 0; j < nx(); j++)
                     {
                         sequence.state.row(i - 1)[j] = work->solution->x[i * (nx() + nu()) + j];
                     }
 
-                    for (size_t j = 0; j < nu(); j++)
+                    // and similarly we take the nu entries to have the optimal sequence of system
+                    // input we also needs to deal with the fact that x_u(k) is u(k-1) (TODO?)
+                    for (size_t j = nx(); j < nx() + nu(); j++)
                     {
-                        sequence.input.row(i - 1)[j] = work->solution->x[((ph() + 1) * (nx() + nu())) + (i * nu()) + j];
+                        sequence.input.row(i - 1)[j - nx()] = work->solution->x[i * (nx() + nu()) + j];
                     }
 
+                    // this just the state mapping together with the optional exogeneous input
                     sequence.output.row(i - 1) = builder->mapToOutput(sequence.state.row(i - 1), extInputMeas.col(i - 1));
                 }
+
+                // the optimal command is the first control input in the sequence
+                r.cmd = sequence.input.row(0);
+                r.retcode = work->info->status_val;
+                r.cost = work->info->obj_val;
+                result = r;
             }
             else
             {
