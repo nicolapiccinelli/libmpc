@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0] - 2023-03-04
+
+## Added
+- Added new api in linear mpc to add a scalar constraints
+
+## Changed
+- In linear mpc the last input command is now used to initialize the optimal control problem
+
+### Fixed
+- The default value for the box constraints in linear mpc are now set -inf and inf
+- In linear mpc optimal input sequence was erroneously the delta input sequence
+
 ## [0.2.0] - 2023-01-09
 
 ### Added

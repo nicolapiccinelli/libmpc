@@ -35,7 +35,6 @@
 
 namespace mpc
 {
-
     template <
         int M = Eigen::Dynamic,
         int N = Eigen::Dynamic>

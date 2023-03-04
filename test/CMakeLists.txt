@@ -40,18 +40,19 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 set(MPC_TEST_LIB_SOURCES
-    "test_constraints.cpp" 
-    "test_common.cpp"
-    "test_objective.cpp"
+    "NLMPC/test_constraints.cpp"
+    "NLMPC/test_objective.cpp"
+    "NLMPC/test_common.cpp"
+    "LMPC/test_lmpc.cpp"
+    "LMPC/test_mutiple_instances.cpp"
     "test_utils.cpp"
-    "test_lmpc.cpp"
     "test_logger.cpp"
     "test_main.cpp")
 
 set(MPC_TEST_CASES_SOURCES
-    "test_discrete_lti_siso.cpp"
-    "test_mutiple_instances.cpp"
-    "test_vanderpol.cpp"
+    "NLMPC/test_discrete_lti_siso.cpp"
+    "NLMPC/test_vanderpol.cpp"
+    "LMPC/test_quadrotor.cpp"
     "test_main.cpp")
 
 add_executable(test_lib_dynamic ${MPC_TEST_LIB_SOURCES})

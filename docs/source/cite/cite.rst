@@ -10,7 +10,7 @@ Cite libmpc++ as something like
 
 ::
 
-    @misc{nlopt,
+    @misc{libmpc,
     author = {Piccinelli, N.},
     title = {libmpc++: a library to solve linear and non-linear MPC}
     howpublished = {https://github.com/nicolapiccinelli/libmpc}

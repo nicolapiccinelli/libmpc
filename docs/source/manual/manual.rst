@@ -22,11 +22,12 @@ The linear MPC address the solution of the following convex quadratic optimizati
                         & x_{\rm min} \le x_k  \le x_{\rm max} \\
                         & y_{\rm min} \le y_k  \le y_{\rm max} \\
                         & u_{\rm min} \le u_k  \le u_{\rm max} \\
+                        & s_{\rm min} \le x_s^T x_k + u_s^T u_k \le s_{\rm max}\\
                         & x_0 = \bar{x}
     \end{array}
 
 where the states :math:`x_k \in \mathbf{R}^{n_x}`, the outputs :math:`y_k \in \mathbf{R}^{n_y}` and the inputs :math:`u_k \in \mathbf{R}^{n_u}` are constrained to be between some lower and upper bounds.
-The problem is solved repeatedly for varying initial state :math:`\bar{x} \in \mathbf{R}^{n_x}`.
+THe states and the inputs can be also subjected to the so called "scalar constraints", where :math:`x_s` and :math:`u_s` are constant vectors. The problem is solved repeatedly for varying initial state :math:`\bar{x} \in \mathbf{R}^{n_x}`.
 
 The underlying linear system used within the MPC is defined as
 
