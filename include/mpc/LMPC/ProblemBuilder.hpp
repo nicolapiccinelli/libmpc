@@ -328,11 +328,7 @@ namespace mpc
 
             for (size_t i = 0; i < ph() + 1; i++)
             {
-                for (size_t j = 0; j < ph() + 1; j++)
-                {
-                    sMultiplier.block(i, j * ph(), 1, nx()) = X.transpose();
-                    sMultiplier.block(i, (j * ph()) + nx(), 1, nu()) = U.transpose();
-                }
+                sMultiplier.block(i, i * (nx() + nu()), 1, nx() + nu()) << X.transpose(), U.transpose();
             }
 
             return buildTimeInvariantTems();
@@ -362,11 +358,7 @@ namespace mpc
 
             for (size_t i = 0; i < ph() + 1; i++)
             {
-                for (size_t j = 0; j < ph() + 1; j++)
-                {
-                    sMultiplier.block(i, j * ph(), 1, nx()) = X.transpose();
-                    sMultiplier.block(i, (j * ph()) + nx(), 1, nu()) = U.transpose();
-                }
+                sMultiplier.block(i, i * (nx() + nu()), 1, nx() + nu()) << X.transpose(), U.transpose();
             }
 
             return buildTimeInvariantTems();
@@ -746,7 +738,7 @@ namespace mpc
             }
 
             // insert a scalar constraint
-            // TODO add support for multple scalar constraints
+            // TODO add support for multiple scalar constraints
             Aineq.block(
                 ((ph() + 1) * (nu() + nx())) + ((ph() + 1) * ny()) + (ph() * nu()),
                 0,
