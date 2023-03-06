@@ -1,11 +1,16 @@
 # Changelog
 
+## [0.3.1] - 2023-03-06
+
+### Fixed
+- The computation of the scalar multipler was not correct
+
 ## [0.3.0] - 2023-03-04
 
-## Added
+### Added
 - Added new api in linear mpc to add a scalar constraints
 
-## Changed
+### Changed
 - In linear mpc the last input command is now used to initialize the optimal control problem
 
 ### Fixed
