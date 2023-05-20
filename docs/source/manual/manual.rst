@@ -118,14 +118,16 @@ Linear MPC solver (OSQP)
     LParameters params;
 
     params.alpha = 1.6;
-    params.rho = 1e-6;  
+    params.rho = 1e-6;
     params.eps_rel = 1e-4;
-    params.eps_abs = 1e-4;   
+    params.eps_abs = 1e-4;
     params.eps_prim_inf = 1e-3;
     params.eps_dual_inf = 1e-3;
+    params.time_limit = 0;
+    params.enable_warm_start = false;
     params.verbose = false;
     params.adaptive_rho = true;
-    params.polish = true;    
+    params.polish = true;
 
     lmpc.setOptimizerParameters(params);
 
@@ -276,3 +278,25 @@ This example shows how to drives the states of a Van der Pol oscillator to zero 
             break;
         }
     }
+
+Import libmpc++ in your project
+-------------------------------
+
+libmpc++ is a header only library, so you can just copy the content of the include folder in your project. If your project uses CMake, you can import libmpc++ as a package with the following commands:
+
+.. code-block:: cmake
+
+    cmake_minimum_required(VERSION 3.0)
+    project(your_project_name)
+
+    # set the C++ standard to C++ 20
+    set(CMAKE_CXX_STANDARD 20)
+    # set the C++ compiler to use O3
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+
+    find_package(mpc++ CONFIG REQUIRED)
+
+    # # Declare a C++ library
+    include_directories(${mpc++_INCLUDE_DIRS})
+    add_executable(${PROJECT_NAME} main.cpp)
+    target_link_libraries(${PROJECT_NAME} mpc++)

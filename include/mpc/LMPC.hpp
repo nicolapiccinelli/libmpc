@@ -417,13 +417,20 @@ namespace mpc
         }
 
         /**
-         * @brief Set the disturbances matrices
+         * @brief Set the disturbance matrices for the system.
+         *
+         * This function sets the disturbance matrices for the system of the form:
+         *
          * x(k+1) = A*x(k) + B*u(k) + Bd*d(k)
          * y(k) = C*x(k) + Dd*d(k)
-         * @param Bd state disturbance matrix
-         * @param Dd output disturbance matrix
-         * @return true
-         * @return false
+         *
+         * where Bd is the state disturbance matrix and Dd is the output disturbance matrix.
+         *
+         * @param Bd The state disturbance matrix of size (Tnx x Tndu).
+         * @param Dd The output disturbance matrix of size (Tny x Tndu).
+         *
+         * @return true if the disturbance matrices were set successfully, false otherwise.
+         *
          */
         bool setDisturbances(
             const mat<Tnx, Tndu> &Bd,
@@ -577,6 +584,68 @@ namespace mpc
             }
         }
 
+        /**
+         * @brief Get the warm start values for the optimizer's primal variables.
+         *
+         * This function returns the warm start values for the optimizer's primal variables.
+         *
+         * @return A vector of doubles containing the warm start values for the primal variables.
+         *
+         * @note This function assumes that the optimizer has already been run and that the
+         *       warm start values for the primal variables have been computed and stored in
+         *       the optimizer. If the optimizer has not been run or the warm start values
+         *       for the primal variables have not been computed, this function may not return
+         *       a valid result.
+         *
+         * @see LOptimizer, MPCSize
+         */
+        std::vector<double> getSolverWarmStartPrimal()
+        {
+            return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->optimal_prev_x;
+        }
+
+        /**
+         * @brief Get the warm start values for the optimizer's dual variables.
+         *
+         * This function returns the warm start values for the optimizer's dual variables.
+         *
+         * @return A vector of doubles containing the warm start values for the dual variables.
+         *
+         * @note This function assumes that the optimizer has already been run and that the
+         *       warm start values for the dual variables have been computed and stored in
+         *       the optimizer. If the optimizer has not been run or the warm start values
+         *       for the dual variables have not been computed, this function may not return
+         *       a valid result.
+         *
+         * @see LOptimizer, MPCSize
+         */
+        std::vector<double> getSolverWarmStartDual()
+        {
+            return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->optimal_prev_y;
+        }
+
+        /**
+         * @brief Set the warm start values for the optimizer.
+         *
+         * This function sets the warm start values for the optimizer's primal and dual variables.
+         *
+         * @param warm_primal A vector of doubles containing the warm start values for the primal variables.
+         * @param warm_dual A vector of doubles containing the warm start values for the dual variables.
+         *
+         * @note This function assumes that the optimizer has already been initialized with the appropriate
+         *       problem size and structure. If the optimizer has not been initialized, this function may
+         *       not set the warm start values correctly.
+         *
+         * @see LOptimizer, MPCSize
+         */
+        void setSolverWarmStart(std::vector<double> warm_primal, std::vector<double> warm_dual)
+        {
+            auto *optimizer = dynamic_cast<LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *>(optPtr);
+
+            optimizer->optimal_prev_x = warm_primal;
+            optimizer->optimal_prev_y = warm_dual;
+        }
+
     protected:
         /**
          * @brief Initilization hook for the linear interface
@@ -591,7 +660,13 @@ namespace mpc
         }
 
         /**
-         * @brief (NOT AVAILABLE) Dynamical system initial condition update hook
+         * @brief This function is a hook that is called when the dynamical system initial condition is updated.
+         *
+         * This function does not perform any action and is not available for use.
+         *
+         * @param x0 The updated initial condition of the dynamical system.
+         *
+         * @warning This function is not available for use.
          */
         void onModelUpdate(const cvec<Tnx> /*x0*/)
         {

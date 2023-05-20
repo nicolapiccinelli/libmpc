@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.2)
 set(CMAKE_CXX_STANDARD 20)
 
 ## Specify a project name
-project(mpc++ VERSION 0.1.0 LANGUAGES CXX)
+project(mpc++ VERSION 0.4.0 LANGUAGES CXX)
 set(USE_SHOW_STACKTRACE false)
 
 # Disabling Eigen stack allocation warning
@@ -66,7 +66,7 @@ target_sources(mpc++ INTERFACE ${MPC_HEADERS})
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
     "${PROJECT_BINARY_DIR}/mpc++ConfigVersion.cmake"
-    VERSION 0.1
+    VERSION 0.4.0
     COMPATIBILITY AnyNewerVersion
 )
 
@@ -79,11 +79,15 @@ install(TARGETS mpc++
     BUNDLE DESTINATION bin COMPONENT Runtime
 )
 
+message(STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}")
+set(MPC++_INSTALL_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include")
+
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
     "${PROJECT_SOURCE_DIR}/cmake/mpc++Config.cmake.in"
     "${PROJECT_BINARY_DIR}/mpc++Config.cmake"
     INSTALL_DESTINATION "lib/cmake/mpc++"
+    PATH_VARS MPC++_INSTALL_INCLUDE_DIR
 )
 
 install(EXPORT mpc++Targets DESTINATION "lib/cmake/mpc++")
@@ -91,7 +95,7 @@ install(FILES "${PROJECT_BINARY_DIR}/mpc++ConfigVersion.cmake"
               "${PROJECT_BINARY_DIR}/mpc++Config.cmake"
         DESTINATION "lib/cmake/mpc++")
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/" DESTINATION "include")
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/" DESTINATION "${MPC++_INSTALL_INCLUDE_DIR}")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     ## Adding test subdirectory just in case of debug

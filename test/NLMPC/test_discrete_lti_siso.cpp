@@ -67,8 +67,8 @@ int DiscreteLtiSiso()
 
     auto objEq = [](
                      const mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> &x,
-                     const mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> &u,
                      const mpc::mat<TVAR(Tph + 1), TVAR(Tny)> &y,
+                     const mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> &u,
                      const double &)
     {
         return x.array().square().sum() + u.array().square().sum() +  y.array().square().sum();
@@ -82,7 +82,7 @@ int DiscreteLtiSiso()
                        const mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>& u,
                        const double&)
     {
-        for (int i = 0; i <= Tph; i++)
+        for (int i = 0; i < Tph + 1; i++)
         {
             ineq(i) = u(i) - 0.5;
             ineq(i + (Tph + 1)) = -u(i) - 7;

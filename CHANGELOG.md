@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0] - 2023-05-20
+
+### Added
+- Added profiler to measure statistics of the optimization problem
+- In linear mpc is now possible to override the warm start of the optimization problem
+- Added support for OSQP warm start in linear mpc
+
+### Changed
+- The linear mpc parameters now allows to enable the warm start of the optimization problem
+- The mpc result structure now contains a status field to check if the optimization problem has been solved
+- CMakelists.txt has been refactored to export the INCLUDE_DIRS variable
+
 ## [0.3.1] - 2023-03-06
 
 ### Fixed
