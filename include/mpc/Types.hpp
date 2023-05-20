@@ -12,6 +12,7 @@
 #include <memory>
 #include <mpc/Logger.hpp>
 #include <vector>
+#include <chrono>
 
 #if SHOW_STACKTRACE == 1
 
@@ -49,6 +50,18 @@ namespace mpc
     template <
         int N = Eigen::Dynamic>
     using rvec = Eigen::Matrix<double, 1, N>;
+
+    /**
+     * @brief Optimization result status
+     */
+    enum ResultStatus
+    {
+        SUCCESS,
+        MAX_ITERATION,
+        INFEASIBLE,
+        ERROR,
+        UNKNOWN
+    };
 
     /**
      * @brief Shared optimizer parameters
@@ -89,6 +102,8 @@ namespace mpc
         double eps_abs = 1e-4;
         double eps_prim_inf = 1e-3;
         double eps_dual_inf = 1e-3;
+        double time_limit = 0;
+        bool enable_warm_start = false;
 
         bool verbose = false;
         bool adaptive_rho = true;
@@ -103,13 +118,14 @@ namespace mpc
     template <int Tnu = Eigen::Dynamic>
     struct Result
     {
-        Result() : retcode(0), cost(0)
+        Result() : retcode(0), cost(0), status(ResultStatus::UNKNOWN)
         {
             cmd.setZero();
         }
 
         int retcode;
         double cost;
+        ResultStatus status;
         cvec<Tnu> cmd;
     };
 

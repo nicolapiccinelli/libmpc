@@ -7,6 +7,164 @@
 #include <catch2/catch_template_test_macros.hpp>
 
 TEST_CASE(
+    MPC_TEST_NAME("State box constraints"),
+    MPC_TEST_TAGS("[linear]"))
+{
+    constexpr int Tnx = 2;
+    constexpr int Tny = 2;
+    constexpr int Tnu = 1;
+    constexpr int Tndu = 0;
+    constexpr int Tph = 15;
+    constexpr int Tch = 15;
+
+#ifdef MPC_DYNAMIC
+    mpc::LMPC<> optsolver(
+        Tnx, Tnu, Tndu, Tny,
+        Tph, Tch);
+#else
+    mpc::LMPC<
+        TVAR(Tnx), TVAR(Tnu), TVAR(Tndu), TVAR(Tny),
+        TVAR(Tph), TVAR(Tch)>
+        optsolver;
+#endif
+
+    optsolver.setLoggerLevel(mpc::Logger::log_level::DEEP);
+
+    mpc::mat<Tnx, Tnx> A, Ad;
+    A << 0, 1, 0, 2;
+    mpc::mat<Tnx, Tnu> B, Bd;
+    B << 0, 1;
+
+    mpc::discretization<Tnx, Tnu>(A, B, 0.01, Ad, Bd);
+
+    mpc::mat<Tny, Tnx> C;
+    C.setIdentity();
+
+    optsolver.setStateSpaceModel(Ad, Bd, C);
+
+    mpc::cvec<Tnu> InputW, DeltaInputW;
+    mpc::cvec<Tny> OutputW;
+
+    OutputW << 0, 0;
+    InputW << 0;
+    DeltaInputW << 0;
+
+    REQUIRE(optsolver.setObjectiveWeights(OutputW, InputW, DeltaInputW, {-1, -1}));
+    REQUIRE(optsolver.setReferences(mpc::mat<Tny, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero()));
+
+    mpc::mat<Tnx, Tph> xminmat, xmaxmat;
+    mpc::mat<Tny, Tph> yminmat, ymaxmat;
+    mpc::mat<Tnu, Tph> uminmat, umaxmat;
+
+    xminmat.setConstant(-mpc::inf);
+    xmaxmat.setConstant(mpc::inf);
+    xminmat.col(Tph - 1) << 0.0, 0.0;
+    xmaxmat.col(Tph - 1) << 0.0, 0.0;
+
+    yminmat.setConstant(-mpc::inf);
+    ymaxmat.setConstant(mpc::inf);
+
+    uminmat.setConstant(-mpc::inf);
+    umaxmat.setConstant(mpc::inf);
+
+    optsolver.setConstraints(xminmat, uminmat, yminmat, xmaxmat, umaxmat, ymaxmat);
+
+    mpc::cvec<Tnx> x;
+    x << 2.0, 0;
+    mpc::cvec<Tnu> u;
+    u << 0;
+
+    mpc::LParameters params;
+    params.maximum_iteration = 4000;
+    params.verbose = true;
+    optsolver.setOptimizerParameters(params);
+
+    auto res = optsolver.step(x, u);
+    auto seq = optsolver.getOptimalSequence();
+
+    for (size_t i = 0; i < Tph; i++)
+    {
+        std::cout << seq.state.row(i) << std::endl;
+    }
+
+    optsolver.setLoggerLevel(mpc::Logger::log_level::NONE);
+}
+
+TEST_CASE(
+    MPC_TEST_NAME("Scalar constraints"),
+    MPC_TEST_TAGS("[linear]"))
+{
+    constexpr int Tnx = 2;
+    constexpr int Tny = 2;
+    constexpr int Tnu = 1;
+    constexpr int Tndu = 0;
+    constexpr int Tph = 5;
+    constexpr int Tch = 5;
+
+#ifdef MPC_DYNAMIC
+    mpc::LMPC<> optsolver(
+        Tnx, Tnu, Tndu, Tny,
+        Tph, Tch);
+#else
+    mpc::LMPC<
+        TVAR(Tnx), TVAR(Tnu), TVAR(Tndu), TVAR(Tny),
+        TVAR(Tph), TVAR(Tch)>
+        optsolver;
+#endif
+
+    mpc::mat<Tnx, Tnx> A, Ad;
+    A << 0, 1, 0, 2;
+    mpc::mat<Tnx, Tnu> B, Bd;
+    B << 0, 1;
+
+    mpc::discretization<Tnx, Tnu>(A, B, 0.001, Ad, Bd);
+
+    mpc::mat<Tny, Tnx> C;
+    C.setIdentity();
+
+    optsolver.setStateSpaceModel(Ad, Bd, C);
+
+    mpc::cvec<Tnu> InputW, DeltaInputW;
+    mpc::cvec<Tny> OutputW;
+
+    OutputW << 1, 0;
+    InputW << 0.1;
+    DeltaInputW << 0;
+
+    REQUIRE(optsolver.setObjectiveWeights(OutputW, InputW, DeltaInputW, {-1, -1}));
+
+    mpc::cvec<Tnx> sX;
+    sX.setOnes();
+    mpc::cvec<Tnu> sU;
+    sU.setOnes();
+    double maxS, minS;
+    maxS = 0.1;
+    minS = -0.5;
+
+    REQUIRE(optsolver.setScalarConstraint(minS, maxS, sX, sU, {-1, -1}));
+    REQUIRE(optsolver.setReferences(mpc::mat<Tny, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero()));
+
+    mpc::cvec<Tnx> x;
+    x << 10.0, 0;
+    mpc::cvec<Tnu> u;
+    u << 0;
+
+    mpc::LParameters params;
+    params.maximum_iteration = 4000;
+    optsolver.setOptimizerParameters(params);
+
+    auto res = optsolver.step(x, u);
+    auto seq = optsolver.getOptimalSequence();
+
+    for (size_t i = 0; i < Tph; i++)
+    {
+        double scalar_res = sU.dot(seq.input.row(i)) + sX.dot(seq.state.row(i));
+        REQUIRE(scalar_res <= maxS + 1e-3);
+        REQUIRE(scalar_res >= minS - 1e-3);
+    }
+}
+
+TEST_CASE(
     MPC_TEST_NAME("Linear default constraints"),
     MPC_TEST_TAGS("[linear]"))
 {
@@ -32,15 +190,15 @@ TEST_CASE(
 
     auto &res = builder.get(x0, u0, yRef, uRef, deltaURef, uMeas);
 
-    REQUIRE((res.l.segment(0, Tnx).array() == -1).all());
-    REQUIRE((res.l.segment(Tnx, Tnu).array() == 1).all());
+    REQUIRE((-1 == res.l.segment(0, Tnx).array()).all());
+    REQUIRE((1 == res.l.segment(Tnx, Tnu).array()).all());
     REQUIRE(res.l.segment(Tnx + Tnu, Tph * (Tnx + Tnu)).isZero());
-    REQUIRE((res.l.segment((Tph + 1) * (Tnx + Tnu), ((Tph + 1) * (Tnu + Tnx)) + ((Tph + 1) * Tny) + (Tph * Tnu) + (Tph + 1)).array() == -mpc::inf).all());
+    REQUIRE((-mpc::inf == res.l.segment((Tph + 1) * (Tnx + Tnu), ((Tph + 1) * (Tnu + Tnx)) + ((Tph + 1) * Tny) + (Tph * Tnu) + (Tph + 1)).array()).all());
 
-    REQUIRE((res.u.segment(0, Tnx).array() == -1).all());
-    REQUIRE((res.u.segment(Tnx, Tnu).array() == 1).all());
+    REQUIRE((-1 == res.u.segment(0, Tnx).array()).all());
+    REQUIRE((1 == res.u.segment(Tnx, Tnu).array()).all());
     REQUIRE(res.u.segment(Tnx + Tnu, Tph * (Tnx + Tnu)).isZero());
-    REQUIRE((res.u.segment((Tph + 1) * (Tnx + Tnu), ((Tph + 1) * (Tnu + Tnx)) + ((Tph + 1) * Tny) + (Tph * Tnu) + (Tph + 1)).array() == mpc::inf).all());
+    REQUIRE((mpc::inf == res.u.segment((Tph + 1) * (Tnx + Tnu), ((Tph + 1) * (Tnu + Tnx)) + ((Tph + 1) * Tny) + (Tph * Tnu) + (Tph + 1)).array()).all());
 }
 
 TEST_CASE(
@@ -124,12 +282,12 @@ TEST_CASE(
 
     if (Tch >= Tph)
     {
-        REQUIRE((res.l.segment(((Tph + 1) * (Tnu + Tnx)) + expected_xu_l.size() + expected_y_l.size(), Tph * Tnu).array() == -mpc::inf).all());
-        REQUIRE((res.u.segment(((Tph + 1) * (Tnu + Tnx)) + expected_xu_u.size() + expected_y_u.size(), Tph * Tnu).array() == mpc::inf).all());
+        REQUIRE((-mpc::inf == res.l.segment(((Tph + 1) * (Tnu + Tnx)) + expected_xu_l.size() + expected_y_l.size(), Tph * Tnu).array()).all());
+        REQUIRE((mpc::inf == res.u.segment(((Tph + 1) * (Tnu + Tnx)) + expected_xu_u.size() + expected_y_u.size(), Tph * Tnu).array()).all());
     }
 
-    REQUIRE((res.l.tail(Tph).array() == -4).all());
-    REQUIRE((res.u.tail(Tph).array() == 4).all());
+    REQUIRE((-4 == res.l.tail(Tph).array()).all());
+    REQUIRE((4 == res.u.tail(Tph).array()).all());
 }
 
 TEST_CASE(

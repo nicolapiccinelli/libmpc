@@ -253,24 +253,50 @@ namespace mpc
                 settings->eps_dual_inf = lin_params.eps_dual_inf;
                 settings->max_iter = lin_params.maximum_iteration;
                 settings->polish = lin_params.polish ? 1 : 0;
+                settings->time_limit = lin_params.time_limit;
+                settings->warm_start = lin_params.enable_warm_start ? 1 : 0;
             }
 
             // setup workspace
             exitflag = osqp_setup(&work, data, settings);
             if (exitflag > 0)
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "Unable to solve " << exitflag << std::endl;
+                Logger::instance().log(Logger::log_type::ERROR) << "Unable to setup " << exitflag << std::endl;
+            }
+
+            // warm starting the solver
+            if (settings->warm_start && optimal_prev_x.size() > 0 && optimal_prev_y.size() > 0)
+            {
+                exitflag = osqp_warm_start(work, optimal_prev_x.data(), optimal_prev_y.data());
+                if (exitflag > 0)
+                {
+                    Logger::instance().log(Logger::log_type::ERROR) << "Unable to warm start " << exitflag << std::endl;
+                }
+            }
+            else
+            {
+                // if we choose to use the warm start but we don't have a solution yet we cannot use it
+                // we need to wait to have at least a solution
+                osqp_update_warm_start(work, 0);
             }
 
             // solve problem
-            osqp_solve(work);
+            exitflag = osqp_solve(work);
+            if (exitflag > 0)
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "Unable to solve " << exitflag << std::endl;
+            }
 
             // if the solution is valid update the solution otherwise
             // keep the last feasible solution
             if (work->solution->x != NULL)
             {
+                // storing the previous optimal primal and dual solution to warm start
+                optimal_prev_x = std::vector<double>(work->solution->x, work->solution->x + numVars);
+                optimal_prev_y = std::vector<double>(work->solution->y, work->solution->y + numConstraints);
+
                 Logger::instance().log(Logger::log_type::DETAIL) << "Optimal vector: " << std::endl;
-                for (size_t i = 0; i < (size_t) P.rows(); i++)
+                for (size_t i = 0; i < (size_t)P.rows(); i++)
                 {
                     Logger::instance().log(Logger::log_type::DETAIL) << work->solution->x[i] << std::endl;
                 }
@@ -300,23 +326,78 @@ namespace mpc
                 r.cmd = sequence.input.row(0);
                 r.retcode = work->info->status_val;
                 r.cost = work->info->obj_val;
-                result = r;
+                // convert the return code from the optimizer to the result status
+                r.status = convertToResultStatus(r.retcode);
             }
             else
             {
+                // if the solution is not valid we keep the previous solution
+                // and we set the return code to -1
                 r.cost = mpc::inf;
                 r.cmd = result.cmd;
                 r.retcode = -1;
+                r.status = ResultStatus::ERROR;
 
+                // in case of invalid solution we ouput all the sequences to zero
                 sequence.state.setZero();
                 sequence.input.setZero();
                 sequence.output.setZero();
             }
 
+            // update the result
+            result = r;
+
+            // clear the data to prepare for the next iteration
             clearData();
         }
 
+        // this is a copy of the primal and dual vectors
+        // to warm start the solver
+        std::vector<double> optimal_prev_x, optimal_prev_y;
+
     private:
+        /**
+         * @brief Converts an integer value representing the possible statuses to the corresponding ResultStatus enum value.
+         *
+         * This function maps the given integer value to the corresponding ResultStatus enum value.
+         * If the integer value does not match any known status, the function returns ResultStatus::UNKNOWN.
+         *
+         * @param status The integer value representing the status.
+         * @return The ResultStatus enum value corresponding to the given status integer.
+         *
+         * @see ResultStatus
+         */
+        ResultStatus convertToResultStatus(int status)
+        {
+            switch (status)
+            {
+            case OSQP_SOLVED:
+                return ResultStatus::SUCCESS;
+            case OSQP_MAX_ITER_REACHED:
+                return ResultStatus::MAX_ITERATION;
+            case OSQP_PRIMAL_INFEASIBLE:
+                return ResultStatus::INFEASIBLE;
+            case OSQP_DUAL_INFEASIBLE:
+                return ResultStatus::INFEASIBLE;
+            case OSQP_SOLVED_INACCURATE:
+                return ResultStatus::SUCCESS;
+            case OSQP_PRIMAL_INFEASIBLE_INACCURATE:
+                return ResultStatus::SUCCESS;
+            case OSQP_DUAL_INFEASIBLE_INACCURATE:
+                return ResultStatus::SUCCESS;
+            case OSQP_SIGINT:
+                return ResultStatus::ERROR;
+            case OSQP_TIME_LIMIT_REACHED:
+                return ResultStatus::UNKNOWN;
+            case OSQP_NON_CVX:
+                return ResultStatus::ERROR;
+            case OSQP_UNSOLVED:
+                return ResultStatus::UNKNOWN;
+            default:
+                return ResultStatus::UNKNOWN;
+            }
+        }
+
         /**
          * @brief Create an osqp sparse matrix from a sparse eigen matrix
          *

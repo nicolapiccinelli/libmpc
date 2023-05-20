@@ -22,6 +22,26 @@ If you are a developer, to setup the debug environment you also need to install:
 The latest version of libmpc++ is available from GitHub https://github.com/nicolapiccinelli/libmpc/releases and does not require any
 installation process other than the one required by its dependecies.
 
+### CMakelists.txt example
+This is an example of a CMakeLists.txt file to use libmpc++ in your project.
+
+```cmake
+cmake_minimum_required(VERSION 3.0)
+project(your_project_name)
+
+# set the C++ standard to C++ 20
+set(CMAKE_CXX_STANDARD 20)
+# set the C++ compiler to use O3
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+
+find_package(mpc++ CONFIG REQUIRED)
+
+# # Declare a C++ library
+include_directories(${mpc++_INCLUDE_DIRS})
+add_executable(${PROJECT_NAME} main.cpp)
+target_link_libraries(${PROJECT_NAME} mpc++)
+```
+
 ## Development Container
 Docker is helpful for creating a stable localized development environment. Install Docker with the convenience script:
 ```console

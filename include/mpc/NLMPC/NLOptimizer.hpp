@@ -116,7 +116,9 @@ namespace mpc
                 lb[i] = -std::numeric_limits<double>::infinity();
                 if (i + 1 == ((ph() * nx()) + (nu() * ch()) + 1) && nl_param->hard_constraints)
                 {
+                    // in case of hard constraints we are forcing the slack variable to be 0
                     lb[i] = 0;
+                    ub[i] = 0;
                 }
                 ub[i] = std::numeric_limits<double>::infinity();
             }
@@ -158,7 +160,7 @@ namespace mpc
 
         /**
          * @brief Bind the constraints class with the internal solver
-         * system's dynamics equality constraints function referemce
+         * system's dynamics equality constraints function reference
          *
          * @param conFunc constraints class instance
          * @param tol equality constraints tolerances
@@ -343,17 +345,21 @@ namespace mpc
 
                 r.cost = innerOpt->last_optimum_value();
                 r.retcode = innerOpt->last_optimize_result();
+                // convert from nlopt result code to ResultStatus enum
+                r.status = convertToResultStatus(r.retcode);
 
-                Logger::instance().log(Logger::log_type::INFO)
+                Logger::instance().log(Logger::log_type::DETAIL)
                     << "Optimization end after: "
                     << innerOpt->get_numevals()
                     << " evaluation steps"
                     << std::endl;
-                Logger::instance().log(Logger::log_type::INFO)
+
+                Logger::instance().log(Logger::log_type::DETAIL)
                     << "Optimization end with code: "
                     << r.retcode
                     << std::endl;
-                Logger::instance().log(Logger::log_type::INFO)
+                    
+                Logger::instance().log(Logger::log_type::DETAIL)
                     << "Optimization end with cost: "
                     << r.cost
                     << std::endl;
@@ -383,7 +389,7 @@ namespace mpc
             }
             catch (const std::exception &e)
             {
-                Logger::instance().log(Logger::log_type::INFO)
+                Logger::instance().log(Logger::log_type::DETAIL)
                     << "No optimal solution found: "
                     << e.what()
                     << std::endl;
@@ -391,16 +397,53 @@ namespace mpc
                 r.cost = mpc::inf;
                 r.cmd = result.cmd;
                 r.retcode = -1;
+                // set the result status to error
+                r.status = ResultStatus::ERROR;
 
                 sequence.state.setZero();
                 sequence.input.setZero();
                 sequence.output.setZero();
             }
 
+            // update the result
             result = r;
         }
 
     private:
+        /**
+         * @brief Converts an integer value to the corresponding ResultStatus enum value.
+         *
+         * This function maps the given integer value to the corresponding ResultStatus enum value.
+         * If the integer value does not match any known result, the function returns ResultStatus::UNKNOWN.
+         *
+         * @param status The integer value to convert.
+         * @return The corresponding ResultStatus enum value.
+         *
+         * @see ResultStatus
+         */
+        ResultStatus convertToResultStatus(int status)
+        {
+            switch (status)
+            {
+            case nlopt::FAILURE:
+            case nlopt::INVALID_ARGS:
+            case nlopt::OUT_OF_MEMORY:
+            case nlopt::ROUNDOFF_LIMITED:
+            case nlopt::FORCED_STOP:
+                return ResultStatus::ERROR;
+            case nlopt::SUCCESS:
+            case nlopt::STOPVAL_REACHED:
+            case nlopt::FTOL_REACHED:
+            case nlopt::XTOL_REACHED:
+                return ResultStatus::SUCCESS;
+            case nlopt::MAXEVAL_REACHED:
+            case nlopt::MAXTIME_REACHED:
+                return ResultStatus::MAX_ITERATION;
+            default:
+                return ResultStatus::UNKNOWN;
+            }
+        }
+
         /**
          * @brief Forward the objective function evaluation to the internal solver
          *

@@ -46,6 +46,7 @@ set(MPC_TEST_LIB_SOURCES
     "LMPC/test_lmpc.cpp"
     "LMPC/test_mutiple_instances.cpp"
     "test_utils.cpp"
+    "test_profiler.cpp"
     "test_logger.cpp"
     "test_main.cpp")
 

@@ -6,8 +6,7 @@
 
 #include <mpc/IDimensionable.hpp>
 #include <mpc/IOptimizer.hpp>
-
-#include <chrono>
+#include <mpc/Profiler.hpp>
 
 namespace mpc
 {
@@ -44,8 +43,7 @@ namespace mpc
          * @return true
          * @return false
          */
-        virtual bool
-        setContinuosTimeModel(const double) = 0;
+        virtual bool setContinuosTimeModel(const double) = 0;
         /**
          * @brief Set the scaling factor for the control input. This can be used to normalize
          * the control input with respect to the different measurment units
@@ -69,6 +67,7 @@ namespace mpc
          */
         void onInit()
         {
+            profiler.reset();
             onSetup();
         };
 
@@ -109,19 +108,16 @@ namespace mpc
         {
             onModelUpdate(x0);
 
-            Logger::instance().log(Logger::log_type::INFO)
-                << "Optimization step"
-                << std::endl;
-
-            auto start = std::chrono::steady_clock::now();
+            profiler.solutionStart();
             optPtr->run(x0, lastU);
-            auto stop = std::chrono::steady_clock::now();
+            auto duration_s = profiler.solutionEnd<sizer.nu>(optPtr->result);
 
             Logger::instance().log(Logger::log_type::INFO)
-                << "Optimization step duration: "
-                << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count()
-                << " (ms)"
-                << std::endl;
+                << "Optimization step completed" << std::endl
+                << "duration: " << duration_s.count() << " (sec)" << std::endl
+                << "status: " << optPtr->result.status << " (opt code: " << optPtr->result.retcode << ")" << std::endl
+                << "cost: " << optPtr->result.cost << std::endl;
+
             return optPtr->result;
         }
 
@@ -137,12 +133,43 @@ namespace mpc
 
         /**
          * @brief Get the Optimal Sequence object
-         * 
+         *
          * @return OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph> last optimal sequence (zeros if optimization fails)
          */
         OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph> getOptimalSequence()
         {
             return optPtr->sequence;
+        }
+        
+        /**
+         * @brief Returns the execution statistics of the profiler.
+         *
+         * The `getExecutionStats` function retrieves the execution statistics of the profiler, 
+         * which includes the minimum, maximum, average, and standard deviation of the solution time, as well as the number of solutions and the total time.
+         * This function returns a `SolutionStats` struct that contains all of these statistics.
+         *
+         * @return A `SolutionStats` struct that contains the minimum, maximum, average, and standard deviation of the solution time, as well as the number of solutions and the total time.
+         *
+         * @see addSolutionTime()
+         */
+        const SolutionStats &getExecutionStats()
+        {
+            return profiler.getStats();
+        }
+
+        /**
+         * @brief Resets the profiler statistics to their default values.
+         *
+         * This function resets the profiler statistics to their default values, clearing out any previous values that were
+         * recorded.
+         *
+         * @param None
+         *
+         * @return None
+         */
+        void resetStats()
+        {
+            profiler.reset();
         }
 
     protected:
@@ -156,5 +183,6 @@ namespace mpc
         virtual void onModelUpdate(const cvec<sizer.nx>) = 0;
 
         IOptimizer<sizer> *optPtr;
+        Profiler profiler;
     };
 }
