@@ -9,10 +9,9 @@ Please cite both the libmpc++ library and the authors of the specific algorithm(
 Cite libmpc++ as something like
 
 ::
-
-    @misc{libmpc,
-    author = {Piccinelli, N.},
-    title = {libmpc++: a library to solve linear and non-linear MPC}
+    @misc{libmpc++,
+    author = {Piccinelli, Nicola},
+    title = {Libmpc++: A library to solve linear and non-linear MPC},
     howpublished = {https://github.com/nicolapiccinelli/libmpc}
     }
 
