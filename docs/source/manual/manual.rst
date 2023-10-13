@@ -65,7 +65,8 @@ The underlying non-linear system used within the MPC is defined as
         y_k &= g(x_k, u_k)
     \end{align}
 
-in case of continuos time system the function :math:`\dot x = f(x, u)` should be interpreted as the vector field of the desired dynamical system.
+in case of continuos time system the function :math:`\dot x = f(x, u)` should be interpreted as the vector field of the desired dynamical system. 
+The dynamical system is transformed into discrete-time using the zero-order hold (ZOH) approximation method internally.
 
 Tutorial
 ========

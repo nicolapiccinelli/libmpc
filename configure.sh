@@ -20,6 +20,8 @@ make install
 cd ../../
 git clone --recursive https://github.com/osqp/osqp
 cd osqp
+git checkout v0.6.3
+git submodule update --init --recursive
 mkdir build
 cd build
 cmake -G "Unix Makefiles" ..
