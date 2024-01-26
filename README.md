@@ -53,3 +53,39 @@ You can build the development image with the command below. Note that the image 
 ```console
 docker build -t dev_image .
 ```
+
+## System wide usage on an Ubuntu Linux
+
+After installing all the dependencies
+
+Clone the MPC++ library repository from GitHub:
+
+    ```
+    git clone https://github.com/nicolapiccinelli/libmpc.git
+    ```
+
+Run the `configure.sh` script with superuser privileges:
+
+    ```
+    sudo ./configure.sh
+    ```
+
+Configure the library using CMake:
+
+    ```
+    cmake .
+    ```
+
+Install the library with superuser privileges:
+
+    ```
+    sudo make install
+    ```
+
+This will allow you to install the MPC++ library on your system. Using the include 
+
+    '''
+    #include </usr/local/include/mpc/LMPC.hpp> 
+    '''
+    
+in your package will be enough to add this library to your project.
