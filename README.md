@@ -79,7 +79,7 @@ Install the library with superuser privileges:
 This will allow you to install the MPC++ library on your system. Using the include 
 
     '''
-    #include </usr/local/include/mpc/LMPC.hpp> 
+    #include <mpc/LMPC.hpp> 
     '''
     
 in your package will be enough to add this library to your project.
