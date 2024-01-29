@@ -56,21 +56,15 @@ docker build -t dev_image .
 
 ## System wide usage on an Ubuntu Linux
 
-After installing all the dependencies
-
-Clone the MPC++ library repository from GitHub:
-
-    ```
-    git clone https://github.com/nicolapiccinelli/libmpc.git
-    ```
-
-Run the `configure.sh` script with superuser privileges:
+If your a developer run the `configure.sh` script with superuser privileges:
 
     ```
     sudo ./configure.sh
     ```
 
-Configure the library using CMake:
+Else, after installing all the dependencies
+
+Clone the MPC++ library repository from GitHub and configure the library using CMake and build:
 
     ```
     cmake .
