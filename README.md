@@ -56,7 +56,7 @@ docker build -t dev_image .
 
 ## System wide usage on an Ubuntu Linux
 
-If your a developer run the `configure.sh` script with superuser privileges:
+If you're a developer run the `configure.sh` script with superuser privileges:
 
     ```
     sudo ./configure.sh
