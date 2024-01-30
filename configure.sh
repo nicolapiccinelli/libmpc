@@ -1,5 +1,20 @@
 #!/usr/bin/env bash
 
+# read the parameter --disable-test from the command line 
+# to choose if you want to disable the test suite installation
+# default is to install the test suite
+while test $# -gt 0; do
+  case "$1" in
+    --disable-test)
+      shift
+      DISABLE_TEST=1
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
 # install eigen3 from apt
 apt-get install -y libeigen3-dev
 
@@ -32,12 +47,14 @@ cmake --build . --target install
 # this is the test suite
 #########################
 
-# install catch2 from master branch >= 3.x
-cd ../../
-git clone https://github.com/catchorg/Catch2.git
-cd Catch2
-mkdir build
-cd build
-cmake ..
-make -j
-make install
+if [ -z ${DISABLE_TEST+x} ]; then
+    # install catch2 from master branch >= 3.x
+    cd ../../
+    git clone https://github.com/catchorg/Catch2.git
+    cd Catch2
+    mkdir build
+    cd build
+    cmake ..
+    make -j
+    make install
+fi
