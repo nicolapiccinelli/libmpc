@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1] - 2024-01-30
+### Changed
+- Removed coloured output for the integrated logger
+- Configure script now can be used to avoid the installation of the test suite
+
+### Fixed
+- Fixed dockerfile to use the 0.6.3 version of the OSQP solver
+
 ## [0.4.0] - 2023-05-20
 
 ### Added

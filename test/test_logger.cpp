@@ -5,88 +5,117 @@
 #include "basic.hpp"
 #include <catch2/catch_test_macros.hpp>
 
-TEST_CASE("Checking logger prefix", "[logging]")
+TEST_CASE("Logger outputs log messages based on log level", "[Logger]")
 {
-    std::stringstream ss;
-    mpc::Logger::instance().
-        setStream(&ss).
-        setPrefix("test").
-        setLevel(mpc::Logger::log_level::NORMAL).
-        log(mpc::Logger::log_type::INFO) << "a";
+    // Set up the logger
+    mpc::Logger &logger = mpc::Logger::instance();
+    std::ostringstream oss;
+    logger.setStream(&oss);
 
-    REQUIRE(ss.str().find("test") != std::string::npos);
+    SECTION("Log level set to NONE")
+    {
+        logger.setLevel(mpc::Logger::log_level::NONE);
+
+        SECTION("Log messages are not output regardless of log type")
+        {
+            logger.log(mpc::Logger::log_type::DETAIL) << "Detail message";
+            logger.log(mpc::Logger::log_type::INFO) << "Info message";
+            logger.log(mpc::Logger::log_type::ERROR) << "Error message";
+
+            REQUIRE(oss.str().empty());
+        }
+    }
+
+    SECTION("Log level set to DEEP")
+    {
+        logger.setLevel(mpc::Logger::log_level::DEEP);
+
+        SECTION("Log messages are output when log level allows")
+        {
+            logger.log(mpc::Logger::log_type::DETAIL) << "Detail message";
+            logger.log(mpc::Logger::log_type::INFO) << "Info message";
+            logger.log(mpc::Logger::log_type::ERROR) << "Error message";
+
+            REQUIRE(oss.str() == "[MPC++] Detail message[MPC++] Info message[MPC++] Error message");
+        }
+    }
+
+    SECTION("Log level set to NORMAL")
+    {
+        logger.setLevel(mpc::Logger::log_level::NORMAL);
+
+        SECTION("Log messages are output for INFO and ERROR log types")
+        {
+            logger.log(mpc::Logger::log_type::DETAIL) << "Detail message";
+            logger.log(mpc::Logger::log_type::INFO) << "Info message";
+            logger.log(mpc::Logger::log_type::ERROR) << "Error message";
+
+            REQUIRE(oss.str() == "[MPC++] Info message[MPC++] Error message");
+        }
+    }
+
+    SECTION("Log level set to ALERT")
+    {
+        logger.setLevel(mpc::Logger::log_level::ALERT);
+
+        SECTION("Log messages are output for ERROR log type")
+        {
+            logger.log(mpc::Logger::log_type::DETAIL) << "Detail message";
+            logger.log(mpc::Logger::log_type::INFO) << "Info message";
+            logger.log(mpc::Logger::log_type::ERROR) << "Error message";
+
+            REQUIRE(oss.str() == "[MPC++] Error message");
+        }
+    }
 }
 
-TEST_CASE("Checking logger verbosity", "[logging]")
+TEST_CASE("Logger sets prefix for log messages", "[Logger]")
 {
-    std::stringstream ss;
-    mpc::Logger::instance().reset().setStream(&ss);
+    // Set up the logger
+    mpc::Logger &logger = mpc::Logger::instance();
+    std::ostringstream oss;
+    logger.setLevel(mpc::Logger::log_level::NORMAL);
+    logger.setStream(&oss);
 
-    SECTION("Level NONE")
+    SECTION("Prefix is set")
     {
-        mpc::Logger::instance().setLevel(mpc::Logger::log_level::NONE);
-        mpc::Logger::instance().log(mpc::Logger::log_type::DETAIL) << "a";
-        REQUIRE(ss.str().size() == 0);
+        logger.setPrefix("PREFIX");
 
-        ss.str("");
+        SECTION("Log messages include the prefix")
+        {
+            logger.log(mpc::Logger::log_type::INFO) << "Message";
 
-        mpc::Logger::instance().log(mpc::Logger::log_type::INFO) << "a";
-        REQUIRE(ss.str().size() == 0);
-
-        ss.str("");
-
-        mpc::Logger::instance().log(mpc::Logger::log_type::ERROR) << "a";
-        REQUIRE(ss.str().size() == 0);
+            REQUIRE(oss.str() == "[MPC++ PREFIX] Message");
+        }
     }
 
-    SECTION("Level DEEP")
+    SECTION("Prefix is not set")
     {
-        mpc::Logger::instance().setLevel(mpc::Logger::log_level::DEEP);
-        mpc::Logger::instance().log(mpc::Logger::log_type::DETAIL) << "a";
-        REQUIRE(ss.str().size() > 0);
+        logger.setPrefix("");
 
-        ss.str("");
+        SECTION("Log messages do not include the prefix")
+        {
+            logger.log(mpc::Logger::log_type::INFO) << "Message";
 
-        mpc::Logger::instance().log(mpc::Logger::log_type::INFO) << "a";
-        REQUIRE(ss.str().size() > 0);
-
-        ss.str("");
-
-        mpc::Logger::instance().log(mpc::Logger::log_type::ERROR) << "a";
-        REQUIRE(ss.str().size() > 0);
+            REQUIRE(oss.str() == "[MPC++] Message");
+        }
     }
+}
 
-    SECTION("Level INFO")
+TEST_CASE("Logger reset function", "[Logger]")
+{
+    // Set up the logger
+    mpc::Logger &logger = mpc::Logger::instance();
+    std::ostringstream oss;
+    logger.setStream(&oss);
+    logger.setPrefix("PREFIX");
+    logger.setLevel(mpc::Logger::log_level::DEEP);
+
+    SECTION("Logger is reset to default configuration")
     {
-        mpc::Logger::instance().setLevel(mpc::Logger::log_level::NORMAL);
-        mpc::Logger::instance().log(mpc::Logger::log_type::DETAIL) << "a";
-        REQUIRE(ss.str().size() == 0);
+        logger.reset();
+        logger.log(mpc::Logger::log_type::DETAIL) << "Info message";
 
-        ss.str("");
-
-        mpc::Logger::instance().log(mpc::Logger::log_type::INFO) << "a";
-        REQUIRE(ss.str().size() > 0);
-
-        ss.str("");
-
-        mpc::Logger::instance().log(mpc::Logger::log_type::ERROR) << "a";
-        REQUIRE(ss.str().size() > 0);
-    }
-
-    SECTION("Level ERROR")
-    {
-        mpc::Logger::instance().setLevel(mpc::Logger::log_level::ALERT);
-        mpc::Logger::instance().log(mpc::Logger::log_type::DETAIL) << "a";
-        REQUIRE(ss.str().size() == 0);
-
-        ss.str("");
-
-        mpc::Logger::instance().log(mpc::Logger::log_type::INFO) << "a";
-        REQUIRE(ss.str().size() == 0);
-
-        ss.str("");
-
-        mpc::Logger::instance().log(mpc::Logger::log_type::ERROR) << "a";
-        REQUIRE(ss.str().size() > 0);
+        REQUIRE(oss.str().empty());
     }
 }

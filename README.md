@@ -22,6 +22,33 @@ If you are a developer, to setup the debug environment you also need to install:
 The latest version of libmpc++ is available from GitHub https://github.com/nicolapiccinelli/libmpc/releases and does not require any
 installation process other than the one required by its dependecies.
 
+### System wide usage on an Ubuntu Linux
+If you're a developer run the `configure.sh` script with superuser privileges to install the external dependencies
+```
+sudo ./configure.sh
+```
+or `configure.sh --disable-test` if you do not need the test-suite
+```
+sudo ./configure.sh --disable-test
+```
+Then, after installing all the dependencies configure and compile the library using CMake. From the folder containing
+the CMakeLists.txt file compile the library by doing
+```
+mkdir build
+cd build
+cmake ..
+make
+```
+Finally, install the library with superuser privileges
+```
+sudo make install
+```
+This will allow you to install the MPC++ library on your system. Using the include 
+```
+#include <mpc/LMPC.hpp> 
+```
+in your package will be enough to add this library to your project.
+
 ### CMakelists.txt example
 This is an example of a CMakeLists.txt file to use libmpc++ in your project.
 
@@ -36,7 +63,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 find_package(mpc++ CONFIG REQUIRED)
 
-# # Declare a C++ library
+# Declare a C++ library
 include_directories(${mpc++_INCLUDE_DIRS})
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} mpc++)

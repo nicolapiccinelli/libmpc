@@ -72,7 +72,7 @@ namespace mpc
         {
             if (!isInitialized)
             {
-                Logger::instance().log(Logger::log_type::ERROR) << RED << "MPC library is not initialized, quitting..." << RESET << std::endl;
+                Logger::instance().log(Logger::log_type::ERROR) << "MPC library is not initialized, quitting..." << std::endl;
                 exit(-1);
             }
         }
