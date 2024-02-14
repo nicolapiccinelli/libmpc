@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2] - 2024-01-14
+### Added
+- Added examples to show how to use the library
+
+### Fixed
+- Fixed the cmake target configuration to properly target the library
+
 ## [0.4.1] - 2024-01-30
 ### Changed
 - Removed coloured output for the integrated logger

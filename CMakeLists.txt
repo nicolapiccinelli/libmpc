@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.2)
 set(CMAKE_CXX_STANDARD 20)
+set(LIBMPCC_VERSION 0.4.2)
 
 ## Specify a project name
-project(mpc++ VERSION 0.4.0 LANGUAGES CXX)
+project(mpc++ VERSION ${LIBMPCC_VERSION} LANGUAGES CXX)
 set(USE_SHOW_STACKTRACE false)
 
 # Disabling Eigen stack allocation warning
@@ -11,39 +12,50 @@ add_definitions(-DEIGEN_STACK_ALLOCATION_LIMIT=0)
 ## Load CMAKE configuration from environment variables
 set(CMAKE_MODULE_PATH $ENV{CMAKE_MODULE_PATH})
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake/modules)                  
-set(CMAKE_PREFIX_PATH $ENV{CMAKE_PREFIX_PATH})    
+set(CMAKE_PREFIX_PATH $ENV{CMAKE_PREFIX_PATH})
 
-# NLopt by default is not installed in the system 
-# so we need to provide the right path
-if(APPLE OR UNIX)
-    link_directories("/usr/local/lib/")
-endif()
-
-## On Apple system Eigen3 is not installed in the default path
-## so we include the installed path
-if(APPLE)
-    include_directories("/usr/local/include")
-endif()
-
-if(WIN32)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 include_directories(
     "../eigen"
     "../nlopt/include"
     "../Catch2/build")
     link_directories("../nlopt/bin")
 endif()
-    
-## Find Eigen3 to build the library
-find_package (Eigen3 REQUIRED NO_MODULE)
+
+# Find Eigen3 to build the library
+find_package(Eigen3 REQUIRED NO_MODULE)
+if(Eigen3_FOUND)
+    message(STATUS "Found Eigen3")
+    message(STATUS "Eigen3 include dir: ${EIGEN3_INCLUDE_DIRS}")
+else()
+    message(FATAL_ERROR "Could not locate Eigen3")
+endif()
+
 # Find OSQP library and headers
 find_package(osqp REQUIRED)
+if(osqp_FOUND)
+    message(STATUS "Found osqp")
+    message(STATUS "osqp include dir: ${OSQP_INCLUDE_DIR}")
+    message(STATUS "osqp library dir: ${OSQP_LIBRARIES}")
+else()
+    message(FATAL_ERROR "Could not locate osqp")
+endif()
+
 # Find nlopt library and headers
 find_package(NLopt REQUIRED)
+if(NLopt_FOUND)
+    message(STATUS "Found NLopt")
+    message(STATUS "NLopt include dir: ${NLOPT_INCLUDE_DIRS}")
+    message(STATUS "NLopt library dir: ${NLOPT_LIBRARIES}")
+else()
+    message(FATAL_ERROR "Could not locate NLopt")
+endif()
 
-## Include the Eigen3 library to the project
-include_directories(${EIGEN3_INCLUDE_DIR})
-include_directories(${OSQP_INCLUDE_DIR})
-include_directories("include")
+# Include the external libraries to the project
+# This is necessary to include the headers of the external libraries
+set(EXTERN_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS} ${OSQP_INCLUDE_DIR} ${NLOPT_INCLUDE_DIRS}) 
+
+include_directories(${EXTERN_INCLUDE_DIRS} "include")
 
 ## Enable definition to enable stacktrace print
 ## https://www.boost.org/doc/libs/1_65_0/doc/html/stacktrace/configuration_and_build.html
@@ -59,14 +71,14 @@ set(MPC_INCLUDE_DIR "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>/include/mpc"
 file(GLOB MPC_HEADERS "${MPC_INCLUDE_DIR}/*")
 
 add_library(mpc++ INTERFACE)
-target_link_libraries(mpc++ INTERFACE nlopt m osqp)
-target_include_directories(mpc++ INTERFACE ${EIGEN3_INCLUDE_DIR} ${OSQP_INCLUDE_DIR})
 target_sources(mpc++ INTERFACE ${MPC_HEADERS})
+target_include_directories(mpc++ INTERFACE ${EXTERN_INCLUDE_DIRS})
+target_link_libraries(mpc++ INTERFACE ${NLOPT_LIBRARIES} m osqp::osqp)
 
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
     "${PROJECT_BINARY_DIR}/mpc++ConfigVersion.cmake"
-    VERSION 0.4.0
+    VERSION ${LIBMPCC_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
 
