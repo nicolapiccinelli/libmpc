@@ -1,5 +1,5 @@
 # libmpc++
-libmpc++ is a C++ library to solve linear and non-linear MPC. The library is written in modern **C++20** and it
+**libmpc++** is a C++ library to solve linear and non-linear MPC. The library is written in modern **C++20** and it
 is tested to work on Linux, macOS and Windows.
 
 * gcc version (>= 10.3.0)
@@ -17,6 +17,22 @@ If you are a developer, to setup the debug environment you also need to install:
 - `boost` for stacktrace debug (https://www.boost.org)
 - `Catch2` test suite (https://github.com/catchorg/Catch2)
 - `gcovr`, `lcov` GCC code coverage
+
+## Example
+There is also a collection of examples that guide you through the most important features of **libmpc++** in the `examples` folder
+
+* `quadrotor_ex.cpp`: example of a linear MPC for a quadrotor regulation problem
+* `ugv_ex.cpp`: example of a non-linear MPC for a UGV tracking problem with obstacles
+* `vanderpol_ex.cpp`: example of a non-linear MPC for a Van der Pol oscillator regulation problem
+
+The examples are written in C++ and can be compiled using CMake:
+
+```
+mkdir build
+cd build
+cmake ..
+make
+```
 
 ## Usage
 The latest version of libmpc++ is available from GitHub https://github.com/nicolapiccinelli/libmpc/releases and does not require any

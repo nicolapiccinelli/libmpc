@@ -1,14 +1,14 @@
-if(UNIX)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux") 
     set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wfatal-errors -Werror=return-type -g -O0 -no-pie -fno-pie")
     message("Adding g++ specific flags")
 endif()
 
-IF("${CMAKE_CXX_COMPILER_ID}" MATCHES "(Apple)?[Cc]lang")
+IF(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(CMAKE_CXX_FLAGS "-Wunused-command-line-argument -std=c++20 -Wall -Wextra -Wfatal-errors -Werror=return-type -g -O0")
     message("Adding clang specific flags")
 endif()
 
-if(WIN32)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(CMAKE_CXX_FLAGS "/std:c++20")
     message("Adding mvcc specific flags")
 endif()
