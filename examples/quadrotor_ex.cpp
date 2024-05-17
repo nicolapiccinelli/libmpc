@@ -119,8 +119,8 @@ int main()
     params.maximum_iteration = 250;
     controller.setOptimizerParameters(params);
 
-    controller.setExogenuosInputs(mpc::mat<Tndu, Tph>::Zero());
-    controller.setExogenuosInputs(mpc::cvec<Tndu>::Zero(), {0, Tph});
+    controller.setExogenousInputs(mpc::mat<Tndu, Tph>::Zero());
+    controller.setExogenousInputs(mpc::cvec<Tndu>::Zero(), {0, Tph});
 
     auto res = controller.step(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
     auto seq = controller.getOptimalSequence();

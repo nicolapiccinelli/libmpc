@@ -16,17 +16,22 @@ TEMPLATE_TEST_CASE_SIG(
     static constexpr int Tineq = 0;
     static constexpr int Teq = 0;
 
-    mpc::Objective<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> objFunc;
-    objFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
+    static constexpr auto sizer = mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq));
 
-    mpc::Mapping<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> mapping;
-    mapping.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
+    std::shared_ptr<mpc::Objective<sizer>> objFunc;
+    objFunc = std::make_shared<mpc::Objective<sizer>>();
+    objFunc->initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
-    mpc::Model<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> model;
-    model.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
+    std::shared_ptr<mpc::Mapping<sizer>> mapping;
+    mapping = std::make_shared<mpc::Mapping<sizer>>();
+    mapping->initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
-    objFunc.setModel(model, mapping);
-    objFunc.setObjective([](
+    std::shared_ptr<mpc::Model<sizer>> model;
+    model = std::make_shared<mpc::Model<sizer>>();
+    model->initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
+
+    objFunc->setModel(model, mapping);
+    objFunc->setObjective([](
                              const mpc::mat<TVAR(Tph + 1), TVAR(Tnx)> &x,
                              const mpc::mat<TVAR(Tph + 1), TVAR(Tny)> &,
                              const mpc::mat<TVAR(Tph + 1), TVAR(Tnu)> &u,
@@ -36,7 +41,7 @@ TEMPLATE_TEST_CASE_SIG(
     mpc::cvec<TVAR(Tnx)> x0;
     x0.resize(Tnx);
     x0 << 0, 0, 0, 0, 0;
-    objFunc.setCurrentState(x0);
+    objFunc->setCurrentState(x0);
 
     // input decision variables vector
     mpc::cvec<TVAR(((Tph * Tnx) + (Tnu * Tch) + 1))> x,expectedGrad;
@@ -53,6 +58,6 @@ TEMPLATE_TEST_CASE_SIG(
     0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 
     0, 1, 0, 0, 1, 0;
 
-    auto c = objFunc.evaluate(x, false);
+    auto c = objFunc->evaluate(x, false);
     REQUIRE(c.value == expectedValue);
 }

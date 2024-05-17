@@ -73,23 +73,36 @@ namespace mpc
         virtual ~Parameters() = default;
 
     public:
+        /// @brief Set the maximum number of iterations before stopping the optimization
         int maximum_iteration = 100;
+        /// @brief Set the maximum time before stopping the optimization (in seconds)
+        double time_limit = 0;
     };
 
     /**
-     * @brief Non-linear optimizer parameters
+     * @brief Non-linear optimizer parameters 
+     * (SEE NLOPT DOCUMENTATION FOR MORE DETAILS)
      */
     struct NLParameters : Parameters
     {
         NLParameters() = default;
 
+        /// @brief the percentage of the objective function value below which the optimization is considered converged
         double relative_ftol = 1e-10;
+        /// @brief the percentage of the optimization variables below which the optimization is considered converged
         double relative_xtol = 1e-10;
+        /// @brief the absolute value of the objective function value below which the optimization is considered converged
+        double absolute_ftol = 1e-10;
+        /// @brief the absolute value of the optimization variables below which the optimization is considered converged
+        double absolute_xtol = 1e-10;
+
+        /// @brief If enabled, the slack variable is constrained to be zero (forcing the inequality constraints to be hard constraints)
         bool hard_constraints = true;
     };
 
     /**
-     * @brief Linear optimizer parameters
+     * @brief Linear optimizer parameters 
+     * (SEE OSQP DOCUMENTATION FOR MORE DETAILS)
      */
     struct LParameters : Parameters
     {
@@ -102,7 +115,7 @@ namespace mpc
         double eps_abs = 1e-4;
         double eps_prim_inf = 1e-3;
         double eps_dual_inf = 1e-3;
-        double time_limit = 0;
+        
         bool enable_warm_start = false;
 
         bool verbose = false;
@@ -126,6 +139,7 @@ namespace mpc
         int retcode;
         double cost;
         ResultStatus status;
+        std::string status_msg;
         cvec<Tnu> cmd;
     };
 

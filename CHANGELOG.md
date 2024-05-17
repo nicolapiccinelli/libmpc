@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0] - 2024-05-17
+### Added
+- Python bindings for the library using pybind11 (pympcxx)
+- The result struct now contains a string to describe the status of the optimization problem
+- Added new parameters for the nonlinear mpc (time_limit, absolute_ftol, absolute_xtol)
+
+### Changed
+- Breaking change: some of the APIs have been refactored. New APIs: setDiscretizationSamplingTime, setExogenousInputs, optimize
+substitute setContinuosTimeModel, setExogenuosInputs, step
+- Improved error handling in the NLopt interface
+
+### Fixed
+- The set of the discretization sampling time was not working properly in the non-linear mpc
+
 ## [0.4.2] - 2024-01-14
 ### Added
 - Added examples to show how to use the library

@@ -85,7 +85,7 @@ namespace mpc
          * method ensures the correct problem dimensions assigment has been
          * already performed.
          */
-        void onInit()
+        void onInit() override
         {
             ssA.resize(nu() + nx(), nu() + nx());
             ssB.resize(nu() + nx(), nu());
@@ -219,7 +219,7 @@ namespace mpc
          * @return true
          * @return false
          */
-        bool setExogenuosInput(
+        bool setExogenousInput(
             const mat<sizer.nx, sizer.ndu> &Bd,
             const mat<sizer.ny, sizer.ndu> &Dd)
         {

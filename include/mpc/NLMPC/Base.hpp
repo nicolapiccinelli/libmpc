@@ -41,7 +41,7 @@ namespace mpc
          * method ensures the correct problem dimensions assigment has been
          * already performed
          */
-        void onInit() = 0;
+        void onInit() override = 0;
 
         /**
          * @brief Set the model and the mapping object references
@@ -49,7 +49,7 @@ namespace mpc
          * @param sysModel the model object
          * @param map the mapping object
          */
-        void setModel(Model<sizer> &sysModel, Mapping<sizer> &map)
+        void setModel(std::shared_ptr<Model<sizer>> sysModel, std::shared_ptr<Mapping<sizer>> map)
         {
             mapping = map;
             model = sysModel;
@@ -70,8 +70,8 @@ namespace mpc
         int niteration;
 
     protected:
-        Mapping<sizer> mapping;
-        Model<sizer> model;
+        std::shared_ptr<Mapping<sizer>> mapping;
+        std::shared_ptr<Model<sizer>> model;
 
         cvec<sizer.nx> x0;
         mat<sizer.ph + 1, sizer.nx> Xmat;

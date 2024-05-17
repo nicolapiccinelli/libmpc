@@ -59,7 +59,7 @@ namespace mpc
          * method ensures the correct problem dimensions assigment has been
          * already performed
          */
-        void onInit()
+        void onInit() override
         {
             innerOpt = new nlopt::opt(nlopt::LD_SLSQP, ((ph() * nx()) + (nu() * ch()) + 1));
 
@@ -84,7 +84,7 @@ namespace mpc
          * @param sysModel the model object
          * @param map the mapping object
          */
-        void setModel(Model<sizer> &sysModel, Mapping<sizer> &map)
+        void setModel(std::shared_ptr<Model<sizer>> sysModel, std::shared_ptr<Mapping<sizer>> map)
         {
             checkOrQuit();
 
@@ -93,19 +93,43 @@ namespace mpc
         }
 
         /**
+         * @brief Set the Cost And Constraints object
+         * 
+         * @param objFunc 
+         * @param conFunc 
+         */
+        void setCostAndConstraints(
+            std::shared_ptr<Objective<sizer>> objFunc,
+            std::shared_ptr<Constraints<sizer>> conFunc)
+        {
+            checkOrQuit();
+
+            this->objFunc = objFunc;
+            this->conFunc = conFunc;
+        }
+
+        /**
          * @brief Set the optmiziation parameters
          *
          * @param param parameters desired
          */
-        void setParameters(const Parameters &param)
+        void setParameters(const Parameters &param) override
         {
             checkOrQuit();
 
             auto nl_param = dynamic_cast<const NLParameters *>(&param);
 
             innerOpt->set_ftol_rel(nl_param->relative_ftol);
-            innerOpt->set_maxeval(nl_param->maximum_iteration);
             innerOpt->set_xtol_rel(nl_param->relative_xtol);
+            innerOpt->set_ftol_abs(nl_param->absolute_ftol);
+            innerOpt->set_xtol_abs(nl_param->absolute_xtol);
+
+            if (nl_param->time_limit > 0)
+            {
+                innerOpt->set_maxtime(nl_param->time_limit);
+            }
+            
+            innerOpt->set_maxeval(nl_param->maximum_iteration);
 
             std::vector<double> lb, ub;
             lb.resize(((ph() * nx()) + (nu() * ch()) + 1));
@@ -135,17 +159,16 @@ namespace mpc
          * @brief Bind the objective function class with the internal solver
          * objective function referemce
          *
-         * @param objFunc objective function class instance
          * @return true
          * @return false
          */
-        bool bind(Objective<sizer> *objFunc)
+        bool bindObjective()
         {
             checkOrQuit();
 
             try
             {
-                innerOpt->set_min_objective(NLOptimizer::nloptObjFunWrapper, objFunc);
+                innerOpt->set_min_objective(NLOptimizer::nloptObjFunWrapper, objFunc.get());
                 return true;
             }
             catch (const std::exception &e)
@@ -162,13 +185,11 @@ namespace mpc
          * @brief Bind the constraints class with the internal solver
          * system's dynamics equality constraints function reference
          *
-         * @param conFunc constraints class instance
          * @param tol equality constraints tolerances
          * @return true
          * @return false
          */
         bool bindEq(
-            Constraints<sizer> *conFunc,
             constraints_type,
             const cvec<(sizer.ph * sizer.nx)> tol)
         {
@@ -178,7 +199,7 @@ namespace mpc
             {
                 innerOpt->add_equality_mconstraint(
                     NLOptimizer::nloptEqConFunWrapper,
-                    conFunc,
+                    conFunc.get(),
                     std::vector<double>(
                         tol.data(),
                         tol.data() + tol.rows() * tol.cols()));
@@ -201,13 +222,11 @@ namespace mpc
          * @brief Bind the constraints class with the internal solver
          * user inequality constraints function referemce
          *
-         * @param conFunc constraints class instance
          * @param tol inequality constraints tolerances
          * @return true
          * @return false
          */
         bool bindUserIneq(
-            Constraints<sizer> *conFunc,
             constraints_type,
             const cvec<sizer.ineq> tol)
         {
@@ -217,7 +236,7 @@ namespace mpc
             {
                 innerOpt->add_inequality_mconstraint(
                     NLOptimizer::nloptUserIneqConFunWrapper,
-                    conFunc,
+                    conFunc.get(),
                     std::vector<double>(
                         tol.data(),
                         tol.data() + tol.rows() * tol.cols()));
@@ -240,14 +259,12 @@ namespace mpc
          * @brief Bind the constraints class with the internal solver
          * user equality constraints function referemce
          *
-         * @param conFunc constraints class instance
          * @param type constraints type
          * @param tol equality constraints tolerances
          * @return true
          * @return false
          */
         bool bindUserEq(
-            Constraints<sizer> *conFunc,
             constraints_type /*type*/,
             const cvec<sizer.eq> tol)
         {
@@ -257,7 +274,7 @@ namespace mpc
             {
                 innerOpt->add_equality_mconstraint(
                     NLOptimizer::nloptUserEqConFunWrapper,
-                    conFunc,
+                    conFunc.get(),
                     std::vector<double>(
                         tol.data(),
                         tol.data() + tol.rows() * tol.cols()));
@@ -284,7 +301,7 @@ namespace mpc
          */
         void run(
             const cvec<sizer.nx> &x0,
-            const cvec<sizer.nu> &u0)
+            const cvec<sizer.nu> &u0) override
         {
             checkOrQuit();
 
@@ -327,7 +344,7 @@ namespace mpc
             }
 
             cvec<(sizer.nu * sizer.ch)> res;
-            res = mapping.Iu2z() * UmvVectorized;
+            res = mapping->Iu2z() * UmvVectorized;
 
             for (size_t j = 0; j < (nu() * ch()); j++)
             {
@@ -335,14 +352,43 @@ namespace mpc
             }
 
             optX0[((ph() * nx()) + (nu() * ch()) + 1) - 1] = currentSlack;
+            
+            bool optimizationSuccess = false;
+            cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> opt_vector;
+            opt_vector.setZero();
 
             try
             {
-                auto res = innerOpt->optimize(optX0);
+                std::vector<double> opt_v = innerOpt->optimize(optX0);
+                opt_vector = Eigen::Map<cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>>(opt_v.data(), opt_v.size());
 
-                cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> opt_vector;
-                opt_vector = Eigen::Map<cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>>(res.data(), res.size());
+                optimizationSuccess = true;
+            }
+            catch(nlopt::roundoff_limited &e)
+            {
+                Logger::instance().log(Logger::log_type::DETAIL)
+                    << "No optimal solution found: "
+                    << e.what()
+                    << std::endl;
 
+                // we reached floating point precision limit before reaching the stopping criteria
+                optimizationSuccess = false;
+                r.status_msg = "Floating point precision limit reached before stopping criteria";
+            }
+            catch (const std::exception &e)
+            {
+                Logger::instance().log(Logger::log_type::DETAIL)
+                    << "No optimal solution found: "
+                    << e.what()
+                    << std::endl;
+
+                // generic exception handling
+                optimizationSuccess = false;
+                r.status_msg = "Internal solver error: "  + std::string(e.what());
+            }
+
+            if(optimizationSuccess)
+            {
                 r.cost = innerOpt->last_optimum_value();
                 r.retcode = innerOpt->last_optimize_result();
                 // convert from nlopt result code to ResultStatus enum
@@ -370,14 +416,14 @@ namespace mpc
                 mat<(sizer.ph + 1), sizer.nu> Umat;
                 Umat.resize((ph() + 1), nu());
 
-                mapping.unwrapVector(opt_vector, x0, Xmat, Umat, currentSlack);
+                mapping->unwrapVector(opt_vector, x0, Xmat, Umat, currentSlack);
 
                 Logger::instance().log(Logger::log_type::DETAIL)
                     << "Optimal predicted state vector\n"
                     << Xmat
                     << std::endl;
                 Logger::instance().log(Logger::log_type::DETAIL)
-                    << "Optimal predicted output vector\n"
+                    << "Optimal predicted control input vector\n"
                     << Umat
                     << std::endl;
 
@@ -385,15 +431,10 @@ namespace mpc
 
                 sequence.state = Xmat.block(1, 0, ph(), nx());
                 sequence.input = Umat.block(1, 0, ph(), nu());
-                sequence.output = model.getOutput(Xmat, Umat).block(1, 0, ph(), ny());
+                sequence.output = model->getOutput(Xmat, Umat).block(1, 0, ph(), ny());
             }
-            catch (const std::exception &e)
+            else
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
-                    << "No optimal solution found: "
-                    << e.what()
-                    << std::endl;
-
                 r.cost = mpc::inf;
                 r.cmd = result.cmd;
                 r.retcode = -1;
@@ -590,7 +631,9 @@ namespace mpc
 
         nlopt::opt *innerOpt;
 
-        Mapping<sizer> mapping;
-        Model<sizer> model;
+        std::shared_ptr<Objective<sizer>> objFunc;
+        std::shared_ptr<Constraints<sizer>> conFunc;
+        std::shared_ptr<Mapping<sizer>> mapping;
+        std::shared_ptr<Model<sizer>> model;
     };
 } // namespace mpc

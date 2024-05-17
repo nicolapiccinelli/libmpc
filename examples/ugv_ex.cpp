@@ -26,7 +26,7 @@ int main()
     double Ts = 0.01;
 
     mpc::NLMPC<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq> controller;
-    controller.setContinuosTimeModel(Ts);
+    controller.setDiscretizationSamplingTime(Ts);
     controller.setLoggerLevel(mpc::Logger::log_level::NORMAL);
 
     mpc::mat<Tnx, Tnx> A(Tnx, Tnx);
@@ -136,7 +136,7 @@ int main()
     while(true)
     {
         // solve
-        res = controller.step(m_x, res.cmd);
+        res = controller.optimize(m_x, res.cmd);
 
         // apply vector field
         stateEq(m_dx, m_x, res.cmd, -1);

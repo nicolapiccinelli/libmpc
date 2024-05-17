@@ -60,7 +60,7 @@ namespace mpc
          * method ensures the correct problem dimensions assigment has been
          * already performed.
          */
-        void onInit()
+        void onInit() override
         {
             x0.resize(nx());
             Xmat.resize(ph() + 1, nx());
@@ -144,13 +144,13 @@ namespace mpc
         {
             checkOrQuit();
 
-            mapping.unwrapVector(x, x0, Xmat, Umat, e);
+            mapping->unwrapVector(x, x0, Xmat, Umat, e);
 
             if (hasIneqConstraints())
             {
                 // check if the output function of the system is defined
                 // if so, let's compute the output along the horizon
-                mat<(sizer.ph + 1), sizer.ny> Ymat = model.getOutput(Xmat, Umat);
+                mat<(sizer.ph + 1), sizer.ny> Ymat = model->getOutput(Xmat, Umat);
                 ieqUser(cineq_user, Xmat, Ymat, Umat, e);
 
                 mat<sizer.ineq, (sizer.ph * sizer.nx)> Jieqx;
@@ -185,7 +185,7 @@ namespace mpc
                     {
                         for (size_t ix = 0; ix < nx(); ix++)
                         {
-                            scaled_Jcineq_user(ioff + ix, j) = scaled_Jcineq_user(ioff + ix, j) * mapping.StateScaling()(ix);
+                            scaled_Jcineq_user(ioff + ix, j) = scaled_Jcineq_user(ioff + ix, j) * mapping->StateScaling()(ix);
                         }
                         ioff = ioff + nx();
                     }
@@ -240,7 +240,7 @@ namespace mpc
             bool hasGradient)
         {
             checkOrQuit();
-            mapping.unwrapVector(x, x0, Xmat, Umat, e);
+            mapping->unwrapVector(x, x0, Xmat, Umat, e);
 
             // Set MPC constraints
             getStateEqConstraints(hasGradient);
@@ -286,7 +286,7 @@ namespace mpc
             bool hasGradient)
         {
             checkOrQuit();
-            mapping.unwrapVector(x, x0, Xmat, Umat, e);
+            mapping->unwrapVector(x, x0, Xmat, Umat, e);
 
             // Add user defined constraints
             if (hasEqConstraints())
@@ -320,7 +320,7 @@ namespace mpc
                     {
                         for (size_t ix = 0; ix < nx(); ix++)
                         {
-                            scaled_Jceq_user(ioff + ix, j) = scaled_Jceq_user(ioff + ix, j) * mapping.StateScaling()(ix);
+                            scaled_Jceq_user(ioff + ix, j) = scaled_Jceq_user(ioff + ix, j) * mapping->StateScaling()(ix);
                         }
                         ioff = ioff + nx();
                     }
@@ -396,7 +396,7 @@ namespace mpc
                 Jmanvar_mat.block(0, i * nu(), Jres.cols(), nu()) = Jmanvar.middleCols(i * nu(), nu());
             }
 
-            Jres.middleRows(ph() * nx(), nu() * ch()) = (Jmanvar_mat * mapping.Iz2u()).transpose();
+            Jres.middleRows(ph() * nx(), nu() * ch()) = (Jmanvar_mat * mapping->Iz2u()).transpose();
             Jres.bottomRows(1) = Jcon.transpose();
         }
 
@@ -432,12 +432,14 @@ namespace mpc
             Ix.setIdentity(nx(), nx());
 
             mat<sizer.nx, sizer.nx> Sx, Tx;
-            Sx = mapping.StateInverseScaling().asDiagonal();
-            Tx = mapping.StateScaling().asDiagonal();
+            Sx = mapping->StateInverseScaling().asDiagonal();
+            Tx = mapping->StateScaling().asDiagonal();
 
-            // TODO bind for continuos time
-            if (model.isContinuosTime)
+            // TODO bind for continuous time
+            if (model->isContinuousTime)
             {
+                Logger::instance().log(Logger::log_type::DETAIL) << "Continuous time model detected, using finite differences" << std::endl;
+
                 // #pragma omp parallel for
                 for (size_t i = 0; i < ph(); i++)
                 {
@@ -446,22 +448,22 @@ namespace mpc
                     cvec<sizer.nx> xk;
                     xk = Xmat.row(i).transpose();
 
-                    double h = model.sampleTime / 2.0;
+                    double h = model->sampleTime / 2.0;
                     cvec<sizer.nx> xk1;
                     xk1 = Xmat.row(i + 1).transpose();
 
                     cvec<sizer.nx> fk;
                     fk.resize(nx());
 
-                    model.vectorField(fk, xk, uk, i);
+                    model->vectorField(fk, xk, uk, i);
 
                     cvec<sizer.nx> fk1;
                     fk1.resize(nx());
 
-                    model.vectorField(fk1, xk1, uk, i);
+                    model->vectorField(fk1, xk1, uk, i);
 
                     ceq.middleRows(ic, nx()) = xk + (h * (fk + fk1)) - xk1;
-                    ceq.middleRows(ic, nx()) = ceq.middleRows(ic, nx()).array() / mapping.StateScaling().array();
+                    ceq.middleRows(ic, nx()) = ceq.middleRows(ic, nx()).array() / mapping->StateScaling().array();
 
                     if (hasGradient)
                     {
@@ -495,6 +497,8 @@ namespace mpc
             }
             else
             {
+                Logger::instance().log(Logger::log_type::DETAIL) << "Discrete time model detected" << std::endl;
+
                 // #pragma omp parallel for
                 for (size_t i = 0; i < ph(); i++)
                 {
@@ -506,10 +510,10 @@ namespace mpc
                     cvec<sizer.nx> xk1;
                     xk1.resize(nx());
 
-                    model.vectorField(xk1, xk, uk, i);
+                    model->vectorField(xk1, xk, uk, i);
 
                     ceq.middleRows(ic, nx()) = Xmat.row(i + 1).transpose() - xk1;
-                    ceq.middleRows(ic, nx()) = ceq.middleRows(ic, nx()).array() / mapping.StateScaling().array();
+                    ceq.middleRows(ic, nx()) = ceq.middleRows(ic, nx()).array() / mapping->StateScaling().array();
 
                     if (hasGradient)
                     {
@@ -587,7 +591,7 @@ namespace mpc
 
                     // check if the output function of the system is defined
                     // if so, let's compute the output along the horizon
-                    mat<(sizer.ph + 1), sizer.ny> y0 = model.getOutput(x0, u0);
+                    mat<(sizer.ph + 1), sizer.ny> y0 = model->getOutput(x0, u0);
 
                     ieqUser(f, x0, y0, u0, e);
                     x0(ix, j) = x0(ix, j) - dx;
@@ -614,7 +618,7 @@ namespace mpc
 
                     // check if the output function of the system is defined
                     // if so, let's compute the output along the horizon
-                    mat<(sizer.ph + 1), sizer.ny> y0 = model.getOutput(x0, u0);
+                    mat<(sizer.ph + 1), sizer.ny> y0 = model->getOutput(x0, u0);
 
                     ieqUser(f, x0, y0, u0, e);
                     u0(i, k) = u0(i, k) - du;
@@ -635,7 +639,7 @@ namespace mpc
 
                 // check if the output function of the system is defined
                 // if so, let's compute the output along the horizon
-                mat<(sizer.ph + 1), sizer.ny> y0 = model.getOutput(x0, u0);
+                mat<(sizer.ph + 1), sizer.ny> y0 = model->getOutput(x0, u0);
 
                 ieqUser(f, x0, y0, u0, e);
                 u0((ph() - 1), j) = u0((ph() - 1), j) - du;
@@ -652,7 +656,7 @@ namespace mpc
 
             // check if the output function of the system is defined
             // if so, let's compute the output along the horizon
-            mat<(sizer.ph + 1), sizer.ny> y0 = model.getOutput(x0, u0);
+            mat<(sizer.ph + 1), sizer.ny> y0 = model->getOutput(x0, u0);
 
             ieqUser(f1, x0, y0, u0, e0 + de);
 
@@ -661,7 +665,7 @@ namespace mpc
 
             // check if the output function of the system is defined
             // if so, let's compute the output along the horizon
-            y0 = model.getOutput(x0, u0);
+            y0 = model->getOutput(x0, u0);
 
             ieqUser(f2, x0, y0, u0, e0 - de);
             Jcone = (f1 - f2) / (2 * de);
@@ -786,7 +790,7 @@ namespace mpc
                 x0(i) = x0(i) + dx;
                 cvec<sizer.nx> f;
                 f.resize(nx());
-                model.vectorField(f, x0, u0, p);
+                model->vectorField(f, x0, u0, p);
                 x0(i) = x0(i) - dx;
                 cvec<sizer.nx> df;
                 df = (f - f0) / dx;
@@ -805,7 +809,7 @@ namespace mpc
                 u0(k) = u0(k) + du;
                 cvec<sizer.nx> f;
                 f.resize(nx());
-                model.vectorField(f, x0, u0, p);
+                model->vectorField(f, x0, u0, p);
                 u0(k) = u0(k) - du;
                 cvec<sizer.nx> df;
                 df = (f - f0) / du;

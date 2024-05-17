@@ -39,7 +39,7 @@ namespace mpc
         using IDimensionable<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::eq;
 
     public:
-        using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::step;
+        using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::optimize;
         using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::setLoggerLevel;
         using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::setLoggerPrefix;
         using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::getLastResult;
@@ -62,7 +62,7 @@ namespace mpc
         /**
          * @brief (NOT AVAILABLE) Set the discretization time step to use for numerical integration
          */
-        bool setContinuosTimeModel(const double /*ts*/)
+        bool setDiscretizationSamplingTime(const double /*ts*/) override
         {
             throw std::runtime_error("Linear MPC supports only discrete time systems");
             return false;
@@ -73,7 +73,7 @@ namespace mpc
          *
          * @param param desired parameters (the structure must be of type LParameters)
          */
-        void setOptimizerParameters(const Parameters &param)
+        void setOptimizerParameters(const Parameters &param) override
         {
             ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setParameters(param);
         }
@@ -82,7 +82,7 @@ namespace mpc
          * @brief (NOT AVAILABLE) Set the scaling factor for the control input
          *
          */
-        void setInputScale(const cvec<Tnu> /*scaling*/)
+        void setInputScale(const cvec<Tnu> /*scaling*/) override
         {
             throw std::runtime_error("Linear MPC does not support input scaling");
         }
@@ -91,7 +91,7 @@ namespace mpc
          * @brief (NOT AVAILABLE) Set the scaling factor for the dynamical system's states variables
          *
          */
-        void setStateScale(const cvec<Tnx> /*scaling*/)
+        void setStateScale(const cvec<Tnx> /*scaling*/) override
         {
             throw std::runtime_error("Linear MPC does not support state scaling");
         }
@@ -438,33 +438,33 @@ namespace mpc
         {
 
             Logger::instance().log(Logger::log_type::DETAIL) << "Setting disturbances matrices" << std::endl;
-            return builder.setExogenuosInput(Bd, Dd);
+            return builder.setExogenousInput(Bd, Dd);
         }
 
         /**
-         * @brief Set the exogenuos inputs vector
+         * @brief Set the exogenous inputs vector
          *
-         * @param uMeas measured exogenuos input
+         * @param uMeas measured exogenous input
          * @return true
          * @return false
          */
-        bool setExogenuosInputs(
+        bool setExogenousInputs(
             const mat<Tndu, Tph> &uMeasMat)
         {
-            return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenuosInputs(uMeasMat);
+            return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenousInputs(uMeasMat);
         }
 
         /**
-         * @brief Set the exogenuos inputs vector, the exogenuos inputs are assumed to be constant
+         * @brief Set the exogenous inputs vector, the exogenous inputs are assumed to be constant
          * along the specified prediction horizon segment
          *
-         * @param uMeas measured exogenuos input
+         * @param uMeas measured exogenous input
          * @param slice slice of the prediction horizon [start end]
          * (if both ends re set to -1 the whole prediction horizon is used)
          * @return true
          * @return false
          */
-        bool setExogenuosInputs(
+        bool setExogenousInputs(
             const cvec<Tndu> &uMeas,
             const std::array<int, 2> slice)
         {
@@ -480,7 +480,7 @@ namespace mpc
                     uMeasMat.col(i) = uMeas;
                 }
 
-                return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenuosInputs(uMeasMat);
+                return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenousInputs(uMeasMat);
             }
 
             // Replicate on segment of the prediction horizon
@@ -498,7 +498,7 @@ namespace mpc
 
                 for (size_t i = start; i < end; i++)
                 {
-                    ret = ret && ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenuosInputs(i, uMeas);
+                    ret = ret && ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenousInputs(i, uMeas);
                 }
 
                 return ret;
@@ -650,7 +650,7 @@ namespace mpc
         /**
          * @brief Initilization hook for the linear interface
          */
-        void onSetup()
+        void onSetup() override
         {
             builder.initialize(nx(), nu(), ndu(), ny(), ph(), ch());
             optPtr = new LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>();
@@ -668,7 +668,7 @@ namespace mpc
          *
          * @warning This function is not available for use.
          */
-        void onModelUpdate(const cvec<Tnx> /*x0*/)
+        void onModelUpdate(const cvec<Tnx> /*x0*/) override
         {
         }
 

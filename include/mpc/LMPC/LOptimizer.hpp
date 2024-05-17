@@ -56,7 +56,7 @@ namespace mpc
          * method ensures the correct problem dimensions assigment has been
          * already performed
          */
-        void onInit()
+        void onInit() override
         {
             result.cmd.resize(nu());
             result.cmd.setZero();
@@ -97,7 +97,7 @@ namespace mpc
          *
          * @param param parameters desired
          */
-        void setParameters(const Parameters &param)
+        void setParameters(const Parameters &param) override
         {
             checkOrQuit();
             lin_params = *dynamic_cast<LParameters *>(const_cast<Parameters *>(&param));
@@ -152,27 +152,27 @@ namespace mpc
         }
 
         /**
-         * @brief Set the exogenuos inputs matrix
+         * @brief Set the exogenous inputs matrix
          *
-         * @param uMeas measured exogenuos input
+         * @param uMeas measured exogenous input
          * @return true
          * @return false
          */
-        bool setExogenuosInputs(const mat<sizer.ndu, sizer.ph> &uMeas)
+        bool setExogenousInputs(const mat<sizer.ndu, sizer.ph> &uMeas)
         {
             extInputMeas = uMeas;
             return true;
         }
 
         /**
-         * @brief Set the exogenuos inputs vector for a specific horizon step
+         * @brief Set the exogenous inputs vector for a specific horizon step
          *
          * @param index index of the horizon step
-         * @param uMeas measured exogenuos input
+         * @param uMeas measured exogenous input
          * @return true
          * @return false
          */
-        bool setExogenuosInputs(
+        bool setExogenousInputs(
             const unsigned int index,
             const cvec<sizer.ndu> &uMeas)
         {
@@ -188,7 +188,7 @@ namespace mpc
          */
         void run(
             const cvec<sizer.nx> &x0,
-            const cvec<sizer.nu> &u0)
+            const cvec<sizer.nu> &u0) override
         {
             checkOrQuit();
             Result<sizer.nu> r;

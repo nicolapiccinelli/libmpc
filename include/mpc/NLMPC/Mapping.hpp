@@ -45,7 +45,7 @@ namespace mpc
          * method ensures the correct problem dimensions assigment has been
          * already performed
          */
-        void onInit()
+        void onInit() override
         {
             Iz2uMat.resize((ph() * nu()), (nu() * ch()));
             Iu2zMat.resize((nu() * ch()), (ph() * nu()));

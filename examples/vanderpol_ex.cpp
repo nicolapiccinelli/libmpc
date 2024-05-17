@@ -23,7 +23,7 @@ int main()
         controller;
 
     controller.setLoggerLevel(mpc::Logger::log_level::NORMAL);
-    controller.setContinuosTimeModel(ts);
+    controller.setDiscretizationSamplingTime(ts);
 
     auto stateEq = [&](
                        mpc::cvec<num_states> &dx,
@@ -70,7 +70,7 @@ int main()
 
     for (;;)
     {
-        r = controller.step(modelX, r.cmd);
+        r = controller.optimize(modelX, r.cmd);
         stateEq(modeldX, modelX, r.cmd);
         modelX += modeldX * ts;
         if (std::fabs(modelX[0]) <= 1e-2 && std::fabs(modelX[1]) <= 1e-1)

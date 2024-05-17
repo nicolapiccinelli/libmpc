@@ -31,7 +31,7 @@ int VanderPol()
 #endif
 
     optsolver.setLoggerLevel(mpc::Logger::log_level::NORMAL);
-    optsolver.setContinuosTimeModel(ts);
+    optsolver.setDiscretizationSamplingTime(ts);
 
     auto stateEq = [&](
                        mpc::cvec<TVAR(num_states)> &dx,
@@ -78,7 +78,7 @@ int VanderPol()
 
     for (;;)
     {
-        r = optsolver.step(modelX, r.cmd);
+        r = optsolver.optimize(modelX, r.cmd);
         auto seq = optsolver.getOptimalSequence();
         (void) seq;
         stateEq(modeldX, modelX, r.cmd);

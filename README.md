@@ -6,6 +6,11 @@ is tested to work on Linux, macOS and Windows.
 
 The libmpc++ website can be found at the following link: https://altairlab.gitlab.io/optcontrol/libmpc/
 
+Starting from the version **0.5.0** the library is also available as a Python package (https://pypi.org/project/pympcxx/). The Python package is available on PyPI and can be installed using pip:
+```
+pip install pympcxx
+```
+
 ## Dependecies
 The library depends on the following external libraries which must be installed on the machine before using libmpc++
 

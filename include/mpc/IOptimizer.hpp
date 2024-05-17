@@ -33,7 +33,7 @@ namespace mpc
          * method ensures the correct problem dimensions assigment has been
          * already performed
          */
-        virtual void onInit() = 0;
+        virtual void onInit() override = 0;
         /**
          * @brief Abstract setter for the optimizer parameters
          *
