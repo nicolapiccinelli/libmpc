@@ -54,7 +54,7 @@ namespace mpc
          * method ensures the correct problem dimensions assigment has been
          * already performed.
          */
-        void onInit()
+        void onInit() override
         {
             x0.resize(nx());
             Xmat.resize((ph() + 1), nx());
@@ -95,8 +95,8 @@ namespace mpc
             Cost c;
             c.grad.resize(((ph() * nx()) + (nu() * ch()) + 1));
 
-            mapping.unwrapVector(x, x0, Xmat, Umat, e);
-            c.value = fuser(Xmat, model.getOutput(Xmat, Umat), Umat, e);
+            mapping->unwrapVector(x, x0, Xmat, Umat, e);
+            c.value = fuser(Xmat, model->getOutput(Xmat, Umat), Umat, e);
 
             if (hasGradient)
             {
@@ -104,7 +104,7 @@ namespace mpc
 
                 for (int i = 0; i < Xmat.cols(); i++)
                 {
-                    Xmat.col(i) /= 1.0 / mapping.StateScaling()(i);
+                    Xmat.col(i) /= 1.0 / mapping->StateScaling()(i);
                 }
 
                 int counter = 0;
@@ -132,7 +132,7 @@ namespace mpc
                 }
 
                 cvec<(sizer.nu * sizer.ch)> res;
-                res = mapping.Iz2u().transpose() * JmvVectorized;
+                res = mapping->Iz2u().transpose() * JmvVectorized;
                 // #pragma omp parallel for
                 for (size_t j = 0; j < (ch() * nu()); j++)
                 {
@@ -207,7 +207,7 @@ namespace mpc
                     int ix = i + 1;
                     double dx = dv * Xa.array()(j);
                     x0(ix, j) = x0(ix, j) + dx;
-                    double f = fuser(x0, model.getOutput(x0, u0), u0, e0);
+                    double f = fuser(x0, model->getOutput(x0, u0), u0, e0);
                     x0(ix, j) = x0(ix, j) - dx;
                     double df = (f - f0) / dx;
                     Jx(j, i) = df;
@@ -227,7 +227,7 @@ namespace mpc
                     int k = j;
                     double du = dv * Ua.array()(k);
                     u0(i, k) = u0(i, k) + du;
-                    double f = fuser(x0, model.getOutput(x0, u0), u0, e0);
+                    double f = fuser(x0, model->getOutput(x0, u0), u0, e0);
                     u0(i, k) = u0(i, k) - du;
                     double df = (f - f0) / du;
                     Jmv(j, i) = df;
@@ -242,7 +242,7 @@ namespace mpc
                 double du = dv * Ua.array()(k);
                 u0((ph() - 1), k) = u0((ph() - 1), k) + du;
                 u0(ph(), k) = u0(ph(), k) + du;
-                double f = fuser(x0, model.getOutput(x0, u0), u0, e0);
+                double f = fuser(x0, model->getOutput(x0, u0), u0, e0);
                 u0((ph() - 1), k) = u0((ph() - 1), k) - du;
                 u0(ph(), k) = u0(ph(), k) - du;
                 double df = (f - f0) / du;
@@ -251,8 +251,8 @@ namespace mpc
 
             double ea = fmax(1e-6, abs(e0));
             double de = ea * dv;
-            double f1 = fuser(x0, model.getOutput(x0, u0), u0, e0 + de);
-            double f2 = fuser(x0, model.getOutput(x0, u0), u0, e0 - de);
+            double f1 = fuser(x0, model->getOutput(x0, u0), u0, e0 + de);
+            double f2 = fuser(x0, model->getOutput(x0, u0), u0, e0 - de);
             Je = (f1 - f2) / (2 * de);
         }
 

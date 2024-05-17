@@ -65,7 +65,7 @@ The underlying non-linear system used within the MPC is defined as
         y_k &= g(x_k, u_k)
     \end{align}
 
-in case of continuos time system the function :math:`\dot x = f(x, u)` should be interpreted as the vector field of the desired dynamical system. 
+in case of continuous time system the function :math:`\dot x = f(x, u)` should be interpreted as the vector field of the desired dynamical system. 
 The dynamical system is transformed into discrete-time using the zero-order hold (ZOH) approximation method internally.
 
 Tutorial
@@ -108,6 +108,10 @@ Non-linear MPC solver (nlopt)
         
     params.relative_ftol = 1e-10;
     params.relative_xtol = 1e-10;
+    params.absolute_ftol = 1e-10;
+    params.absolute_xtol = 1e-10;
+    params.time_limit = 0;
+    
     params.hard_constraints = true;
 
     nlmpc.setOptimizerParameters(params);
@@ -230,7 +234,7 @@ This example shows how to drives the states of a Van der Pol oscillator to zero 
     double ts = 0.1;
 
     nlmpc.setLoggerLevel(mpc::Logger::log_level::NORMAL);
-    nlmpc.setContinuosTimeModel(ts);
+    nlmpc.setDiscretizationSamplingTime(ts);
 
     auto stateEq = [&](mpc::cvec<Tnx>& dx,
                        const mpc::cvec<Tnx>& x,

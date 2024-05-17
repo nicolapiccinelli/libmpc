@@ -133,10 +133,10 @@ TEST_CASE(
     params.maximum_iteration = 250;
     optsolver.setOptimizerParameters(params);
 
-    REQUIRE(optsolver.setExogenuosInputs(mpc::mat<Tndu, Tph>::Zero()));
-    REQUIRE(optsolver.setExogenuosInputs(mpc::cvec<Tndu>::Zero(), {0, Tph}));
+    REQUIRE(optsolver.setExogenousInputs(mpc::mat<Tndu, Tph>::Zero()));
+    REQUIRE(optsolver.setExogenousInputs(mpc::cvec<Tndu>::Zero(), {0, Tph}));
 
-    auto res = optsolver.step(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
+    auto res = optsolver.optimize(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
     auto seq = optsolver.getOptimalSequence();
     (void)seq;
 

@@ -1,5 +1,5 @@
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux") 
-    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wfatal-errors -Werror=return-type -g -O0 -no-pie -fno-pie")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(CMAKE_CXX_FLAGS "-Wsuggest-override -Wall -Werror=suggest-override -Wextra -Wfatal-errors -Werror=return-type -g -O0 -no-pie -fno-pie")
     message("Adding g++ specific flags")
 endif()
 

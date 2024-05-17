@@ -43,7 +43,7 @@ namespace mpc
          * @return true
          * @return false
          */
-        virtual bool setContinuosTimeModel(const double) = 0;
+        virtual bool setDiscretizationSamplingTime(const double) = 0;
         /**
          * @brief Set the scaling factor for the control input. This can be used to normalize
          * the control input with respect to the different measurment units
@@ -59,17 +59,6 @@ namespace mpc
          * @brief Set the solver specific parameters
          */
         virtual void setOptimizerParameters(const Parameters &) = 0;
-
-        /**
-         * @brief Implements the initilization hook to provide shared initilization logic
-         * and forwards the hook through the setup hook for linear and non-linear interface
-         * specific initilization
-         */
-        void onInit()
-        {
-            profiler.reset();
-            onSetup();
-        };
 
         /**
          * @brief Set the logger level
@@ -104,7 +93,7 @@ namespace mpc
          * @param lastU last optimal control action
          * @return Result<Tnu> optimization result
          */
-        Result<sizer.nu> step(const cvec<sizer.nx> x0, const cvec<sizer.nu> lastU)
+        Result<sizer.nu> optimize(const cvec<sizer.nx> x0, const cvec<sizer.nu> lastU)
         {
             onModelUpdate(x0);
 
@@ -174,9 +163,21 @@ namespace mpc
 
     protected:
         /**
+         * @brief Implements the initilization hook to provide shared initilization logic
+         * and forwards the hook through the setup hook for linear and non-linear interface
+         * specific initilization
+         */
+        void onInit() override
+        {
+            profiler.reset();
+            onSetup();
+        };
+
+        /**
          * @brief Initilization hook for the linear and non-linear interfaces
          */
         virtual void onSetup() = 0;
+
         /**
          * @brief Dynamical system initial condition update hook
          */

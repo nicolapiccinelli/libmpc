@@ -2,4 +2,6 @@ build/
 bin/
 lib/
 web/
+examples/build/
+python/build/
 docs/source/_build

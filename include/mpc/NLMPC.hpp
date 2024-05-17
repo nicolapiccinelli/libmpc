@@ -43,13 +43,14 @@ namespace mpc
         using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::eq;
 
     public:
-        using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::step;
+        using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::optimize;
         using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::setLoggerLevel;
         using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::setLoggerPrefix;
         using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::getLastResult;
 
         NLMPC()
         {
+            buildInternalModules();
             setDimension();
         }
 
@@ -57,6 +58,7 @@ namespace mpc
             const int &nx, const int &nu, const int &ny,
             const int &ph, const int &ch, const int &ineq, const int &eq)
         {
+            buildInternalModules();
             setDimension(nx, nu, 0, ny, ph, ch, ineq, eq);
         }
 
@@ -72,7 +74,7 @@ namespace mpc
          * @return true
          * @return false
          */
-        bool setContinuosTimeModel(const double ts)
+        bool setDiscretizationSamplingTime(const double ts) override
         {
             Logger::instance().log(Logger::log_type::DETAIL)
                 << "Setting sampling time to: "
@@ -80,7 +82,7 @@ namespace mpc
                 << " sec(s)"
                 << std::endl;
 
-            auto res = model.setContinuos(true, ts);
+            auto res = model->setContinuous(true, ts);
             return res;
         }
 
@@ -89,7 +91,7 @@ namespace mpc
          *
          * @param param desired parameters (the structure must be of type NLParameters)
          */
-        void setOptimizerParameters(const Parameters &param)
+        void setOptimizerParameters(const Parameters &param) override
         {
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setParameters(param);
         }
@@ -100,12 +102,12 @@ namespace mpc
          *
          * @param scaling scaling vector
          */
-        void setInputScale(const cvec<Tnu> scaling)
+        void setInputScale(const cvec<Tnu> scaling) override
         {
-            mapping.setInputScaling(scaling);
+            mapping->setInputScaling(scaling);
 
-            objF.setModel(model, mapping);
-            conF.setModel(model, mapping);
+            objF->setModel(model, mapping);
+            conF->setModel(model, mapping);
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
         }
 
@@ -115,12 +117,12 @@ namespace mpc
          *
          * @param scaling scaling vector
          */
-        void setStateScale(const cvec<Tnx> scaling)
+        void setStateScale(const cvec<Tnx> scaling) override
         {
-            mapping.setStateScaling(scaling);
+            mapping->setStateScaling(scaling);
 
-            objF.setModel(model, mapping);
-            conF.setModel(model, mapping);
+            objF->setModel(model, mapping);
+            conF->setModel(model, mapping);
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
         }
 
@@ -137,19 +139,19 @@ namespace mpc
                 << "Setting objective function handle"
                 << std::endl;
 
-            auto res = objF.setObjective(handle);
+            auto res = objF->setObjective(handle);
 
             Logger::instance().log(Logger::log_type::DETAIL)
                 << "Binding objective function handle"
                 << std::endl;
 
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bind(&objF);
+            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindObjective();
             return res;
         }
 
         /**
          * @brief Set the handler to the function defining the state space update function.
-         * Based on the type of system (continuos or discrete) you should provide the appropriate
+         * Based on the type of system (continuous or discrete) you should provide the appropriate
          * vector field differential equations or the finite differences update model
          *
          * @param handle function handler
@@ -172,17 +174,17 @@ namespace mpc
                 << "Setting state space function handle"
                 << std::endl;
 
-            bool res = model.setStateModel(handle);
+            bool res = model->setStateModel(handle);
 
-            objF.setModel(model, mapping);
-            conF.setModel(model, mapping);
+            objF->setModel(model, mapping);
+            conF->setModel(model, mapping);
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
 
             Logger::instance().log(Logger::log_type::DETAIL)
                 << "Binding state space constraints"
                 << std::endl;
 
-            res = res & ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindEq(&conF, constraints_type::EQ, eq_tol_vec * eq_tol);
+            res = res & ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindEq(constraints_type::EQ, eq_tol_vec * eq_tol);
 
             return res;
         }
@@ -200,10 +202,10 @@ namespace mpc
                 << "Setting output function handle"
                 << std::endl;
 
-            bool res = model.setOutputModel(handle);
+            bool res = model->setOutputModel(handle);
             
-            objF.setModel(model, mapping);
-            conF.setModel(model, mapping);
+            objF->setModel(model, mapping);
+            conF->setModel(model, mapping);
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
 
             return res;
@@ -223,8 +225,8 @@ namespace mpc
             cvec<Tineq> tol_vec;
             tol_vec = cvec<Tineq>::Ones(ineq());
 
-            auto res = conF.setIneqConstraints(handle);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserIneq(&conF, constraints_type::UINEQ, tol_vec * tol);
+            auto res = conF->setIneqConstraints(handle);
+            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserIneq(constraints_type::UINEQ, tol_vec * tol);
             return res;
         }
 
@@ -242,8 +244,8 @@ namespace mpc
             cvec<Teq> tol_vec;
             tol_vec = cvec<Teq>::Ones(Size(Teq));
 
-            auto res = conF.setEqConstraints(handle);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserEq(&conF, constraints_type::UEQ, tol_vec * tol);
+            auto res = conF->setEqConstraints(handle);
+            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserEq(constraints_type::UEQ, tol_vec * tol);
             return res;
         }
 
@@ -251,24 +253,24 @@ namespace mpc
         /**
          * @brief Initilization hook for the interface
          */
-        void onSetup()
+        void onSetup() override
         {
-            conF.initialize(
+            conF->initialize(
                 nx(), nu(), 0, ny(),
                 ph(), ch(), ineq(),
                 eq());
 
-            model.initialize(
+            model->initialize(
                 nx(), nu(), 0, ny(),
                 ph(), ch(), ineq(),
                 eq());
                 
-            mapping.initialize(
+            mapping->initialize(
                 nx(), nu(), 0, ny(),
                 ph(), ch(), ineq(),
                 eq());
 
-            objF.initialize(
+            objF->initialize(
                 nx(), nu(), 0, ny(),
                 ph(), ch(), ineq(),
                 eq());
@@ -279,9 +281,14 @@ namespace mpc
                 ph(), ch(), ineq(),
                 eq());
 
-            objF.setModel(model, mapping);
-            conF.setModel(model, mapping);
+            // set the model and mapping to the internal modules to allow the computation of the
+            // objective function and constraints functions
+            objF->setModel(model, mapping);
+            conF->setModel(model, mapping);
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
+
+            // set the objective function and the constraints functions to the optimizer
+            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setCostAndConstraints(objF, conF);
 
             Logger::instance().log(Logger::log_type::INFO)
                 << "Mapping assignment done"
@@ -291,17 +298,25 @@ namespace mpc
         /**
          * @brief Dynamical system initial condition update hook
          */
-        void onModelUpdate(const cvec<Tnx> x0)
+        void onModelUpdate(const cvec<Tnx> x0) override
         {
-            objF.setCurrentState(x0);
-            conF.setCurrentState(x0);
+            objF->setCurrentState(x0);
+            conF->setCurrentState(x0);
         }
 
     private:
-        Objective<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> objF;
-        Constraints<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> conF;
-        Model<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> model;
-        Mapping<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> mapping;
+        void buildInternalModules()
+        {
+            objF = std::make_shared<Objective<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>>();
+            conF = std::make_shared<Constraints<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>>();
+            model = std::make_shared<Model<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>>();
+            mapping = std::make_shared<Mapping<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>>();
+        }
+
+        std::shared_ptr<Objective<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>> objF;
+        std::shared_ptr<Constraints<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>> conF;
+        std::shared_ptr<Model<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>> model;
+        std::shared_ptr<Mapping<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>> mapping;
     };
 
 } // namespace mpc

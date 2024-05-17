@@ -79,7 +79,7 @@ TEST_CASE(
     params.verbose = true;
     optsolver.setOptimizerParameters(params);
 
-    auto res = optsolver.step(x, u);
+    auto res = optsolver.optimize(x, u);
     auto seq = optsolver.getOptimalSequence();
 
     for (size_t i = 0; i < Tph; i++)
@@ -153,7 +153,7 @@ TEST_CASE(
     params.maximum_iteration = 4000;
     optsolver.setOptimizerParameters(params);
 
-    auto res = optsolver.step(x, u);
+    auto res = optsolver.optimize(x, u);
     auto seq = optsolver.getOptimalSequence();
 
     for (size_t i = 0; i < Tph; i++)
@@ -323,7 +323,7 @@ TEST_CASE(
     Ddv.setRandom();
 
     builder.setStateModel(Ad, Bd, Cd);
-    builder.setExogenuosInput(Bdv, Ddv);
+    builder.setExogenousInput(Bdv, Ddv);
 
     mpc::cvec<Tnx> x;
     x.setRandom();

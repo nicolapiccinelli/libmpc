@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 set(CMAKE_CXX_STANDARD 20)
-set(LIBMPCC_VERSION 0.4.2)
+set(LIBMPCC_VERSION 0.5.0)
 
 ## Specify a project name
 project(mpc++ VERSION ${LIBMPCC_VERSION} LANGUAGES CXX)
