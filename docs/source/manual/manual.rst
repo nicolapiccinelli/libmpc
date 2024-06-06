@@ -142,11 +142,12 @@ Optimization result
 -------------------
 
 The optimization result is stored in the **Result** structure. The structure contains the following fields:
-- solver_status: the return code of the optimization solver
-- solver_status_msg: the status message of the optimization solver
-- cost: the optimal cost of the optimization problem
-- status: the status of the MPC
-- cmd: the optimal control input
+
+* solver_status: the return code of the optimization solver
+* solver_status_msg: the status message of the optimization solver
+* cost: the optimal cost of the optimization problem
+* status: the status of the MPC
+* cmd: the optimal control input
 
 .. code-block:: c++
 
@@ -161,11 +162,12 @@ The optimization result is stored in the **Result** structure. The structure con
 The return code of the optimization solver changes depending on the solver used and it is described when possible
 by the status message. To have a coherent status code of the optimization problem the **status** field is used. 
 The status can be one of the following:
-- SUCCESS (0): the optimization problem has been solved
-- MAX_ITERATION (1): the optimization problem has reached the maximum number of iterations or the maximum time limit
-- INFEASIBLE (2): the optimization problem is infeasible
-- ERROR (3): an error occurred during the optimization
-- UNKNOWN (4): the status of the optimization problem is unset or unknown
+
+* SUCCESS (0): the optimization problem has been solved
+* MAX_ITERATION (1): the optimization problem has reached the maximum number of iterations or the maximum time limit
+* INFEASIBLE (2): the optimization problem is infeasible
+* ERROR (3): an error occurred during the optimization
+* UNKNOWN (4): the status of the optimization problem is unset or unknown
 
 .. code-block:: c++
     enum ResultStatus
