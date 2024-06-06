@@ -10,6 +10,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 # Disable eigen stack allocation warning
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEIGEN_STACK_ALLOCATION_LIMIT=0")
+# Enable openmp
+
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 # Find the mpc++ package
 find_package(mpc++ CONFIG REQUIRED)
@@ -19,6 +22,9 @@ include_directories(${mpc++_INCLUDE_DIRS})
 
 # Get all the .cpp files in the directory
 file(GLOB CPP_FILES *.cpp)
+
+# Put the executables in the bin directory in the build directory
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Create a target for each .cpp file
 foreach(CPP_FILE ${CPP_FILES})

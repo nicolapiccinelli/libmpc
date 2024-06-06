@@ -107,8 +107,12 @@
         "__nullptr": "cpp",
         "__string": "cpp",
         "compare": "cpp",
-        "concepts": "cpp"
+        "concepts": "cpp",
+        "climits": "cpp",
+        "*.gen": "cpp",
+        "stop_token": "cpp"
     },
     "restructuredtext.confPath": "${workspaceFolder}/docs/source",
-    "testMate.cpp.test.executables": "${workspaceFolder}/bin/*"
+    "testMate.cpp.test.executables": "${workspaceFolder}/bin/*",
+    "ros.distro": "noetic"
 }

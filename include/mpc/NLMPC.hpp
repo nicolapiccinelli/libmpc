@@ -47,6 +47,9 @@ namespace mpc
         using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::setLoggerLevel;
         using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::setLoggerPrefix;
         using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::getLastResult;
+        using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::isSliceUnset;
+        using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::isPredictionHorizonSliceValid;
+        using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::isControlHorizonSliceValid;
 
         NLMPC()
         {
@@ -162,12 +165,12 @@ namespace mpc
         bool setStateSpaceFunction(const typename IDimensionable<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::StateFunHandle handle,
                                    const float eq_tol = 1e-10)
         {
-            static cvec<2 * Size(Tph) * Size(Tny)> ineq_tol_vec;
-            ineq_tol_vec.resize((2 * ph() * ny()));
+            cvec<2 * Size(Tph) * Size(Tny)> ineq_tol_vec;
+            COND_RESIZE_CVEC(MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq), ineq_tol_vec, (2 * ph() * ny()));
             ineq_tol_vec.setOnes();
 
-            static cvec<(Size(Tph) * Size(Tnx))> eq_tol_vec;
-            eq_tol_vec.resize((ph() * nx()));
+            cvec<(Size(Tph) * Size(Tnx))> eq_tol_vec;
+            COND_RESIZE_CVEC(MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq), eq_tol_vec, (ph() * nx()));
             eq_tol_vec.setOnes();
 
             Logger::instance().log(Logger::log_type::DETAIL)
@@ -203,7 +206,7 @@ namespace mpc
                 << std::endl;
 
             bool res = model->setOutputModel(handle);
-            
+
             objF->setModel(model, mapping);
             conF->setModel(model, mapping);
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
@@ -213,6 +216,9 @@ namespace mpc
 
         /**
          * @brief Set the handler to the function defining the user inequality constraints
+         * These constraints are custom, and the user must provide the function handler
+         * that will be used to evaluate the constraints. These constraints could be not
+         * satisfied by the optimization algorithm during the optimization process.
          *
          * @param handle function handler
          * @param tol inequality constraints tolerances (default 1e-10)
@@ -232,6 +238,9 @@ namespace mpc
 
         /**
          * @brief Set the handler to the function defining the user equality constraints
+         * These constraints are custom, and the user must provide the function handler
+         * that will be used to evaluate the constraints. These constraints could not be satisfied
+         * by the optimization algorithm during the optimization process.
          *
          * @param handle function handler
          * @param tol equality constraints tolerances (default 1e-10)
@@ -249,6 +258,143 @@ namespace mpc
             return res;
         }
 
+        /**
+         * @brief Set the state constraints, on the entire horizon length.
+         * These constraints are defined as box constraints for the state, input, and output variables
+         * and are used to restrict the search space of the optimization problem. Thus, they are
+         * always satisfied by the optimizer during the optimization process.
+         *
+         * @param XMinMat the minimum state constraints matrix
+         * @param XMaxMat the maximum state constraints matrix
+         */
+        bool setStateBounds(const mat<Tnx, Tph> &XMinMat, const mat<Tnx, Tph> &XMaxMat) override
+        {
+            // set the state bounds to the optimizer
+            bool res = true;
+
+            // iterate over the prediction horizon in the matrices and set the constraints
+            for (size_t i = 0; i < ph(); i++)
+            {
+                int index = (int)i;
+                HorizonSlice slice = {index, index + 1};
+                res &= ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setStateBounds(XMinMat.col(i), XMaxMat.col(i), slice);
+            }
+
+            return res;
+        }
+
+        /**
+         * @brief Set the input constraints on the entire horizon length.
+         * These constraints are defined as box constraints for the state, input, and output variables
+         * and are used to restrict the search space of the optimization problem. Thus, they are
+         * always satisfied by the optimizer during the optimization process.
+         *
+         * @param UMinMat the minimum input constraints matrix
+         * @param UMaxMat the maximum input constraints matrix
+         */
+        bool setInputBounds(const mat<Tnu, Tch> &UMinMat, const mat<Tnu, Tch> &UMaxMat) override
+        {
+            // set the input bounds to the optimizer
+            bool res = true;
+
+            // iterate over the control horizon in the matrices and set the constraints
+            for (size_t i = 0; i < ch(); i++)
+            {
+                int index = (int) i;
+                HorizonSlice slice = {index, index + 1};
+                res &= ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setInputBounds(UMinMat.col(i), UMaxMat.col(i), slice);
+            }
+
+            return res;
+        }
+
+        /**
+         * @brief Set the output constraints on the entire horizon length.
+         * These constraints are defined as box constraints for the state, input, and output variables
+         * and are used to restrict the search space of the optimization problem. Thus, they are
+         * always satisfied by the optimizer during the optimization process.
+         *
+         * @param YMinMat the minimum output constraints matrix
+         * @param YMaxMat the maximum output constraints matrix
+         */
+        bool setOutputBounds(const mat<Tny, Tph> &/*YMinMat*/, const mat<Tny, Tph> &/*YMaxMat*/) override
+        {
+            Logger::instance().log(Logger::log_type::ERROR)
+                << "Output constraints cannot be set for this type of MPC, the ouput is not\
+                considered in the optimization process. Thus we cannot restrict the search space."
+                << std::endl;
+
+            throw std::runtime_error("Output constraints cannot be set for this type of MPC");
+        }
+
+        /**
+         * @brief Set the state constraints on a certain slice of the horizon.
+         * These constraints are defined as box constraints for the state, input, and output variables
+         * and are used to restrict the search space of the optimization problem. Thus, they are
+         * always satisfied by the optimizer during the optimization process.
+         *
+         * @param XMin the minimum state constraints vector
+         * @param XMax the maximum state constraints vector
+         * @param slice the slice of the horizon to apply the constraints to
+         */
+        bool setStateBounds(const cvec<Tnx> &XMin, const cvec<Tnx> &XMax, const HorizonSlice &slice) override
+        {
+            // set the state bounds to the optimizer
+            bool res = true;
+
+            res = isPredictionHorizonSliceValid(slice);
+            if (res)
+            {
+                res &= ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setStateBounds(XMin, XMax, slice);
+            }
+
+            return res;
+        }
+
+        /**
+         * @brief Set the input constraints on a certain slice of the horizon.
+         * These constraints are defined as box constraints for the state, input, and output variables
+         * and are used to restrict the search space of the optimization problem. Thus, they are
+         * always satisfied by the optimizer during the optimization process.
+         *
+         * @param UMin the minimum input constraints vector
+         * @param UMax the maximum input constraints vector
+         * @param slice the slice of the horizon to apply the constraints to
+         */
+        bool setInputBounds(const cvec<Tnu> &UMin, const cvec<Tnu> &UMax, const HorizonSlice &slice) override
+        {
+            // set the input bounds to the optimizer
+            bool res = true;
+
+            res = isControlHorizonSliceValid(slice);
+            if (res)
+            {
+                res &= ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setInputBounds(UMin, UMax, slice);
+            }
+
+            return res;
+        }
+
+        /**
+         * @brief Set the output constraints on a certain slice of the horizon.
+         * These constraints are defined as box constraints for the state, input, and output variables
+         * and are used to restrict the search space of the optimization problem. Thus, they are
+         * always satisfied by the optimizer during the optimization process.
+         *
+         * @param YMin the minimum output constraints vector
+         * @param YMax the maximum output constraints vector
+         * @param slice the slice of the horizon to apply the constraints to
+         */
+        bool setOutputBounds(const cvec<Tny> &/*YMin*/, const cvec<Tny> &/*YMax*/, const HorizonSlice &/*slice*/) override
+        {
+            Logger::instance().log(Logger::log_type::ERROR)
+                << "Output constraints cannot be set for this type of MPC, the ouput is not\
+                considered in the optimization process. Thus we cannot restrict the search space."
+                << std::endl;
+
+            throw std::runtime_error("Output constraints cannot be set for this type of MPC");
+        }
+
     protected:
         /**
          * @brief Initilization hook for the interface
@@ -264,7 +410,7 @@ namespace mpc
                 nx(), nu(), 0, ny(),
                 ph(), ch(), ineq(),
                 eq());
-                
+
             mapping->initialize(
                 nx(), nu(), 0, ny(),
                 ph(), ch(), ineq(),

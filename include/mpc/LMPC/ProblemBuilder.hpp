@@ -87,35 +87,35 @@ namespace mpc
          */
         void onInit() override
         {
-            ssA.resize(nu() + nx(), nu() + nx());
-            ssB.resize(nu() + nx(), nu());
-            ssC.resize(nu() + ny(), nu() + nx());
-            ssBv.resize(nu() + nx(), ndu());
-            ssDv.resize(nu() + ny(), ndu());
+            COND_RESIZE_MAT(sizer,ssA, nu() + nx(), nu() + nx());
+            COND_RESIZE_MAT(sizer,ssB, nu() + nx(), nu());
+            COND_RESIZE_MAT(sizer,ssC, nu() + ny(), nu() + nx());
+            COND_RESIZE_MAT(sizer,ssBv, nu() + nx(), ndu());
+            COND_RESIZE_MAT(sizer,ssDv, nu() + ny(), ndu());
 
-            wOutput.resize(ny(), (ph() + 1));
-            wU.resize(nu(), (ph() + 1));
-            wDeltaU.resize(nu(), ph());
+            COND_RESIZE_MAT(sizer,wOutput, ny(), (ph() + 1));
+            COND_RESIZE_MAT(sizer,wU, nu(), (ph() + 1));
+            COND_RESIZE_MAT(sizer,wDeltaU, nu(), ph());
 
-            minX.resize(nx(), (ph() + 1));
-            maxX.resize(nx(), (ph() + 1));
+            COND_RESIZE_MAT(sizer,minX, nx(), (ph() + 1));
+            COND_RESIZE_MAT(sizer,maxX, nx(), (ph() + 1));
 
-            minY.resize(ny(), (ph() + 1));
-            maxY.resize(ny(), (ph() + 1));
+            COND_RESIZE_MAT(sizer,minY, ny(), (ph() + 1));
+            COND_RESIZE_MAT(sizer,maxY, ny(), (ph() + 1));
 
-            minU.resize(nu(), ph());
-            maxU.resize(nu(), ph());
+            COND_RESIZE_MAT(sizer,minU, nu(), ph());
+            COND_RESIZE_MAT(sizer,maxU, nu(), ph());
 
-            sMin.resize(ph() + 1);
-            sMax.resize(ph() + 1);
-            sMultiplier.resize((ph() + 1), (ph() + 1) * (nu() + nx()));
+            COND_RESIZE_CVEC(sizer,sMin, ph() + 1);
+            COND_RESIZE_CVEC(sizer,sMax, ph() + 1);
+            COND_RESIZE_MAT(sizer,sMultiplier, (ph() + 1), (ph() + 1) * (nu() + nx()));
 
-            leq.resize(((ph() + 1) * (nu() + nx())));
-            ueq.resize(((ph() + 1) * (nu() + nx())));
+            COND_RESIZE_CVEC(sizer,leq, ((ph() + 1) * (nu() + nx())));
+            COND_RESIZE_CVEC(sizer,ueq, ((ph() + 1) * (nu() + nx())));
 
-            lineq.resize((((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))));
-            uineq.resize((((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))));
-            ineq_offset.resize((((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))));
+            COND_RESIZE_CVEC(sizer,lineq, (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))));
+            COND_RESIZE_CVEC(sizer,uineq, (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))));
+            COND_RESIZE_CVEC(sizer,ineq_offset, (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))));
 
             ssA.setZero();
             ssB.setZero();
@@ -148,18 +148,18 @@ namespace mpc
             lineq.setZero();
             uineq.setZero();
 
-            mpcProblem.P.resize(
-                (((ph() + 1) * (nu() + nx())) + (ph() * nu())),
-                (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
-            mpcProblem.q.resize(
-                (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
-            mpcProblem.A.resize(
-                (((ph() + 1) * (nu() + nx())) + ((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))),
-                (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
-            mpcProblem.l.resize(
-                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu())) + (ph() + 1))));
-            mpcProblem.u.resize(
-                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu())) + (ph() + 1))));
+            COND_RESIZE_MAT(sizer,mpcProblem.P,
+                            (((ph() + 1) * (nu() + nx())) + (ph() * nu())),
+                            (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
+            COND_RESIZE_CVEC(sizer,mpcProblem.q,
+                             (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
+            COND_RESIZE_MAT(sizer,mpcProblem.A,
+                            (((ph() + 1) * (nu() + nx())) + ((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))),
+                            (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
+            COND_RESIZE_CVEC(sizer,mpcProblem.l,
+                             (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu())) + (ph() + 1))));
+            COND_RESIZE_CVEC(sizer,mpcProblem.u,
+                             (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu())) + (ph() + 1))));
 
             mpcProblem.P.setZero();
             mpcProblem.q.setZero();
@@ -365,56 +365,81 @@ namespace mpc
         }
 
         /**
-         * @brief Set the state, input and output box constraints
+         * @brief Sets the state bounds for the LMPC problem.
          *
-         * @param XMin minimum state vector
-         * @param UMin minimum input vector
-         * @param YMin minimum output vector
-         * @param XMax maximum state vector
-         * @param UMax maximum input vector
-         * @param YMax maximum output vector
-         * @return true
-         * @return false
+         * This function sets the lower and upper bounds for the state variables of the LMPC problem.
+         * The state bounds are specified as matrices, where each column represents the bounds for a specific time step.
+         * The first column of the matrices represents the initial state bounds.
+         *
+         * @param XMinMat The matrix specifying the lower bounds for the state variables.
+         * @param XMaxMat The matrix specifying the upper bounds for the state variables.
+         * @return True if the time-invariant terms are successfully built, false otherwise.
          */
-        bool setConstraints(
-            const mat<sizer.nx, sizer.ph> &XMin, const mat<sizer.nu, sizer.ph> &UMin, const mat<sizer.ny, sizer.ph> &YMin,
-            const mat<sizer.nx, sizer.ph> &XMax, const mat<sizer.nu, sizer.ph> &UMax, const mat<sizer.ny, sizer.ph> &YMax)
+        bool setStateBounds(const mat<sizer.nx, sizer.ph> XMinMat, const mat<sizer.nx, sizer.ph> XMaxMat)
         {
             checkOrQuit();
 
-            minX.block(0, 1, nx(), ph()) = XMin;
-            minX.col(0) = XMin.col(0);
-            maxX.block(0, 1, nx(), ph()) = XMax;
-            maxX.col(0) = XMax.col(0);
-
-            minY.block(0, 1, ny(), ph()) = YMin;
-            minY.col(0) = YMin.col(0);
-            maxY.block(0, 1, ny(), ph()) = YMax;
-            maxY.col(0) = YMax.col(0);
-
-            minU = UMin;
-            maxU = UMax;
+            minX.block(0, 1, nx(), ph()) = XMinMat;
+            minX.col(0) = XMinMat.col(0);
+            maxX.block(0, 1, nx(), ph()) = XMaxMat;
+            maxX.col(0) = XMaxMat.col(0);
 
             return buildTimeInvariantTems();
         }
 
         /**
-         * @brief Set the state, input and output box constraints for a specific horizon step
+         * Sets the input bounds for the LMPC problem.
          *
-         * @param index index of the horizon step
-         * @param XMin minimum state vector
-         * @param UMin minimum input vector
-         * @param YMin minimum output vector
-         * @param XMax maximum state vector
-         * @param UMax maximum input vector
-         * @param YMax maximum output vector
-         * @return true
-         * @return false
+         * @param UMinMat The lower bound matrix for the inputs.
+         * @param UMaxMat The upper bound matrix for the inputs.
+         * @return True if the time-invariant terms are successfully built, false otherwise.
          */
-        bool setConstraints(
-            const unsigned int &index,
-            const cvec<sizer.nx> &XMin, const cvec<sizer.nu> &UMin, const cvec<sizer.ny> &YMin,
-            const cvec<sizer.nx> &XMax, const cvec<sizer.nu> &UMax, const cvec<sizer.ny> &YMax)
+        bool setInputBounds(const mat<sizer.nu, sizer.ch> UMinMat, const mat<sizer.nu, sizer.ch> UMaxMat)
+        {
+            checkOrQuit();
+
+            // fill the portion of the prediction horizon with the input bounds on the control horizon
+            minU.block(0, 0, nu(), ch()) = UMinMat;
+            maxU.block(0, 0, nu(), ch()) = UMaxMat;
+
+            // then the last bounds of the control horizon are used to fill the remaining part of the prediction horizon
+            if (ch() < ph())
+            {
+                minU.block(0, ch(), nu(), ph() - ch()) = UMinMat.col(ch());
+                maxU.block(0, ch(), nu(), ph() - ch()) = UMaxMat.col(ch());
+            }
+
+            return buildTimeInvariantTems();
+        }
+
+        /**
+         * Sets the output bounds for the LMPC problem.
+         *
+         * @param YMinMat The matrix representing the lower bounds for the output variables.
+         * @param YMaxMat The matrix representing the upper bounds for the output variables.
+         * @return True if the time-invariant terms are successfully built, false otherwise.
+         */
+        bool setOutputBounds(const mat<sizer.ny, sizer.ph> YMinMat, const mat<sizer.ny, sizer.ph> YMaxMat)
+        {
+            checkOrQuit();
+
+            minY.block(0, 1, ny(), ph()) = YMinMat;
+            minY.col(0) = YMinMat.col(0);
+            maxY.block(0, 1, ny(), ph()) = YMaxMat;
+            maxY.col(0) = YMaxMat.col(0);
+
+            return buildTimeInvariantTems();
+        }
+
+        /**
+         * Sets the state bounds for a specific index.
+         *
+         * @param index The index of the state bounds to set.
+         * @param XMin The minimum values for the state bounds.
+         * @param XMax The maximum values for the state bounds.
+         * @return True if the state bounds were successfully set, false otherwise.
+         */
+        bool setStateBounds(const unsigned int &index, const cvec<sizer.nx> XMin, const cvec<sizer.nx> XMax)
         {
             checkOrQuit();
 
@@ -430,6 +455,39 @@ namespace mpc
                 maxX.col(0) = XMax;
             }
 
+            return buildTimeInvariantTems();
+        }
+
+        /**
+         * Sets the input bounds for a specific index.
+         *
+         * @param index The index of the input bounds to set.
+         * @param UMin The lower bounds for the input.
+         * @param UMax The upper bounds for the input.
+         * @return True if the input bounds were set successfully, false otherwise.
+         */
+        bool setInputBounds(const unsigned int &index, const cvec<sizer.nu> UMin, const cvec<sizer.nu> UMax)
+        {
+            checkOrQuit();
+
+            minU.block(0, index, nu(), 1) = UMin;
+            maxU.block(0, index, nu(), 1) = UMax;
+
+            return buildTimeInvariantTems();
+        }
+
+        /**
+         * Sets the output bounds for a specific index.
+         *
+         * @param index The index of the output bounds to set.
+         * @param YMin The minimum values for the output bounds.
+         * @param YMax The maximum values for the output bounds.
+         * @return True if the output bounds were successfully set, false otherwise.
+         */
+        bool setOutputBounds(const unsigned int &index, const cvec<sizer.ny> YMin, const cvec<sizer.ny> YMax)
+        {
+            checkOrQuit();
+
             minY.block(0, index + 1, ny(), 1) = YMin;
             if (index == 0)
             {
@@ -441,9 +499,6 @@ namespace mpc
             {
                 maxY.col(0) = YMax;
             }
-
-            minU.block(0, index, nu(), 1) = UMin;
-            maxU.block(0, index, nu(), 1) = UMax;
 
             return buildTimeInvariantTems();
         }
@@ -481,11 +536,11 @@ namespace mpc
             // linear objective terms must be computed at each control loop since
             // it depends on the references and the refs can changes over time
             mat<(sizer.ny + sizer.nu), (sizer.ny + sizer.nu)> wExtendedState;
-            wExtendedState.resize((ny() + nu()), (ny() + nu()));
+            COND_RESIZE_MAT(sizer,wExtendedState, (ny() + nu()), (ny() + nu()));
             wExtendedState.setZero();
 
             cvec<(sizer.ny + sizer.nu)> eRef;
-            eRef.resize(ny() + nu());
+            COND_RESIZE_CVEC(sizer,eRef, ny() + nu());
 
             mpcProblem.q.setZero();
             leq.setZero();
@@ -588,7 +643,7 @@ namespace mpc
         {
             // quadratic objective
             mat<(sizer.nu + sizer.ny), (sizer.nu + sizer.ny)> wExtendedState;
-            wExtendedState.resize((nu() + ny()), (nu() + ny()));
+            COND_RESIZE_MAT(sizer,wExtendedState, (nu() + ny()), (nu() + ny()));
             wExtendedState.setZero();
 
             mpcProblem.P.setZero();
@@ -614,22 +669,22 @@ namespace mpc
 
             // linear objective dynamics
             mat<((sizer.ph + 1) * (sizer.nu + sizer.nx)), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + ((sizer.ph * sizer.nu)))> Aeq;
-            Aeq.resize(
-                (ph() + 1) * (nu() + nx()),
-                ((ph() + 1) * (nu() + nx())) + ((ph() * nu())));
+            COND_RESIZE_MAT(sizer,Aeq,
+                            (ph() + 1) * (nu() + nx()),
+                            ((ph() + 1) * (nu() + nx())) + ((ph() * nu())));
 
             // build the identity matrices
             mat<sizer.ph + 1, sizer.ph + 1> augId;
-            augId.resize((ph() + 1), (ph() + 1));
+            COND_RESIZE_MAT(sizer,augId, (ph() + 1), (ph() + 1));
             augId.setZero();
             augId.block(1, 0, ph(), ph()).setIdentity();
 
             mat<sizer.ph + 1, sizer.ph + 1> predHId;
-            predHId.resize((ph() + 1), (ph() + 1));
+            COND_RESIZE_MAT(sizer,predHId, (ph() + 1), (ph() + 1));
             predHId.setIdentity();
 
             mat<(sizer.nu + sizer.nx), (sizer.nu + sizer.nx)> extSpaceId;
-            extSpaceId.resize((nu() + nx()), (nu() + nx()));
+            COND_RESIZE_MAT(sizer,extSpaceId, (nu() + nx()), (nu() + nx()));
             extSpaceId.setIdentity();
 
             Aeq.block(
@@ -638,7 +693,7 @@ namespace mpc
                 ((ph() + 1) * (nu() + nx()))) = kroneckerProduct(predHId, -extSpaceId).eval() + kroneckerProduct(augId, ssA).eval();
 
             mat<sizer.ph + 1, sizer.ph> idenBd;
-            idenBd.resize((ph() + 1), ph());
+            COND_RESIZE_MAT(sizer,idenBd, (ph() + 1), ph());
             idenBd.setZero();
             idenBd.block(1, 0, ph(), ph()).setIdentity();
 
@@ -648,9 +703,9 @@ namespace mpc
 
             // input, state and output constraints
             mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu)) + (sizer.ph + 1)), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> Aineq;
-            Aineq.resize(
-                (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))),
-                (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
+            COND_RESIZE_MAT(sizer,Aineq,
+                            (((ph() + 1) * (nu() + nx())) + (((ph() + 1) * ny()) + (ph() * nu()) + (ph() + 1))),
+                            (((ph() + 1) * (nu() + nx())) + (ph() * nu())));
             Aineq.setZero();
 
             // add state constraints terms
@@ -670,12 +725,12 @@ namespace mpc
                 (ph() + 1) * (nu() + nx())) = kroneckerProduct(predHId, ssC.middleRows(0, ny())).eval();
 
             cvec<((sizer.ph + 1) * (sizer.nu + sizer.nx))> eMinX, eMaxX;
-            eMinX.resize(((ph() + 1) * (nu() + nx())));
-            eMaxX.resize(((ph() + 1) * (nu() + nx())));
+            COND_RESIZE_CVEC(sizer,eMinX, ((ph() + 1) * (nu() + nx())));
+            COND_RESIZE_CVEC(sizer,eMaxX, ((ph() + 1) * (nu() + nx())));
 
             cvec<sizer.nu> tmpMinU, tmpMaxU;
-            tmpMinU.resize(nu());
-            tmpMaxU.resize(nu());
+            COND_RESIZE_CVEC(sizer,tmpMinU, nu());
+            COND_RESIZE_CVEC(sizer,tmpMaxU, nu());
 
             for (size_t i = 0; i < ph() + 1; i++)
             {
@@ -720,7 +775,7 @@ namespace mpc
             // add constraints on delta U to avoid computation
             // of command inputs after the end of the control horizon
             cvec<sizer.nu> deltaU;
-            deltaU.resize(nu());
+            COND_RESIZE_CVEC(sizer,deltaU, nu());
             deltaU.setOnes();
             double minDeltaU, maxDeltaU;
 

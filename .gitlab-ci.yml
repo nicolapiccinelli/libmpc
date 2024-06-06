@@ -8,12 +8,27 @@ test:
   script:
     - apt-get update
     - apt-get install -y git lcov build-essential cmake
+    - apt-get install -y python3-pip python3-venv
     - sh configure.sh
+    - git submodule update --init --recursive
     - mkdir build
     - cd build
     - cmake -DCMAKE_BUILD_TYPE=Debug ..
     - make
     - make test
+    - make install
+    - cd ..
+    - mkdir -p examples/build
+    - cd examples/build
+    - cmake ..
+    - make
+    - for file in ./bin/*; do $file; done
+    - cd ../..
+    - cd python
+    - python3 -m venv .
+    - source ./bin/activate
+    - pip install -r requirements.txt
+    - ./build.sh
   only:
     - merge_requests
 

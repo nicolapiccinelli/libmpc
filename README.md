@@ -29,6 +29,7 @@ There is also a collection of examples that guide you through the most important
 * `quadrotor_ex.cpp`: example of a linear MPC for a quadrotor regulation problem
 * `ugv_ex.cpp`: example of a non-linear MPC for a UGV tracking problem with obstacles
 * `vanderpol_ex.cpp`: example of a non-linear MPC for a Van der Pol oscillator regulation problem
+* `networked_oscillator_ex.cpp`: example of a non-linear MPC for a set of coupled Van der Pol oscillator regulation problem
 
 The examples are written in C++ and can be compiled using CMake:
 

@@ -76,7 +76,7 @@ namespace mpc
             checkOrQuit();
 
             mat<sizer.ph + 1, sizer.ny> Ymat;
-            Ymat.resize(ph() + 1, ny());
+            COND_RESIZE_MAT(sizer,Ymat,ph() + 1, ny());
             Ymat.setZero();
 
             if (hasOutputModel())
@@ -84,7 +84,7 @@ namespace mpc
                 for (size_t i = 0; i < ph() + 1; i++)
                 {
                     cvec<sizer.ny> YmatRow;
-                    YmatRow.resize(ny());
+                    COND_RESIZE_CVEC(sizer,YmatRow, ny());
                     YmatRow.setZero();
 
                     outUser(YmatRow, Xmat.row(i), Umat.row(i), i);

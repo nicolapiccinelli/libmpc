@@ -1,21 +1,34 @@
-/*
- *   Copyright (c) 2023 Nicola Piccinelli
- *   All rights reserved.
- */
+#include <iostream>
+#include <Eigen/Dense>
 #include <mpc/NLMPC.hpp>
 
-int main()
+constexpr int N = 4;  // Number of oscillators
+constexpr int num_states = 2 * N;
+constexpr int num_output = 2 * N;
+constexpr int num_inputs = N;
+constexpr int pred_hor = 20;
+constexpr int ctrl_hor = 10;
+constexpr int ineq_c = pred_hor + 1;
+constexpr int eq_c = 0;
+double ts = 0.1;
+double mu = 1.0;
+double k = 0.1;
+
+void oscillatorNetworkDynamics(mpc::cvec<num_states> &dx, const mpc::cvec<num_states> &x, const mpc::cvec<num_inputs> &u)
 {
-    constexpr int num_states = 2;
-    constexpr int num_output = 2;
-    constexpr int num_inputs = 1;
-    constexpr int pred_hor = 10;
-    constexpr int ctrl_hor = 5;
-    constexpr int ineq_c = pred_hor + 1;
-    constexpr int eq_c = 0;
+    for (int i = 0; i < N; ++i) {
+        dx(2 * i) = x(2 * i + 1);
+        dx(2 * i + 1) = mu * (1 - x(2 * i) * x(2 * i)) * x(2 * i + 1) - x(2 * i) + u(i);
 
-    double ts = 0.1;
+        for (int j = 0; j < N; ++j) {
+            if (i != j) {
+                dx(2 * i + 1) += k * (x(2 * j) - x(2 * i));
+            }
+        }
+    }
+}
 
+int main() {
     mpc::NLMPC<
         num_states, num_inputs, num_output,
         pred_hor, ctrl_hor,
@@ -25,35 +38,21 @@ int main()
     controller.setLoggerLevel(mpc::Logger::log_level::NONE);
     controller.setDiscretizationSamplingTime(ts);
 
-    mpc::NLParameters params;
-    params.maximum_iteration = 1000;
-
-    controller.setOptimizerParameters(params);
-
-    auto stateEq = [&](
-                       mpc::cvec<num_states> &dx,
-                       const mpc::cvec<num_states> &x,
-                       const mpc::cvec<num_inputs> &u)
-    {
-        dx(0) = ((1.0 - (x(1) * x(1))) * x(0)) - x(1) + u(0);
-        dx(1) = x(0);
-    };
-
-    controller.setStateSpaceFunction([&](
+    controller.setStateSpaceFunction([](
                                         mpc::cvec<num_states> &dx,
                                         const mpc::cvec<num_states> &x,
                                         const mpc::cvec<num_inputs> &u,
                                         const unsigned int &)
-                                    { stateEq(dx, x, u); });
+                                    { oscillatorNetworkDynamics(dx, x, u); });
 
-    controller.setObjectiveFunction([&](
+    controller.setObjectiveFunction([](
                                        const mpc::mat<pred_hor + 1, num_states> &x,
                                        const mpc::mat<pred_hor + 1, num_output> &,
                                        const mpc::mat<pred_hor + 1, num_inputs> &u,
                                        double)
                                    { return x.array().square().sum() + u.array().square().sum(); });
 
-    controller.setIneqConFunction([&](
+    controller.setIneqConFunction([](
                                      mpc::cvec<ineq_c> &in_con,
                                      const mpc::mat<pred_hor + 1, num_states> &,
                                      const mpc::mat<pred_hor + 1, num_output> &,
@@ -65,26 +64,23 @@ int main()
         } });
 
     mpc::cvec<num_states> modelX, modeldX;
-    modelX.resize(num_states);
-    modeldX.resize(num_states);
-
-    modelX(0) = 0;
-    modelX(1) = 1.0;
+    modelX.setZero();
+    modelX(0) = 1.0;  // Initial condition for one of the oscillators
 
     auto r = controller.getLastResult();
 
-    for (;;)
+    for (int step = 0; step < 10; ++step)
     {
         r = controller.optimize(modelX, r.cmd);
-        stateEq(modeldX, modelX, r.cmd);
+        oscillatorNetworkDynamics(modeldX, modelX, r.cmd);
         modelX += modeldX * ts;
-        if (std::fabs(modelX[0]) <= 1e-2 && std::fabs(modelX[1]) <= 1e-1)
+        if (modelX.array().abs().maxCoeff() < 1e-2)
         {
             break;
         }
     }
 
-    std::cout << controller.getExecutionStats();
+    std::cout << controller.getExecutionStats() << std::endl;
 
     return 0;
 }

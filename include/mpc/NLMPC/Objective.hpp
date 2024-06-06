@@ -56,11 +56,11 @@ namespace mpc
          */
         void onInit() override
         {
-            x0.resize(nx());
-            Xmat.resize((ph() + 1), nx());
-            Umat.resize((ph() + 1), nu());
-            Jx.resize(nx(), ph());
-            Jmv.resize(nu(), ph());
+            COND_RESIZE_CVEC(sizer,x0, nx());
+            COND_RESIZE_MAT(sizer,Xmat, (ph() + 1), nx());
+            COND_RESIZE_MAT(sizer,Umat, (ph() + 1), nu());
+            COND_RESIZE_MAT(sizer,Jx, nx(), ph());
+            COND_RESIZE_MAT(sizer,Jmv, nu(), ph());
 
             Je = 0;
         }
@@ -93,7 +93,7 @@ namespace mpc
             checkOrQuit();
 
             Cost c;
-            c.grad.resize(((ph() * nx()) + (nu() * ch()) + 1));
+            COND_RESIZE_CVEC(sizer,c.grad, ((ph() * nx()) + (nu() * ch()) + 1));
 
             mapping->unwrapVector(x, x0, Xmat, Umat, e);
             c.value = fuser(Xmat, model->getOutput(Xmat, Umat), Umat, e);
@@ -119,7 +119,7 @@ namespace mpc
                 }
 
                 cvec<(sizer.ph * sizer.nu)> JmvVectorized;
-                JmvVectorized.resize((ph() * nu()));
+                COND_RESIZE_CVEC(sizer,JmvVectorized, (ph() * nu()));
 
                 int vec_counter = 0;
                 // #pragma omp parallel for

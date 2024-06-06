@@ -109,10 +109,10 @@ template <size_t nx, size_t nu, size_t ny>
 void discretization(
     const mat<nx, nx>& A, const mat<nx, nu>& B,
     const mat<ny, nx>& C, const mat<ny, nu>& D, const double& Ts,
-    mat<nx, nx>& Ad, mat<nx, nu>& Bd, mat<nx, nx>& Cd, mat<nx, nu>& Dd)
+    mat<nx, nx>& Ad, mat<nx, nu>& Bd, mat<ny, nx>& Cd, mat<nx, nu>& Dd)
 {
     // TODO this discretization works only with delay-free systems
-    discretization(A, B, Ts, Ad, Bd);
+    discretization<nx,nu>(A, B, Ts, Ad, Bd);
     Cd = C;
     Dd = D;
 }

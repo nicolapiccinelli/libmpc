@@ -43,6 +43,7 @@ set(MPC_TEST_LIB_SOURCES
     "NLMPC/test_constraints.cpp"
     "NLMPC/test_objective.cpp"
     "NLMPC/test_common.cpp"
+    "NLMPC/test_nloptimizer.cpp"
     "LMPC/test_lmpc.cpp"
     "LMPC/test_mutiple_instances.cpp"
     "test_utils.cpp"

@@ -1,4 +1,4 @@
-import pympcxxxx as mpc
+import pympcxx as mpc
 import numpy as np
 
 # Create a new LMPC object
