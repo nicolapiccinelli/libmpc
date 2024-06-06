@@ -62,21 +62,21 @@ namespace mpc
          */
         void onInit() override
         {
-            x0.resize(nx());
-            Xmat.resize(ph() + 1, nx());
-            Umat.resize(ph() + 1, nu());
+            COND_RESIZE_CVEC(sizer,x0, nx());
+            COND_RESIZE_MAT(sizer,Xmat, ph() + 1, nx());
+            COND_RESIZE_MAT(sizer,Umat, ph() + 1, nu());
 
-            ceq.resize(ph() * nx());
-            Jceq.resize((ph() * nx()) + (nu() * ch()) + 1, ph() * nx());
+            COND_RESIZE_CVEC(sizer,ceq, ph() * nx());
+            COND_RESIZE_MAT(sizer,Jceq, (ph() * nx()) + (nu() * ch()) + 1, ph() * nx());
 
-            cineq.resize(2 * (ph() * ny()));
-            Jcineq.resize((ph() * nx()) + (nu() * ch()) + 1, 2 * (ph() * ny()));
+            COND_RESIZE_CVEC(sizer,cineq, 2 * (ph() * ny()));
+            COND_RESIZE_MAT(sizer,Jcineq, (ph() * nx()) + (nu() * ch()) + 1, 2 * (ph() * ny()));
 
-            ceq_user.resize(eq());
-            Jceq_user.resize((ph() * nx()) + (nu() * ch()) + 1, eq());
+            COND_RESIZE_CVEC(sizer,ceq_user, eq());
+            COND_RESIZE_MAT(sizer,Jceq_user, (ph() * nx()) + (nu() * ch()) + 1, eq());
 
-            cineq_user.resize(ineq());
-            Jcineq_user.resize((ph() * nx()) + (nu() * ch()) + 1, ineq());
+            COND_RESIZE_CVEC(sizer,cineq_user, ineq());
+            COND_RESIZE_MAT(sizer,Jcineq_user, (ph() * nx()) + (nu() * ch()) + 1, ineq());
         }
 
         /**
@@ -154,13 +154,13 @@ namespace mpc
                 ieqUser(cineq_user, Xmat, Ymat, Umat, e);
 
                 mat<sizer.ineq, (sizer.ph * sizer.nx)> Jieqx;
-                Jieqx.resize(ineq(), (ph() * nx()));
+                COND_RESIZE_MAT(sizer,Jieqx, ineq(), (ph() * nx()));
 
                 mat<sizer.ineq, (sizer.ph * sizer.nu)> Jieqmv;
-                Jieqmv.resize(ineq(), (ph() * nu()));
+                COND_RESIZE_MAT(sizer,Jieqmv, ineq(), (ph() * nu()));
 
                 cvec<sizer.ineq> Jie;
-                Jie.resize(ineq());
+                COND_RESIZE_CVEC(sizer,Jie, ineq());
 
                 computeIneqJacobian(
                     Jieqx,
@@ -168,8 +168,7 @@ namespace mpc
                     Jie,
                     Xmat,
                     Umat,
-                    e,
-                    cineq_user);
+                    e);
 
                 glueJacobian<sizer.ineq>(
                     Jcineq_user,
@@ -294,17 +293,16 @@ namespace mpc
                 eqUser(ceq_user, Xmat, Umat);
 
                 mat<sizer.eq, (sizer.ph * sizer.nx)> Jeqx;
-                Jeqx.resize(eq(), (ph() * nx()));
+                COND_RESIZE_MAT(sizer,Jeqx, eq(), (ph() * nx()));
 
                 mat<sizer.eq, (sizer.ph * sizer.nu)> Jeqmv;
-                Jeqmv.resize(eq(), (ph() * nu()));
+                COND_RESIZE_MAT(sizer,Jeqmv, eq(), (ph() * nu()));
 
                 computeEqJacobian(
                     Jeqx,
                     Jeqmv,
                     Xmat,
-                    Umat,
-                    ceq_user);
+                    Umat);
 
                 glueJacobian<sizer.eq>(
                     Jceq_user,
@@ -388,7 +386,7 @@ namespace mpc
             }
 
             mat<Tnc, sizer.ph * sizer.nu> Jmanvar_mat;
-            Jmanvar_mat.resize(Jres.cols(), ph() * nu());
+            COND_RESIZE_MAT(sizer,Jmanvar_mat, Jres.cols(), ph() * nu());
 
             // #pragma omp parallel for
             for (size_t i = 0; i < ph(); i++)
@@ -413,22 +411,22 @@ namespace mpc
             Jceq.setZero();
 
             mat<(sizer.ph * sizer.nx), (sizer.ph * sizer.nx)> Jx;
-            Jx.resize((ph() * nx()), (ph() * nx()));
+            COND_RESIZE_MAT(sizer,Jx, (ph() * nx()), (ph() * nx()));
             Jx.setZero();
 
             // TODO support measured noise
             mat<(sizer.ph * sizer.nx), (sizer.ph * sizer.nu)> Jmv;
-            Jmv.resize((ph() * nx()), (ph() * nu()));
+            COND_RESIZE_MAT(sizer,Jmv, (ph() * nx()), (ph() * nu()));
             Jmv.setZero();
 
             cvec<(sizer.ph * sizer.nx)> Je;
-            Je.resize((ph() * nx()));
+            COND_RESIZE_CVEC(sizer,Je, (ph() * nx()));
             Je.setZero();
 
             int ic = 0;
 
             mat<sizer.nx, sizer.nx> Ix;
-            Ix.resize(nx(), nx());
+            COND_RESIZE_MAT(sizer,Ix, nx(), nx());
             Ix.setIdentity(nx(), nx());
 
             mat<sizer.nx, sizer.nx> Sx, Tx;
@@ -445,6 +443,7 @@ namespace mpc
                 {
                     cvec<sizer.nu> uk;
                     uk = Umat.row(i).transpose();
+
                     cvec<sizer.nx> xk;
                     xk = Xmat.row(i).transpose();
 
@@ -452,14 +451,11 @@ namespace mpc
                     cvec<sizer.nx> xk1;
                     xk1 = Xmat.row(i + 1).transpose();
 
-                    cvec<sizer.nx> fk;
-                    fk.resize(nx());
+                    cvec<sizer.nx> fk, fk1;
+                    COND_RESIZE_CVEC(sizer,fk, nx());
+                    COND_RESIZE_CVEC(sizer,fk1, nx());
 
                     model->vectorField(fk, xk, uk, i);
-
-                    cvec<sizer.nx> fk1;
-                    fk1.resize(nx());
-
                     model->vectorField(fk1, xk1, uk, i);
 
                     ceq.middleRows(ic, nx()) = xk + (h * (fk + fk1)) - xk1;
@@ -468,20 +464,20 @@ namespace mpc
                     if (hasGradient)
                     {
                         mat<sizer.nx, sizer.nx> Ak;
-                        Ak.resize(nx(), nx());
+                        COND_RESIZE_MAT(sizer,Ak, nx(), nx());
 
                         mat<sizer.nx, sizer.nu> Bk;
-                        Bk.resize(nx(), nu());
+                        COND_RESIZE_MAT(sizer,Bk, nx(), nu());
 
-                        computeStateEqJacobian(Ak, Bk, fk, xk, uk, i);
+                        computeStateEqJacobian(Ak, Bk, xk, uk, i);
 
                         mat<sizer.nx, sizer.nx> Ak1;
-                        Ak1.resize(nx(), nx());
+                        COND_RESIZE_MAT(sizer,Ak1, nx(), nx());
 
                         mat<sizer.nx, sizer.nu> Bk1;
-                        Bk1.resize(nx(), nu());
+                        COND_RESIZE_MAT(sizer,Bk1, nx(), nu());
 
-                        computeStateEqJacobian(Ak1, Bk1, fk1, xk1, uk, i);
+                        computeStateEqJacobian(Ak1, Bk1, xk1, uk, i);
 
                         if (i > 0)
                         {
@@ -508,7 +504,7 @@ namespace mpc
                     xk = Xmat.row(i).transpose();
 
                     cvec<sizer.nx> xk1;
-                    xk1.resize(nx());
+                    COND_RESIZE_CVEC(sizer,xk1, nx());
 
                     model->vectorField(xk1, xk, uk, i);
 
@@ -518,12 +514,12 @@ namespace mpc
                     if (hasGradient)
                     {
                         mat<sizer.nx, sizer.nx> Ak;
-                        Ak.resize(nx(), nx());
+                        COND_RESIZE_MAT(sizer,Ak, nx(), nx());
 
                         mat<sizer.nx, sizer.nu> Bk;
-                        Bk.resize(nx(), nu());
+                        COND_RESIZE_MAT(sizer,Bk, nx(), nu());
 
-                        computeStateEqJacobian(Ak, Bk, xk1, xk, uk, i);
+                        computeStateEqJacobian(Ak, Bk, xk, uk, i);
 
                         Ak = Sx * Ak * Tx;
                         Bk = Sx * Bk;
@@ -547,15 +543,15 @@ namespace mpc
         }
 
         /**
-         * @brief Approximate the user defined inequality constraints Jacobian matrices
+         * Computes the inequality Jacobian matrix for the given inputs.
+         * The Jacobian is computed using the central difference method.
          *
-         * @param Jconx Jacobian matrix of the states-constraints
-         * @param Jconmv Jacobian matrix of the input-constraints
-         * @param Jcone Jacobian matrix of the slack-constraints
-         * @param x0 current state configuration
-         * @param u0 current optimal input configuration
-         * @param e0 current slack value
-         * @param f0 current user inequality constraints values
+         * @param Jconx The output matrix for the inequality Jacobian with respect to x.
+         * @param Jconmv The output matrix for the inequality Jacobian with respect to u.
+         * @param Jcone The output vector for the inequality Jacobian with respect to e.
+         * @param x0 The input matrix representing the initial state trajectory.
+         * @param u0 The input matrix representing the control trajectory.
+         * @param e0 The input value representing the error.
          */
         void computeIneqJacobian(
             mat<sizer.ineq, (sizer.ph * sizer.nx)> &Jconx,
@@ -563,213 +559,243 @@ namespace mpc
             cvec<sizer.ineq> &Jcone,
             mat<(sizer.ph + 1), sizer.nx> x0,
             mat<(sizer.ph + 1), sizer.nu> u0,
-            double e0, cvec<sizer.ineq> f0)
+            double e0)
         {
-            double dv = 1e-6;
-
             Jconx.setZero();
-
-            // TODO support measured disturbaces
             Jconmv.setZero();
-
             Jcone.setZero();
 
             mat<(sizer.ph + 1), sizer.nx> Xa;
-            Xa = x0.cwiseAbs().unaryExpr([](double d)
-                                         { return (d < 1) ? 1 : d; });
+            Xa = x0.cwiseAbs().cwiseMax(1.0);
 
-            // #pragma omp parallel for
             for (size_t i = 0; i < ph(); i++)
             {
                 for (size_t j = 0; j < nx(); j++)
                 {
                     int ix = i + 1;
-                    double dx = dv * Xa.array()(j);
-                    x0(ix, j) = x0(ix, j) + dx;
-                    cvec<sizer.ineq> f;
-                    f.resize(ineq());
+                    double dx = dv * Xa(ix, j); // Use Xa instead of Xa.array() to access element
+                    x0(ix, j) += dx;
 
-                    // check if the output function of the system is defined
-                    // if so, let's compute the output along the horizon
-                    mat<(sizer.ph + 1), sizer.ny> y0 = model->getOutput(x0, u0);
+                    cvec<sizer.ineq> f_plus, f_minus;
+                    COND_RESIZE_CVEC(sizer,f_plus, ineq());
+                    COND_RESIZE_CVEC(sizer,f_minus, ineq());
 
-                    ieqUser(f, x0, y0, u0, e);
-                    x0(ix, j) = x0(ix, j) - dx;
+                    mat<(sizer.ph + 1), sizer.ny> y_plus, y_minus;
+                    y_plus = model->getOutput(x0, u0);
+                    x0(ix, j) -= 2 * dx;
+                    y_minus = model->getOutput(x0, u0);
+                    x0(ix, j) += dx;
+
+                    ieqUser(f_plus, x0, y_plus, u0, e0);
+                    ieqUser(f_minus, x0, y_minus, u0, e0);
+
                     cvec<sizer.ineq> df;
-                    df = (f - f0) / dx;
+                    df = (f_plus - f_minus) / (2 * dx);
                     Jconx.middleCols(i * nx(), nx()).col(j) = df;
+
+                    // Restore the original value of x0(ix, j)
+                    x0(ix, j) -= dx;
                 }
             }
 
             mat<(sizer.ph + 1), sizer.nu> Ua;
-            Ua = u0.cwiseAbs().unaryExpr([](double d)
-                                         { return (d < 1) ? 1 : d; });
+            Ua = u0.cwiseAbs().cwiseMax(1.0);
 
-            // #pragma omp parallel for
             for (size_t i = 0; i < (ph() - 1); i++)
-                // TODO support measured disturbaces
+            {
                 for (size_t j = 0; j < nu(); j++)
                 {
-                    int k = j;
-                    double du = dv * Ua.array()(k);
-                    u0(i, k) = u0(i, k) + du;
-                    cvec<sizer.ineq> f;
-                    f.resize(ineq());
+                    double du = dv * Ua(ph() - 1, j); // Access Ua at the correct index
+                    u0(i, j) += du;
 
-                    // check if the output function of the system is defined
-                    // if so, let's compute the output along the horizon
-                    mat<(sizer.ph + 1), sizer.ny> y0 = model->getOutput(x0, u0);
+                    cvec<sizer.ineq> f_plus, f_minus;
+                    COND_RESIZE_CVEC(sizer,f_plus, ineq());
+                    COND_RESIZE_CVEC(sizer,f_minus, ineq());
 
-                    ieqUser(f, x0, y0, u0, e);
-                    u0(i, k) = u0(i, k) - du;
+                    mat<(sizer.ph + 1), sizer.ny> y_plus, y_minus;
+                    y_plus = model->getOutput(x0, u0);
+                    u0(i, j) -= 2 * du;
+                    y_minus = model->getOutput(x0, u0);
+                    u0(i, j) += du;
+
+                    ieqUser(f_plus, x0, y_plus, u0, e0);
+                    ieqUser(f_minus, x0, y_minus, u0, e0);
+
                     cvec<sizer.ineq> df;
-                    df = (f - f0) / du;
+                    df = (f_plus - f_minus) / (2 * du);
                     Jconmv.middleCols(i * nu(), nu()).col(j) = df;
-                }
 
-            // TODO support measured disturbaces
-            // #pragma omp parallel for
+                    // Restore the original value of u0(i, j)
+                    u0(i, j) -= du;
+                }
+            }
+
             for (size_t j = 0; j < nu(); j++)
             {
-                double du = dv * Ua.array()(j);
-                u0((ph() - 1), j) = u0((ph() - 1), j) + du;
-                u0(ph(), j) = u0(ph(), j) + du;
-                cvec<sizer.ineq> f;
-                f.resize(ineq());
+                double du = dv * Ua(ph() - 1, j); // Access Ua at the correct index
+                u0(ph() - 1, j) += du;
+                u0(ph(), j) += du;
 
-                // check if the output function of the system is defined
-                // if so, let's compute the output along the horizon
-                mat<(sizer.ph + 1), sizer.ny> y0 = model->getOutput(x0, u0);
+                cvec<sizer.ineq> f_plus, f_minus;
+                COND_RESIZE_CVEC(sizer,f_plus, ineq());
+                COND_RESIZE_CVEC(sizer,f_minus, ineq());
 
-                ieqUser(f, x0, y0, u0, e);
-                u0((ph() - 1), j) = u0((ph() - 1), j) - du;
-                u0(ph(), j) = u0(ph(), j) - du;
+                mat<(sizer.ph + 1), sizer.ny> y_plus, y_minus;
+                y_plus = model->getOutput(x0, u0);
+                u0(ph() - 1, j) -= 2 * du;
+                u0(ph(), j) -= 2 * du;
+                y_minus = model->getOutput(x0, u0);
+                u0(ph() - 1, j) += du;
+                u0(ph(), j) += du;
+
+                ieqUser(f_plus, x0, y_plus, u0, e0);
+                ieqUser(f_minus, x0, y_minus, u0, e0);
+
                 cvec<sizer.ineq> df;
-                df = (f - f0) / du;
+                df = (f_plus - f_minus) / (2 * du);
                 Jconmv.middleCols(((ph() - 1) * nu()), nu()).col(j) = df;
             }
 
             double ea = fmax(1e-6, abs(e0));
             double de = ea * dv;
             cvec<sizer.ineq> f1;
-            f1.resize(ineq());
+            COND_RESIZE_CVEC(sizer,f1, ineq());
 
-            // check if the output function of the system is defined
-            // if so, let's compute the output along the horizon
             mat<(sizer.ph + 1), sizer.ny> y0 = model->getOutput(x0, u0);
-
             ieqUser(f1, x0, y0, u0, e0 + de);
 
             cvec<sizer.ineq> f2;
-            f2.resize(ineq());
+            COND_RESIZE_CVEC(sizer,f2, ineq());
 
-            // check if the output function of the system is defined
-            // if so, let's compute the output along the horizon
             y0 = model->getOutput(x0, u0);
-
             ieqUser(f2, x0, y0, u0, e0 - de);
             Jcone = (f1 - f2) / (2 * de);
         }
 
         /**
-         * @brief Approximate the user defined equality constraints Jacobian matrices
+         * Computes the Jacobian matrix of equality constraints using the central difference method.
          *
-         * @param Jconx Jacobian matrix of the states-constraints
-         * @param Jconmv Jacobian matrix of the input-constraints
-         * @param x0 current state configuration
-         * @param u0 current optimal input configuration
-         * @param f0 current user equality constraints values
+         * @param Jconx The output matrix for the Jacobian of equality constraints with respect to the state variables.
+         * @param Jconmv The output matrix for the Jacobian of equality constraints with respect to the control variables.
+         * @param x0 The initial state vector.
+         * @param u0 The initial control vector.
          */
         void computeEqJacobian(
             mat<sizer.eq, (sizer.ph * sizer.nx)> &Jconx,
             mat<sizer.eq, (sizer.ph * sizer.nu)> &Jconmv,
             mat<(sizer.ph + 1), sizer.nx> x0,
-            mat<(sizer.ph + 1), sizer.nu> u0, cvec<sizer.eq> f0)
+            mat<(sizer.ph + 1), sizer.nu> u0)
         {
-            double dv = 1e-6;
-
             Jconx.setZero();
-
-            // TODO support measured disturbaces
             Jconmv.setZero();
 
             mat<(sizer.ph + 1), sizer.nx> Xa;
-            Xa = x0.cwiseAbs().unaryExpr([](double d)
-                                         { return (d < 1) ? 1 : d; });
+            Xa = x0.cwiseAbs().cwiseMax(1.0);
 
-            // #pragma omp parallel for
+            // Compute Jconx using central difference method
             for (size_t i = 0; i < ph(); i++)
             {
                 for (size_t j = 0; j < nx(); j++)
                 {
                     int ix = i + 1;
-                    double dx = dv * Xa.array()(j);
-                    x0(ix, j) = x0(ix, j) + dx;
-                    cvec<sizer.eq> f;
-                    f.resize(eq());
-                    eqUser(f, x0, u0);
-                    x0(ix, j) = x0(ix, j) - dx;
-                    cvec<sizer.eq> df;
-                    df = (f - f0) / dx;
+                    // Calculate perturbation
+                    double dx = dv * Xa(ix, j);
+                    // Forward perturbation
+                    x0(ix, j) += dx;
+                    cvec<sizer.eq> f_plus;
+                    COND_RESIZE_CVEC(sizer,f_plus, eq());
+                    // Compute equality constraints with perturbed state
+                    eqUser(f_plus, x0, u0);
+                    // Backward perturbation
+                    x0(ix, j) -= 2 * dx;
+                    cvec<sizer.eq> f_minus;
+                    COND_RESIZE_CVEC(sizer,f_minus, eq());
+                    // Compute equality constraints with perturbed state
+                    eqUser(f_minus, x0, u0);
+                    // Restore original state
+                    x0(ix, j) += dx;
+                    // Compute central difference
+                    cvec<sizer.eq> df = (f_plus - f_minus) / (2 * dx);
                     Jconx.middleCols(i * nx(), nx()).col(j) = df;
                 }
             }
 
             mat<(sizer.ph + 1), sizer.nu> Ua;
-            Ua = u0.cwiseAbs().unaryExpr([](double d)
-                                         { return (d < 1) ? 1 : d; });
+            Ua = u0.cwiseAbs().cwiseMax(1.0);
 
-            // #pragma omp parallel for
+            // Compute Jconmv using central difference method
             for (size_t i = 0; i < (ph() - 1); i++)
             {
-                // TODO support measured disturbaces
                 for (size_t j = 0; j < nu(); j++)
                 {
-                    int k = j;
-                    double du = dv * Ua.array()(k);
-                    u0(i, k) = u0(i, k) + du;
-                    cvec<sizer.eq> f;
-                    f.resize(eq());
-                    eqUser(f, x0, u0);
-                    u0(i, k) = u0(i, k) - du;
-                    cvec<sizer.eq> df;
-                    df = (f - f0) / du;
+                    // Calculate perturbation
+                    double du = dv * Ua(ph() - 1, j);
+                    // Forward perturbation
+                    u0(i, j) += du;
+                    cvec<sizer.eq> f_plus;
+                    COND_RESIZE_CVEC(sizer,f_plus, eq());
+                    // Compute equality constraints with perturbed control
+                    eqUser(f_plus, x0, u0);
+                    // Backward perturbation
+                    u0(i, j) -= 2 * du;
+                    cvec<sizer.eq> f_minus;
+                    COND_RESIZE_CVEC(sizer,f_minus, eq());
+                    // Compute equality constraints with perturbed control
+                    eqUser(f_minus, x0, u0);
+                    // Restore original control
+                    u0(i, j) += du;
+                    // Compute central difference
+                    cvec<sizer.eq> df = (f_plus - f_minus) / (2 * du);
+                    // Update Jconmv
                     Jconmv.middleCols(i * nu(), nu()).col(j) = df;
                 }
             }
 
-            // TODO support measured disturbaces
-            // #pragma omp parallel for
+            // Compute Jconmv for the last time step using central difference method
             for (size_t j = 0; j < nu(); j++)
             {
-                int k = j;
-                double du = dv * Ua.array()(k);
-                u0((ph() - 1), k) = u0((ph() - 1), k) + du;
-                u0(ph(), k) = u0(ph(), k) + du;
-                cvec<sizer.eq> f;
-                f.resize(eq());
-                eqUser(f, x0, u0);
-                u0((ph() - 1), k) = u0((ph() - 1), k) - du;
-                u0(ph(), k) = u0(ph(), k) - du;
-                cvec<sizer.eq> df;
-                df = (f - f0) / du;
+                // Calculate perturbation
+                double du = dv * Ua(ph() - 1, j);
+                // Forward perturbation
+                u0((ph() - 1), j) += du;
+                // Forward perturbation
+                u0(ph(), j) += du;
+                cvec<sizer.eq> f_plus;
+                COND_RESIZE_CVEC(sizer,f_plus, eq());
+                // Compute equality constraints with perturbed control
+                eqUser(f_plus, x0, u0);
+                // Backward perturbation
+                u0((ph() - 1), j) -= 2 * du;
+                // Backward perturbation
+                u0(ph(), j) -= 2 * du;
+                cvec<sizer.eq> f_minus;
+                COND_RESIZE_CVEC(sizer,f_minus, eq());
+                // Compute equality constraints with perturbed control
+                eqUser(f_minus, x0, u0);
+                // Restore original control
+                u0((ph() - 1), j) += du;
+                // Restore original control
+                u0(ph(), j) += du;
+                // Compute central difference
+                cvec<sizer.eq> df = (f_plus - f_minus) / (2 * du);
+                // Update Jconmv
                 Jconmv.middleCols(((ph() - 1) * nu()), nu()).col(j) = df;
             }
         }
 
         /**
-         * @brief Approximate the system's dynamics equality constraints Jacobian matrices
+         * Computes the Jacobian matrices Jx and Jmv for the state equation.
+         * The Jacobian matrices are computed using the central difference method.
          *
-         * @param Jconx Jacobian matrix of the states-constraints
-         * @param Jmv Jacobian matrix of the states-inputs
-         * @param f0 current user equality constraints values
-         * @param x0 current state configuration
-         * @param u0 current optimal input configuration
+         * @param Jx   Reference to the matrix Jx where the computed Jacobian matrix for the state variables will be stored.
+         * @param Jmv  Reference to the matrix Jmv where the computed Jacobian matrix for the control variables will be stored.
+         * @param x0   Constant reference to the vector x0 representing the current state variables.
+         * @param u0   Constant reference to the vector u0 representing the current control variables.
+         * @param p    Unsigned integer representing the current parameter.
          */
         void computeStateEqJacobian(
             mat<sizer.nx, sizer.nx> &Jx,
             mat<sizer.nx, sizer.nu> &Jmv,
-            cvec<sizer.nx> f0,
             cvec<sizer.nx> x0,
             cvec<sizer.nu> u0,
             unsigned int p)
@@ -777,43 +803,56 @@ namespace mpc
             Jx.setZero();
             Jmv.setZero();
 
-            double dv = 1e-6;
+            // this is computing the max(abs(x0), 1) for each
+            // element of the state vector x0. This is then used
+            // to scale the perturbation for each element of the state
+            // vector.
+            cvec<sizer.nx> Xa = x0.cwiseAbs().cwiseMax(1.0);
 
-            cvec<sizer.nx> Xa;
-            Xa = x0.cwiseAbs().unaryExpr([](double d)
-                                         { return (d < 1) ? 1 : d; });
-
-            // #pragma omp parallel for
+            // Compute Jx using central difference method
             for (size_t i = 0; i < nx(); i++)
             {
                 double dx = dv * Xa(i);
-                x0(i) = x0(i) + dx;
-                cvec<sizer.nx> f;
-                f.resize(nx());
-                model->vectorField(f, x0, u0, p);
-                x0(i) = x0(i) - dx;
-                cvec<sizer.nx> df;
-                df = (f - f0) / dx;
-                Jx.block(0, i, nx(), 1) = df;
+
+                cvec<sizer.nx> x_plus = x0;
+                cvec<sizer.nx> x_minus = x0;
+
+                x_plus(i) += dx;
+                x_minus(i) -= dx;
+
+                cvec<sizer.nx> f_plus, f_minus;
+                COND_RESIZE_CVEC(sizer,f_plus, nx());
+                COND_RESIZE_CVEC(sizer,f_minus, nx());
+
+                model->vectorField(f_plus, x_plus, u0, p);
+                model->vectorField(f_minus, x_minus, u0, p);
+
+                cvec<sizer.nx> df = (f_plus - f_minus) / (2 * dx);
+                Jx.col(i) = df;
             }
 
-            cvec<sizer.nu> Ua = u0.cwiseAbs().unaryExpr([](double d)
-                                                        { return (d < 1) ? 1 : d; });
+            cvec<sizer.nu> Ua = u0.cwiseAbs().cwiseMax(1.0);
 
-            // #pragma omp parallel for
+            // Compute Jmv using central difference method
             for (size_t i = 0; i < nu(); i++)
             {
-                // TODO support measured disturbaces
-                int k = i;
-                double du = dv * Ua(k);
-                u0(k) = u0(k) + du;
-                cvec<sizer.nx> f;
-                f.resize(nx());
-                model->vectorField(f, x0, u0, p);
-                u0(k) = u0(k) - du;
-                cvec<sizer.nx> df;
-                df = (f - f0) / du;
-                Jmv.block(0, i, nx(), 1) = df;
+                // TODO support measured disturbances
+                double du = dv * Ua(i);
+                cvec<sizer.nu> u_plus = u0;
+                cvec<sizer.nu> u_minus = u0;
+
+                u_plus(i) += du;
+                u_minus(i) -= du;
+
+                cvec<sizer.nx> f_plus, f_minus;
+                COND_RESIZE_CVEC(sizer,f_plus, nx());
+                COND_RESIZE_CVEC(sizer,f_minus, nx());
+
+                model->vectorField(f_plus, x0, u_plus, p);
+                model->vectorField(f_minus, x0, u_minus, p);
+
+                cvec<sizer.nx> df = (f_plus - f_minus) / (2 * du);
+                Jmv.col(i) = df;
             }
         }
 
@@ -839,5 +878,7 @@ namespace mpc
         using Base<sizer>::Umat;
         using Base<sizer>::e;
         using Base<sizer>::niteration;
+
+        const double dv = sqrt(std::numeric_limits<double>::epsilon());
     };
 } // namespace mpc

@@ -47,14 +47,14 @@ namespace mpc
          */
         void onInit() override
         {
-            Iz2uMat.resize((ph() * nu()), (nu() * ch()));
-            Iu2zMat.resize((nu() * ch()), (ph() * nu()));
-            Sz2uMat.resize(nu(), nu());
-            Su2zMat.resize(nu(), nu());
+            COND_RESIZE_MAT(sizer,Iz2uMat,(ph() * nu()), (nu() * ch()));
+            COND_RESIZE_MAT(sizer,Iu2zMat,(nu() * ch()), (ph() * nu()));
+            COND_RESIZE_MAT(sizer,Sz2uMat,nu(), nu());
+            COND_RESIZE_MAT(sizer,Su2zMat,nu(), nu());
 
-            input_scaling.resize(nu());
-            state_scaling.resize(nx());
-            inverse_state_scaling.resize(nx());
+            COND_RESIZE_CVEC(sizer,input_scaling,nu());
+            COND_RESIZE_CVEC(sizer,state_scaling, nx());
+            COND_RESIZE_CVEC(sizer,inverse_state_scaling, nx());
 
             input_scaling.setOnes();
             state_scaling.setOnes();
@@ -184,7 +184,7 @@ namespace mpc
             u_vec = x.middleRows((ph() * nx()), (nu() * ch()));
 
             mat<sizer.ph + 1, sizer.nu> Umv;
-            Umv.resize((ph() + 1), nu());
+            COND_RESIZE_MAT(sizer,Umv,(ph() + 1), nu());
 
             cvec<(sizer.ph * sizer.nu)> tmp_mult;
             tmp_mult = Iz2uMat * u_vec;
@@ -224,8 +224,8 @@ namespace mpc
          */
         void computeMapping()
         {
-            static cvec<sizer.ch> m;
-            m.resize(ch());
+            cvec<sizer.ch> m;
+            COND_RESIZE_CVEC(sizer,m,ch());
 
             for (size_t i = 0; i < ch(); i++)
             {

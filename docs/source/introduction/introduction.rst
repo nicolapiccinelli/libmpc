@@ -12,7 +12,7 @@ Linux, MacOs and Windows and comes with a limited set of dependecies. It provide
 * Support for linear and non-linear MPC optimal control problem formulation
 * Handles discrete-time and continuous-time (for the non-linear MPC only) system's dynamics definition
 * Different length for the prediction and control horizon
-* Automatic Jacobian approximation for non-linear MPC
+* Automatic Jacobian approximation (using the trapezoidal rule) for non-linear MPC
 * Header-only implementation
 * Free/open-source software
 

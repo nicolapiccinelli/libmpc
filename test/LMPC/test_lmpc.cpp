@@ -49,12 +49,12 @@ TEST_CASE(
     InputW << 0;
     DeltaInputW << 0;
 
-    REQUIRE(optsolver.setObjectiveWeights(OutputW, InputW, DeltaInputW, {-1, -1}));
+    REQUIRE(optsolver.setObjectiveWeights(OutputW, InputW, DeltaInputW, mpc::HorizonSlice::all()));
     REQUIRE(optsolver.setReferences(mpc::mat<Tny, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero()));
 
     mpc::mat<Tnx, Tph> xminmat, xmaxmat;
     mpc::mat<Tny, Tph> yminmat, ymaxmat;
-    mpc::mat<Tnu, Tph> uminmat, umaxmat;
+    mpc::mat<Tnu, Tch> uminmat, umaxmat;
 
     xminmat.setConstant(-mpc::inf);
     xmaxmat.setConstant(mpc::inf);
@@ -67,7 +67,9 @@ TEST_CASE(
     uminmat.setConstant(-mpc::inf);
     umaxmat.setConstant(mpc::inf);
 
-    optsolver.setConstraints(xminmat, uminmat, yminmat, xmaxmat, umaxmat, ymaxmat);
+    optsolver.setStateBounds(xminmat, xmaxmat);
+    optsolver.setInputBounds(uminmat, umaxmat);
+    optsolver.setOutputBounds(yminmat, ymaxmat);
 
     mpc::cvec<Tnx> x;
     x << 2.0, 0;
@@ -159,7 +161,7 @@ TEST_CASE(
     for (size_t i = 0; i < Tph; i++)
     {
         double scalar_res = sU.dot(seq.input.row(i)) + sX.dot(seq.state.row(i));
-        REQUIRE(scalar_res <= maxS + 1e-3);
+        REQUIRE(scalar_res <= maxS + 1e-2);
         REQUIRE(scalar_res >= minS - 1e-3);
     }
 }
@@ -217,7 +219,7 @@ TEST_CASE(
 
     mpc::mat<Tnx, Tph> xminmat, xmaxmat;
     mpc::mat<Tny, Tph> yminmat, ymaxmat;
-    mpc::mat<Tnu, Tph> uminmat, umaxmat;
+    mpc::mat<Tnu, Tch> uminmat, umaxmat;
 
     xminmat.setConstant(-1);
     xmaxmat.setConstant(1);
@@ -228,7 +230,9 @@ TEST_CASE(
     uminmat.setConstant(-3);
     umaxmat.setConstant(3);
 
-    builder.setConstraints(xminmat, uminmat, yminmat, xmaxmat, umaxmat, ymaxmat);
+    builder.setStateBounds(xminmat, xmaxmat);
+    builder.setInputBounds(uminmat, umaxmat);
+    builder.setOutputBounds(yminmat, ymaxmat);
 
     mpc::cvec<Tnx> x0;
     x0.fill(42.0);

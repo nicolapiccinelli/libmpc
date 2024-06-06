@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0] - 2024-06-05
+### Added
+- Added support for input and state bound constraints in the non-linear mpc. These constraints are actually restricing the search space of the optimization problem
+and are obeyed by the solver also during intermediate steps of the optimization problem
+- Added warm start support in the non-linear mpc. The warm start is disabled by default and can be enabled using the parameter `enable_warm_start`
+
+### Changed
+- Breaking change: The stopping criterias in the non-linear mpc parameters are now disabled by default. The only enabled criteria is the maximum number of iterations
+- Breaking change: The optimal sequence returned by the linear and non-linear mpc is now containing also the initial condition
+- The Jacobians of the constraints in the non-linear mpc are now estimated using the trapeizoial rule
+- The functions to set the bound constraints now uses a dedicated structure to define the horizon span
+- Breaking change: The functions setConstraints are now split in setStateBounds, setInputBounds and setOutputBounds
+- Breaking change: The fields retcode and status_msg in the result struct of the non-linear mpc are now solver_status and solver_status_msg respectively
+
 ## [0.5.0] - 2024-05-17
 ### Added
 - Python bindings for the library using pybind11 (pympcxx)

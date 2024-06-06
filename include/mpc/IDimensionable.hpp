@@ -9,7 +9,6 @@
 
 namespace mpc
 {
-
     /**
      * @brief Abstract class for all the classes which need access
      * to the problem dimensions and to the function handlers types

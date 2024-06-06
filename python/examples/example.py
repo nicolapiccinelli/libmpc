@@ -1,4 +1,4 @@
-import pympcxx
+import pympcxx as mpc
 import numpy as np
 
 # Create a new LMPC object
@@ -9,7 +9,7 @@ ny = 4
 
 N = 10
 
-lmpc = pympcxx.LMPC(nx, nu, ndu, ny, N, N)
+lmpc = mpc.LMPC(nx, nu, ndu, ny, N, N)
 
 # Let's define the model matrices for a simple double integrator
 # x_{k+1} = A x_k + B u_k
@@ -37,7 +37,7 @@ y_cost_weight = np.array([1.0, 1.0, 1.0, 1.0])
 u_cost_weight = np.array([1.0, 1.0])
 delta_u_cost_weight = np.array([1.0, 1.0])
 
-lmpc.setObjectiveWeights(y_cost_weight, u_cost_weight, delta_u_cost_weight, [-1,-1])
+lmpc.setObjectiveWeights(y_cost_weight, u_cost_weight, delta_u_cost_weight, mpc.HorizonSlice.all())
 
 # define the initial state
 x0 = np.array([2.0, 10.0, 0.0, 0.0])

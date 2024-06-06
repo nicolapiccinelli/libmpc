@@ -58,20 +58,20 @@ namespace mpc
          */
         void onInit() override
         {
-            result.cmd.resize(nu());
+            COND_RESIZE_CVEC(sizer,result.cmd, nu());
             result.cmd.setZero();
 
-            sequence.state.resize(ph(), nx());
+            COND_RESIZE_MAT(sizer,sequence.state, ph() + 1, nx());
             sequence.state.setZero();
-            sequence.input.resize(ph(), nu());
+            COND_RESIZE_MAT(sizer,sequence.input, ph() + 1, nu());
             sequence.input.setZero();
-            sequence.output.resize(ph(), ny());
+            COND_RESIZE_MAT(sizer,sequence.output, ph() + 1, ny());
             sequence.output.setZero();
 
-            extInputMeas.resize(ndu(), ph());
-            outSysRef.resize(ny(), ph());
-            cmdSysRef.resize(nu(), ph());
-            deltaCmdSysRef.resize(nu(), ph());
+            COND_RESIZE_MAT(sizer,extInputMeas, ndu(), ph());
+            COND_RESIZE_MAT(sizer,outSysRef, ny(), ph());
+            COND_RESIZE_MAT(sizer,cmdSysRef, nu(), ph());
+            COND_RESIZE_MAT(sizer,deltaCmdSysRef, nu(), ph());
 
             outSysRef.setZero();
             cmdSysRef.setZero();
@@ -302,32 +302,47 @@ namespace mpc
                 }
 
                 // loop over the rows of the optimal sequence
-                for (size_t i = 1; i < ph() + 1; i++)
+                for (size_t i = 0; i < ph() + 1; i++)
                 {
                     // from the extended state vector [x,x_u] we take the first nx entries
                     // to get the optimal sequence of system state
                     for (size_t j = 0; j < nx(); j++)
                     {
-                        sequence.state.row(i - 1)[j] = work->solution->x[i * (nx() + nu()) + j];
+                        sequence.state.row(i)[j] = work->solution->x[i * (nx() + nu()) + j];
                     }
 
                     // and similarly we take the nu entries to have the optimal sequence of system
-                    // input we also needs to deal with the fact that x_u(k) is u(k-1) (TODO?)
+                    // input we also needs to deal with the fact that x_u(k) is u(k-1)
                     for (size_t j = nx(); j < nx() + nu(); j++)
                     {
-                        sequence.input.row(i - 1)[j - nx()] = work->solution->x[i * (nx() + nu()) + j];
+                        // if we are at the end of the horizon we have to
+                        if (i + 1 < ph() + 1)
+                        {
+                            sequence.input.row(i)[j - nx()] = work->solution->x[(i + 1) * (nx() + nu()) + j];
+                        }
+                        else
+                        {
+                            sequence.input.row(i)[j - nx()] = work->solution->x[i * (nx() + nu()) + j];
+                        }
                     }
 
                     // this just the state mapping together with the optional exogeneous input
-                    sequence.output.row(i - 1) = builder->mapToOutput(sequence.state.row(i - 1), extInputMeas.col(i - 1));
+                    if (i == 0)
+                    {
+                        sequence.output.row(i) = builder->mapToOutput(sequence.state.row(i), extInputMeas.col(0));
+                    }
+                    else
+                    {
+                        sequence.output.row(i) = builder->mapToOutput(sequence.state.row(i), extInputMeas.col(i - 1));
+                    }
                 }
 
                 // the optimal command is the first control input in the sequence
                 r.cmd = sequence.input.row(0);
-                r.retcode = work->info->status_val;
+                r.solver_status = work->info->status_val;
                 r.cost = work->info->obj_val;
                 // convert the return code from the optimizer to the result status
-                r.status = convertToResultStatus(r.retcode);
+                r.status = convertToResultStatus(r.solver_status);
             }
             else
             {
@@ -335,7 +350,7 @@ namespace mpc
                 // and we set the return code to -1
                 r.cost = mpc::inf;
                 r.cmd = result.cmd;
-                r.retcode = -1;
+                r.solver_status = -1;
                 r.status = ResultStatus::ERROR;
 
                 // in case of invalid solution we ouput all the sequences to zero

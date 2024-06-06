@@ -63,19 +63,29 @@ namespace mpc
         {
             innerOpt = new nlopt::opt(nlopt::LD_SLSQP, ((ph() * nx()) + (nu() * ch()) + 1));
 
+            COND_RESIZE_CVEC(sizer,lb,((ph() * nx()) + (nu() * ch()) + 1));
+            lb.setConstant(-std::numeric_limits<float>::infinity());
+
+            COND_RESIZE_CVEC(sizer,ub, ((ph() * nx()) + (nu() * ch()) + 1));
+            ub.setConstant(std::numeric_limits<float>::infinity());
+
+            COND_RESIZE_CVEC(sizer,opt_vector, ((ph() * nx()) + (nu() * ch()) + 1));
+            opt_vector.setZero();
+
             setParameters(NLParameters());
 
-            result.cmd.resize(nu());
+            COND_RESIZE_CVEC(sizer,result.cmd, nu());
             result.cmd.setZero();
 
-            sequence.state.resize(ph(), nx());
+            COND_RESIZE_MAT(sizer,sequence.state,ph() + 1, nx());
             sequence.state.setZero();
-            sequence.input.resize(ph(), nu());
+            COND_RESIZE_MAT(sizer,sequence.input,ph() + 1, nu());
             sequence.input.setZero();
-            sequence.output.resize(ph(), ny());
+            COND_RESIZE_MAT(sizer,sequence.output,ph() + 1, ny());
             sequence.output.setZero();
 
             currentSlack = 0;
+            is_first_iteration = true;
         }
 
         /**
@@ -94,9 +104,9 @@ namespace mpc
 
         /**
          * @brief Set the Cost And Constraints object
-         * 
-         * @param objFunc 
-         * @param conFunc 
+         *
+         * @param objFunc
+         * @param conFunc
          */
         void setCostAndConstraints(
             std::shared_ptr<Objective<sizer>> objFunc,
@@ -124,31 +134,55 @@ namespace mpc
             innerOpt->set_ftol_abs(nl_param->absolute_ftol);
             innerOpt->set_xtol_abs(nl_param->absolute_xtol);
 
+            // print the parameters
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting relative function tolerance: "
+                << nl_param->relative_ftol
+                << std::endl;
+
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting relative variable tolerance: "
+                << nl_param->relative_xtol
+                << std::endl;
+
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting absolute function tolerance: "
+                << nl_param->absolute_ftol
+                << std::endl;
+
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting absolute variable tolerance: "
+                << nl_param->absolute_xtol
+                << std::endl;
+
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting maximum number of function evaluations: "
+                << nl_param->maximum_iteration
+                << std::endl;
+
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting maximum time limit: "
+                << nl_param->time_limit
+                << std::endl;
+
             if (nl_param->time_limit > 0)
             {
                 innerOpt->set_maxtime(nl_param->time_limit);
             }
-            
+
             innerOpt->set_maxeval(nl_param->maximum_iteration);
 
-            std::vector<double> lb, ub;
-            lb.resize(((ph() * nx()) + (nu() * ch()) + 1));
-            ub.resize(((ph() * nx()) + (nu() * ch()) + 1));
-
-            for (size_t i = 0; i < ((ph() * nx()) + (nu() * ch()) + 1); i++)
+            // set the bounds for the slack variable
+            // in case of hard constraints we are forcing the slack variable to be 0
+            if(nl_param->hard_constraints)
             {
-                lb[i] = -std::numeric_limits<double>::infinity();
-                if (i + 1 == ((ph() * nx()) + (nu() * ch()) + 1) && nl_param->hard_constraints)
-                {
-                    // in case of hard constraints we are forcing the slack variable to be 0
-                    lb[i] = 0;
-                    ub[i] = 0;
-                }
-                ub[i] = std::numeric_limits<double>::infinity();
+                lb[((ph() * nx()) + (nu() * ch()) + 1) - 1] = 0;
+                ub[((ph() * nx()) + (nu() * ch()) + 1) - 1] = 0;
             }
 
-            innerOpt->set_lower_bounds(lb);
-            innerOpt->set_upper_bounds(ub);
+            enable_warm_start = nl_param->enable_warm_start;
+
+            updateBounds();
 
             Logger::instance().log(Logger::log_type::DETAIL)
                 << "Setting tolerances and stopping criterias"
@@ -294,6 +328,77 @@ namespace mpc
         }
 
         /**
+         * @brief Sets the state bounds for the NLOptimizer.
+         *
+         * This function sets the lower and upper bounds for the state variables of the NLOptimizer.
+         * The bounds are used to constrain the state variables during the optimization process.
+         *
+         * @param lb The lower bounds for the state variables.
+         * @param ub The upper bounds for the state variables.
+         * @param slice The slice of the bounds to set.
+         * @return True if the state bounds were successfully set, false otherwise.
+         */
+        bool setStateBounds(
+            const cvec<sizer.nx> &lower_bounds,
+            const cvec<sizer.nx> &upper_bounds,
+            const HorizonSlice& slice)
+        {
+            checkOrQuit();
+
+            // if the slice is (-1, -1) set the bounds for the entire state vector
+            size_t start = slice.start == -1 ? 0 : slice.start;
+            size_t end = slice.end == -1 ? ph() : slice.end;
+
+            // replicate the state bounds for the prediction horizon
+            for (size_t i = start; i < end; i++)
+            {
+                for (size_t j = 0; j < nx(); j++)
+                {
+                    lb[(i * nx()) + j] = lower_bounds(j);
+                    ub[(i * nx()) + j] = upper_bounds(j);
+                }
+            }
+
+            updateBounds();
+
+            return true;
+        }
+
+        /**
+         * Sets the input bounds for the NLOptimizer.
+         *
+         * @param lb The lower bounds for the input variables.
+         * @param ub The upper bounds for the input variables.
+         * @param slice The slice of the input bounds to set.
+         * @return True if the input bounds were successfully set, false otherwise.
+         */
+        bool setInputBounds(
+            const cvec<sizer.nu> &lower_bounds,
+            const cvec<sizer.nu> &upper_bounds,
+            const HorizonSlice& slice)
+        {
+            checkOrQuit();
+
+            // if the slice is (-1, -1) set the bounds for the entire input vector
+            size_t start = slice.start == -1 ? 0 : slice.start;
+            size_t end = slice.end == -1 ? ch() : slice.end;
+
+            // replicate the input bounds for the control horizon
+            for (size_t i = start; i < end; i++)
+            {
+                for (size_t j = 0; j < nu(); j++)
+                {
+                    lb[(ph() * nx()) + (i * nu()) + j] = lower_bounds(j);
+                    ub[(ph() * nx()) + (i * nu()) + j] = upper_bounds(j);
+                }
+            }
+
+            updateBounds();
+
+            return true;
+        }
+
+        /**
          * @brief Implementation of the optimization step
          *
          * @param x0 system's variables initial condition
@@ -308,63 +413,97 @@ namespace mpc
             Result<sizer.nu> r;
 
             std::vector<double> optX0;
-            optX0.resize(((ph() * nx()) + (nu() * ch()) + 1));
+            optX0.assign(((ph() * nx()) + (nu() * ch()) + 1),0.0);
 
-            int counter = 0;
+            if(is_first_iteration || !enable_warm_start)
+            {
+                // the whole optimization vector is initialized with the initial state x0
+                // and the initial control action u0 for the full prediction horizon
+                // this has to be done only for the first iteration or if the warm start is disabled
+                for (size_t i = 0; i < ph(); i++)
+                {
+                    for (size_t j = 0; j < nx(); j++)
+                    {
+                        opt_vector[(i * nx()) + j] = x0(j);
+                    }
+                }
+
+                for (size_t i = 0; i < ch(); i++)
+                {
+                    for (size_t j = 0; j < nu(); j++)
+                    {
+                        opt_vector[(ph() * nx()) + (i * nu()) + j] = u0(j);
+                    }
+                }
+            }
+            
+            // fill the remaining elements with the previous state starting from
+            // the third element of the prediction horizon 
+            // (we shift the sequence to the left by one step)
             for (size_t i = 0; i < ph(); i++)
             {
                 for (size_t j = 0; j < nx(); j++)
                 {
-                    optX0[counter++] = x0(j);
-                }
-            }
-
-            mat<sizer.ph, sizer.nu> Umv;
-            Umv.resize(ph(), nu());
-            Umv.setZero();
-
-            for (size_t i = 0; i < ph(); i++)
-            {
-                for (size_t j = 0; j < nu(); j++)
-                {
-                    Umv(i, j) = u0(j);
+                    if(i == ph() - 1)
+                    {
+                        optX0[(i * nx()) + j] = opt_vector[(i * nx()) + j];
+                    }
+                    else{
+                        optX0[(i * nx()) + j] = opt_vector[((i+1) * nx()) + j];
+                    }
                 }
             }
 
             cvec<(sizer.ph * sizer.nu)> UmvVectorized;
-            UmvVectorized.resize((ph() * nu()));
+            COND_RESIZE_CVEC(sizer,UmvVectorized,(ph() * nu()));
 
-            int vec_counter = 0;
+            // convert from the optimized vector to the vectorized manipulated variable
+            // using the mapping matrix Iz2u
+            cvec<(sizer.ph * sizer.nu)> tmp_mult;
+            tmp_mult = mapping->Iz2u() * opt_vector.middleRows((ph() * nx()), (nu() * ch()));
+
+            // fill the remaining elements with the previous control action starting from
+            // the third element of the control horizon
+            // (we shift the sequence to the left by one step)
             for (size_t i = 0; i < ph(); i++)
             {
                 for (size_t j = 0; j < nu(); j++)
                 {
-                    UmvVectorized(vec_counter++) = Umv(i, j);
+                    if (i == ph() - 1)
+                    {
+                        UmvVectorized[(i * nu()) + j] = tmp_mult[(i * nu()) + j];
+                    }
+                    else
+                    {
+                        UmvVectorized[(i * nu()) + j] = tmp_mult[((i+1) * nu()) + j];
+                    }
                 }
             }
 
             cvec<(sizer.nu * sizer.ch)> res;
             res = mapping->Iu2z() * UmvVectorized;
 
-            for (size_t j = 0; j < (nu() * ch()); j++)
+            // put the control action back in the optimization vector
+            for (size_t i = 0; i < (nu() * ch()); i++)
             {
-                optX0[counter++] = res(j);
+                optX0[(ph() * nx()) + i] = res(i);
             }
 
+            // put the slack variable in the optimization vector
             optX0[((ph() * nx()) + (nu() * ch()) + 1) - 1] = currentSlack;
-            
+
+            // let's start the optimization
             bool optimizationSuccess = false;
-            cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> opt_vector;
-            opt_vector.setZero();
 
             try
             {
                 std::vector<double> opt_v = innerOpt->optimize(optX0);
-                opt_vector = Eigen::Map<cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>>(opt_v.data(), opt_v.size());
-
+                // convert from std vector to eigen vector by copying the data
+                Eigen::Map<cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>>(opt_v.data(), opt_v.size()).swap(opt_vector);
                 optimizationSuccess = true;
+                is_first_iteration = false;
             }
-            catch(nlopt::roundoff_limited &e)
+            catch (nlopt::roundoff_limited &e)
             {
                 Logger::instance().log(Logger::log_type::DETAIL)
                     << "No optimal solution found: "
@@ -373,7 +512,7 @@ namespace mpc
 
                 // we reached floating point precision limit before reaching the stopping criteria
                 optimizationSuccess = false;
-                r.status_msg = "Floating point precision limit reached before stopping criteria";
+                r.solver_status_msg = "Floating point precision limit reached before stopping criteria";
             }
             catch (const std::exception &e)
             {
@@ -384,15 +523,15 @@ namespace mpc
 
                 // generic exception handling
                 optimizationSuccess = false;
-                r.status_msg = "Internal solver error: "  + std::string(e.what());
+                r.solver_status_msg = "Internal solver error: " + std::string(e.what());
             }
 
-            if(optimizationSuccess)
+            if (optimizationSuccess)
             {
                 r.cost = innerOpt->last_optimum_value();
-                r.retcode = innerOpt->last_optimize_result();
+                r.solver_status = innerOpt->last_optimize_result();
                 // convert from nlopt result code to ResultStatus enum
-                r.status = convertToResultStatus(r.retcode);
+                r.status = convertToResultStatus(r.solver_status);
 
                 Logger::instance().log(Logger::log_type::DETAIL)
                     << "Optimization end after: "
@@ -402,19 +541,19 @@ namespace mpc
 
                 Logger::instance().log(Logger::log_type::DETAIL)
                     << "Optimization end with code: "
-                    << r.retcode
+                    << r.solver_status
                     << std::endl;
-                    
+
                 Logger::instance().log(Logger::log_type::DETAIL)
                     << "Optimization end with cost: "
                     << r.cost
                     << std::endl;
 
                 mat<(sizer.ph + 1), sizer.nx> Xmat;
-                Xmat.resize((ph() + 1), nx());
+                COND_RESIZE_MAT(sizer,Xmat,(ph() + 1), nx());
 
                 mat<(sizer.ph + 1), sizer.nu> Umat;
-                Umat.resize((ph() + 1), nu());
+                COND_RESIZE_MAT(sizer,Umat,(ph() + 1), nu());
 
                 mapping->unwrapVector(opt_vector, x0, Xmat, Umat, currentSlack);
 
@@ -429,15 +568,15 @@ namespace mpc
 
                 r.cmd = Umat.row(0);
 
-                sequence.state = Xmat.block(1, 0, ph(), nx());
-                sequence.input = Umat.block(1, 0, ph(), nu());
-                sequence.output = model->getOutput(Xmat, Umat).block(1, 0, ph(), ny());
+                sequence.state = Xmat.block(0, 0, ph()+1, nx());
+                sequence.input = Umat.block(0, 0, ph()+1, nu());
+                sequence.output = model->getOutput(Xmat, Umat).block(0, 0, ph()+1, ny());
             }
             else
             {
                 r.cost = mpc::inf;
                 r.cmd = result.cmd;
-                r.retcode = -1;
+                r.solver_status = -1;
                 // set the result status to error
                 r.status = ResultStatus::ERROR;
 
@@ -450,7 +589,68 @@ namespace mpc
             result = r;
         }
 
+        /**
+         * @brief Get the lower bound of the optimization variables
+         *
+         * @return lower bound
+         */
+        mpc::cvec<(sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1> getLowerBound() const
+        {
+            return lb;
+        }
+
+        /**
+         * @brief Get the upper bound of the optimization variables
+         *
+         * @return upper bound
+         */
+        mpc::cvec<(sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1> getUpperBound() const
+        {
+            return ub;
+        }
+
     private:
+        /**
+         * @brief Update the bounds for the internal solver
+         */
+        void updateBounds()
+        {
+            // convert from eigen vector to std vector
+            std::vector<double> lb_vec(lb.data(), lb.data() + lb.rows() * lb.cols());
+            std::vector<double> ub_vec(ub.data(), ub.data() + ub.rows() * ub.cols());
+
+            innerOpt->set_lower_bounds(lb_vec);
+            innerOpt->set_upper_bounds(ub_vec);
+
+            // get the bounds from the solver
+            auto lb_solver = innerOpt->get_lower_bounds();
+            auto ub_solver = innerOpt->get_upper_bounds();
+
+            // print the bounds
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting lower bounds: "
+                << std::endl;
+            std::stringstream ss_lb;
+            ss_lb << "\n";
+            for (size_t i = 0; i < lb_solver.size(); i++)
+            {
+                ss_lb << lb_solver[i] << "\n";
+            }
+            Logger::instance().log(Logger::log_type::DETAIL) << ss_lb.str() << "\n";
+
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting upper bounds: "
+                << std::endl;
+            std::stringstream ss_ub;
+            ss_ub << "\n";
+            for (size_t i = 0; i < ub_solver.size(); i++)
+            {
+                ss_ub << ub_solver[i] << "\n";
+            }
+            Logger::instance().log(Logger::log_type::DETAIL) << ss_ub.str() << "\n";
+
+        }
+
         /**
          * @brief Converts an integer value to the corresponding ResultStatus enum value.
          *
@@ -635,5 +835,10 @@ namespace mpc
         std::shared_ptr<Constraints<sizer>> conFunc;
         std::shared_ptr<Mapping<sizer>> mapping;
         std::shared_ptr<Model<sizer>> model;
+
+        cvec<(sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1>  lb, ub;
+        cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> opt_vector;
+        bool is_first_iteration = true;
+        bool enable_warm_start = false;
     };
 } // namespace mpc

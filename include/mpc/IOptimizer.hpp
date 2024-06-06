@@ -50,7 +50,7 @@ namespace mpc
         virtual void run(const cvec<sizer.nx> &x0, const cvec<sizer.nu> &u0) = 0;
 
         Result<sizer.nu> result;
-        OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph> sequence;
+        OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph+1> sequence;
 
     protected:
         double currentSlack;

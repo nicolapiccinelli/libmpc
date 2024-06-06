@@ -30,7 +30,7 @@ int VanderPol()
         optsolver;
 #endif
 
-    optsolver.setLoggerLevel(mpc::Logger::log_level::NORMAL);
+    optsolver.setLoggerLevel(mpc::Logger::log_level::NONE);
     optsolver.setDiscretizationSamplingTime(ts);
 
     auto stateEq = [&](
@@ -76,11 +76,24 @@ int VanderPol()
 
     auto r = optsolver.getLastResult();
 
+    // set parameters for the optimizer
+    mpc::NLParameters params;
+    params.maximum_iteration = 100;
+    params.relative_ftol = 1e-3;
+    params.relative_xtol = -1;
+    params.absolute_ftol = -1;
+    params.absolute_xtol = -1;
+    params.time_limit = 0;
+    params.enable_warm_start = false;
+
+    optsolver.setOptimizerParameters(params);
+
     for (;;)
     {
         r = optsolver.optimize(modelX, r.cmd);
         auto seq = optsolver.getOptimalSequence();
-        (void) seq;
+        (void)seq;
+
         stateEq(modeldX, modelX, r.cmd);
         modelX += modeldX * ts;
         if (std::fabs(modelX[0]) <= 1e-2 && std::fabs(modelX[1]) <= 1e-1)
@@ -88,6 +101,8 @@ int VanderPol()
             break;
         }
     }
+
+    std::cout << "Statistics: " << optsolver.getExecutionStats() << std::endl;
 
     return 0;
 }

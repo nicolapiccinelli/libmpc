@@ -47,20 +47,8 @@ int main()
     mpc::mat<Tny, Tnx> Cd;
     Cd.setIdentity();
 
-    mpc::mat<Tny, Tnu> Dd;
-    Dd.setZero();
-
     controller.setStateSpaceModel(Ad, Bd, Cd);
-
-    controller.setDisturbances(
-    mpc::mat<Tnx, Tndu>::Zero(),
-    mpc::mat<Tny, Tndu>::Zero());
-
-    mpc::mat<Tnu, Tph> InputWMat, DeltaInputWMat;
-    mpc::mat<Tny, Tph> OutputWMat;
-
-    controller.setObjectiveWeights(OutputWMat, InputWMat, DeltaInputWMat);
-
+    
     mpc::cvec<Tnu> InputW, DeltaInputW;
     mpc::cvec<Tny> OutputW;
 
@@ -69,19 +57,6 @@ int main()
     DeltaInputW << 0, 0, 0, 0;
 
     controller.setObjectiveWeights(OutputW, InputW, DeltaInputW, {0, Tph});
-
-    mpc::mat<Tnx, Tph> xminmat, xmaxmat;
-    mpc::mat<Tny, Tph> yminmat, ymaxmat;
-    mpc::mat<Tnu, Tph> uminmat, umaxmat;
-
-    xminmat.setZero();
-    xmaxmat.setZero();
-    yminmat.setZero();
-    ymaxmat.setZero();
-    uminmat.setZero();
-    umaxmat.setZero();
-
-    controller.setConstraints(xminmat, uminmat, yminmat, xmaxmat, umaxmat, ymaxmat);
 
     mpc::cvec<Tnx> xmin, xmax;
     xmin << -M_PI / 6, -M_PI / 6, -mpc::inf, -mpc::inf, -mpc::inf, -1,
@@ -103,11 +78,9 @@ int main()
     umax << 13, 13, 13, 13;
     umax.array() -= u0;
 
-    controller.setConstraints(xmin, umin, ymin, xmax, umax, ymax, {0, Tph});
-    controller.setConstraints(xmin, umin, ymin, xmax, umax, ymax, {0, 1});
-
-    controller.setScalarConstraint(-mpc::inf, mpc::inf, mpc::cvec<Tnx>::Ones(), mpc::cvec<Tnu>::Ones(), {-1, -1});
-    controller.setScalarConstraint(0, -mpc::inf, mpc::inf, mpc::cvec<Tnx>::Ones(), mpc::cvec<Tnu>::Ones());
+    controller.setStateBounds(xmin, xmax, {0, Tph});
+    controller.setOutputBounds(ymin, ymax, {0, Tph});
+    controller.setInputBounds(umin, umax, {0, Tch});
 
     controller.setReferences(mpc::mat<Tny, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero());
 
@@ -119,10 +92,7 @@ int main()
     params.maximum_iteration = 250;
     controller.setOptimizerParameters(params);
 
-    controller.setExogenousInputs(mpc::mat<Tndu, Tph>::Zero());
-    controller.setExogenousInputs(mpc::cvec<Tndu>::Zero(), {0, Tph});
-
-    auto res = controller.step(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
+    auto res = controller.optimize(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
     auto seq = controller.getOptimalSequence();
     
     std::cout << "Optimal control input: " << res.cmd << std::endl;

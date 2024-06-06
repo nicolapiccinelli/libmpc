@@ -70,6 +70,12 @@ void expose_NLMPC(py::module &m)
         .def("getOptimalSequence", &NLMPCType::getOptimalSequence)
         .def("getExecutionStats", &NLMPCType::getExecutionStats)
         .def("resetStats", &NLMPCType::resetStats)
+        .def("setStateBounds", py::overload_cast<const Eigen::MatrixXd &, const Eigen::MatrixXd &>(&NLMPCType::setStateBounds))
+        .def("setStateBounds", py::overload_cast<const Eigen::VectorXd &, const Eigen::VectorXd &, const mpc::HorizonSlice &>(&NLMPCType::setStateBounds))
+        .def("setInputBounds", py::overload_cast<const Eigen::MatrixXd &, const Eigen::MatrixXd &>(&NLMPCType::setInputBounds))
+        .def("setInputBounds", py::overload_cast<const Eigen::VectorXd &, const Eigen::VectorXd &, const mpc::HorizonSlice &>(&NLMPCType::setInputBounds))
+        .def("setOutputBounds", py::overload_cast<const Eigen::MatrixXd &, const Eigen::MatrixXd &>(&NLMPCType::setOutputBounds))
+        .def("setOutputBounds", py::overload_cast<const Eigen::VectorXd &, const Eigen::VectorXd &, const mpc::HorizonSlice &>(&NLMPCType::setOutputBounds))
         // methods from the NLMPC class
         .def("setObjectiveFunction", &NLMPCType::setObjectiveFunction)
         .def("setStateSpaceFunction", stateSpaceFuncWrapper)
@@ -95,22 +101,26 @@ void expose_LMPC(py::module &m)
         .def("getOptimalSequence", &LMPCType::getOptimalSequence)
         .def("getExecutionStats", &LMPCType::getExecutionStats)
         .def("resetStats", &LMPCType::resetStats)
+        .def("setStateBounds", py::overload_cast<const Eigen::MatrixXd &, const Eigen::MatrixXd &>(&LMPCType::setStateBounds))
+        .def("setStateBounds", py::overload_cast<const Eigen::VectorXd &, const Eigen::VectorXd &, const mpc::HorizonSlice &>(&LMPCType::setStateBounds))
+        .def("setInputBounds", py::overload_cast<const Eigen::MatrixXd &, const Eigen::MatrixXd &>(&LMPCType::setInputBounds))
+        .def("setInputBounds", py::overload_cast<const Eigen::VectorXd &, const Eigen::VectorXd &, const mpc::HorizonSlice &>(&LMPCType::setInputBounds))
+        .def("setOutputBounds", py::overload_cast<const Eigen::MatrixXd &, const Eigen::MatrixXd &>(&LMPCType::setOutputBounds))
+        .def("setOutputBounds", py::overload_cast<const Eigen::VectorXd &, const Eigen::VectorXd &, const mpc::HorizonSlice &>(&LMPCType::setOutputBounds))
         // methods from the LMPC class
         .def("setStateSpaceModel", &LMPCType::setStateSpaceModel)
         .def("setDisturbances", &LMPCType::setDisturbances)
         .def("getSolverWarmStartPrimal", &LMPCType::getSolverWarmStartPrimal)
         .def("getSolverWarmStartDual", &LMPCType::getSolverWarmStartDual)
         .def("setSolverWarmStart", &LMPCType::setSolverWarmStart)
-        .def("setConstraints", py::overload_cast<const Eigen::MatrixXd, const Eigen::MatrixXd, const Eigen::MatrixXd, const Eigen::MatrixXd, const Eigen::MatrixXd, const Eigen::MatrixXd>(&LMPCType::setConstraints))
-        .def("setConstraints", py::overload_cast<const Eigen::VectorXd, const Eigen::VectorXd, const Eigen::VectorXd, const Eigen::VectorXd, const Eigen::VectorXd, const Eigen::VectorXd, std::array<int, 2>>(&LMPCType::setConstraints))
         .def("setObjectiveWeights", py::overload_cast<const Eigen::MatrixXd &, const Eigen::MatrixXd &, const Eigen::MatrixXd &>(&LMPCType::setObjectiveWeights))
-        .def("setObjectiveWeights", py::overload_cast<const Eigen::VectorXd &, const Eigen::VectorXd &, const Eigen::VectorXd &, std::array<int, 2>>(&LMPCType::setObjectiveWeights))
+        .def("setObjectiveWeights", py::overload_cast<const Eigen::VectorXd &, const Eigen::VectorXd &, const Eigen::VectorXd &, const mpc::HorizonSlice&>(&LMPCType::setObjectiveWeights))
         .def("setScalarConstraint", py::overload_cast<const unsigned int, const double, const double, const Eigen::VectorXd, const Eigen::VectorXd>(&LMPCType::setScalarConstraint))
-        .def("setScalarConstraint", py::overload_cast<const double, const double, const Eigen::VectorXd, const Eigen::VectorXd, std::array<int, 2>>(&LMPCType::setScalarConstraint))
+        .def("setScalarConstraint", py::overload_cast<const double, const double, const Eigen::VectorXd, const Eigen::VectorXd, const mpc::HorizonSlice&>(&LMPCType::setScalarConstraint))
         .def("setExogenousInputs", py::overload_cast<const Eigen::MatrixXd &>(&LMPCType::setExogenousInputs))
-        .def("setExogenousInputs", py::overload_cast<const Eigen::VectorXd &, std::array<int, 2>>(&LMPCType::setExogenousInputs))
-        .def("setReferences", py::overload_cast<const Eigen::VectorXd, const Eigen::VectorXd, const Eigen::VectorXd, std::array<int, 2>>(&LMPCType::setReferences))
-        .def("setReferences", py::overload_cast<const Eigen::VectorXd, const Eigen::VectorXd, const Eigen::VectorXd, std::array<int, 2>>(&LMPCType::setReferences));
+        .def("setExogenousInputs", py::overload_cast<const Eigen::VectorXd &, const mpc::HorizonSlice&>(&LMPCType::setExogenousInputs))
+        .def("setReferences", py::overload_cast<const Eigen::VectorXd, const Eigen::VectorXd, const Eigen::VectorXd, const mpc::HorizonSlice&>(&LMPCType::setReferences))
+        .def("setReferences", py::overload_cast<const Eigen::VectorXd, const Eigen::VectorXd, const Eigen::VectorXd, const mpc::HorizonSlice&>(&LMPCType::setReferences));
 }
 
 PYBIND11_MODULE(pympcxx, m)
@@ -133,7 +143,8 @@ PYBIND11_MODULE(pympcxx, m)
     using ResulType = mpc::Result<Eigen::Dynamic>;
 
     py::class_<ResulType>(m, "Result")
-        .def_readonly("retcode", &ResulType::retcode)
+        .def_readonly("solver_status", &ResulType::solver_status)
+        .def_readonly("solver_status_msg", &ResulType::solver_status_msg)
         .def_readonly("cost", &ResulType::cost)
         .def_readonly("cmd", &ResulType::cmd)
         .def_readonly("status", &ResulType::status);
@@ -158,4 +169,9 @@ PYBIND11_MODULE(pympcxx, m)
         .value("INFEASIBLE", mpc::ResultStatus::INFEASIBLE)
         .value("ERROR", mpc::ResultStatus::ERROR)
         .export_values();
+
+    // export HorizonSlice struct to python
+    py::class_<mpc::HorizonSlice>(m, "HorizonSlice")
+        .def(py::init<int, int>())
+        .def_static("all", &mpc::HorizonSlice::all);
 }

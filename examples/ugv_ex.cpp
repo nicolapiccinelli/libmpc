@@ -1,4 +1,5 @@
 #include <mpc/NLMPC.hpp>
+#include <mpc/Utils.hpp>
 
 struct Obstacle
 {
@@ -20,13 +21,12 @@ int main()
 
     // list of n_obs obstacles
     Obstacle obs[n_obs];
-    mpc::cvec<Tnx-2> yref;
-    mpc::cvec<Tnx> m_x, m_dx;
+    mpc::cvec<2> yref, v_pref;
+    mpc::cvec<Tnx> m_x, m_x_next;
 
-    double Ts = 0.01;
+    double Ts = 0.1;
 
     mpc::NLMPC<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq> controller;
-    controller.setDiscretizationSamplingTime(Ts);
     controller.setLoggerLevel(mpc::Logger::log_level::NORMAL);
 
     mpc::mat<Tnx, Tnx> A(Tnx, Tnx);
@@ -36,7 +36,6 @@ int main()
 
     double m = 1.0;
     double r = 0.15;
-    double tau = 2.0;
     double speed = 1.0;
 
     A.setZero();
@@ -49,13 +48,21 @@ int main()
     C.setIdentity();
     D.setZero();
 
+    // discrete time model of the system
+    mpc::mat<Tnx, Tnx> Ad(Tnx, Tnx);
+    mpc::mat<Tnx, Tnu> Bd(Tnx, Tnu);
+    mpc::mat<Tny, Tnx> Cd(Tny, Tnx);
+    mpc::mat<Tny, Tnu> Dd(Tny, Tnu);
+
+    mpc::discretization<Tnx,Tnu,Tny>(A, B, C, D, Ts, Ad, Bd, Cd, Dd);
+
     auto stateEq = [&](
                        mpc::cvec<Tnx> &dx,
                        const mpc::cvec<Tnx> &x,
                        const mpc::cvec<Tnu> &u,
                        const unsigned int &)
     {
-        dx = A * x + B * u;
+        dx = Ad * x + Bd * u;
     };
     controller.setStateSpaceFunction(stateEq);
 
@@ -65,7 +72,7 @@ int main()
                      const mpc::cvec<Tnu> &u,
                      const unsigned int &)
     {
-        y = C * x + D * u;
+        y = Cd * x + Dd * u;
     };
     controller.setOutputFunction(outEq);
 
@@ -75,15 +82,14 @@ int main()
                      const mpc::mat<Tph + 1, Tnu> &u,
                      const double &e)
     {
-        mpc::cvec<2> dir = (yref - m_x.segment(0, 2)).normalized();
-
         double cost = 0;
         for (int i = 0; i < Tph + 1; i++)
         {
-            mpc::cvec<2> x_ref_pred = m_x.segment(0, 2) + (dir * speed * i * Ts);
-            cost += 1e3 * (x.row(i).segment(0, 2).transpose() - x_ref_pred).squaredNorm();
-            cost += 1e-5 * u.row(i).squaredNorm();
+            cost += 1e3 * (x.row(i).segment(2, 2).transpose() - v_pref).squaredNorm();
+            cost += 1e-2 * u.row(i).squaredNorm();
         }
+
+        cost += 1e-5 * e * e;
         
         return cost;
     };
@@ -110,7 +116,7 @@ int main()
 
     // set current state
     m_x.setZero();
-    m_dx.setZero();
+    m_x_next.setZero();
 
     obs[0].pos << 2.0, 1.0;
     obs[0].radius = 0.3;
@@ -122,32 +128,35 @@ int main()
     yref << 2.0, 2.0;
 
     mpc::NLParameters params;
-    params.maximum_iteration = 1000;
-    params.relative_ftol = 1e-4;
-    params.relative_xtol = 1e-6;
-
-    params.hard_constraints = true;
+    params.maximum_iteration = 100;
+    params.relative_ftol = -1;
+    params.relative_xtol = -1;
+    params.hard_constraints = false;
+    params.enable_warm_start = true;
 
     controller.setOptimizerParameters(params);
 
     auto res = controller.getLastResult();
+    res.cmd.setZero();
 
     double t = 0;
-    while(true)
+    for(int i = 0; i < 150; i++)
     {
         // solve
         res = controller.optimize(m_x, res.cmd);
-
+        
         // apply vector field
-        stateEq(m_dx, m_x, res.cmd, -1);
-        m_x += m_dx * Ts;
+        stateEq(m_x_next, m_x, res.cmd, -1);
+        m_x = m_x_next;
         t += Ts;
 
         std::cout << t << "," << m_x(0) << "," << m_x(1) << "," << m_x(2) << "," << m_x(3);
         std::cout << "," << yref(0) << "," << yref(1);
         std::cout << "," << res.cmd(0) << "," << res.cmd(1);
-        std::cout << "," << res.cost << "," << res.retcode;
+        std::cout << "," << res.cost << "," << res.solver_status;
         std::cout << std::endl;
+
+        v_pref = (yref - m_x.segment(0, 2)).normalized() * speed;
 
         // break the loop if the distance between m_x and yref is than a threshold
         if((m_x.segment(0,2) - yref).norm() < 0.05)

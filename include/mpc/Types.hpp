@@ -52,6 +52,36 @@ namespace mpc
     using rvec = Eigen::Matrix<double, 1, N>;
 
     /**
+     * @brief Horizon slice to indicate a subset of the horizon
+     */
+    struct HorizonSlice
+    {
+        int start;
+        int end;
+
+        /**
+         * @brief Construct a new horizon slice
+         * 
+         * @param start the starting index of the slice (zero-based)
+         * @param end the ending index of the slice (zero-based)
+         */
+        HorizonSlice(int start, int end) : start(start), end(end) 
+        {
+            
+        }
+
+        /**
+         * @brief Create a slice to indicate the whole horizon 
+         * 
+         * @return HorizonSlice the instance of the slice representing the whole horizon
+         */
+        static HorizonSlice all()
+        {
+            return HorizonSlice{-1, -1};
+        }
+    };
+
+    /**
      * @brief Optimization result status
      */
     enum ResultStatus
@@ -77,10 +107,14 @@ namespace mpc
         int maximum_iteration = 100;
         /// @brief Set the maximum time before stopping the optimization (in seconds)
         double time_limit = 0;
+        /// @brief Enable the warm start of the optimization (enabling the warm start
+        // can speed up the optimization process if the optimization variables
+        // are close to the optimal solution)
+        bool enable_warm_start = false;
     };
 
     /**
-     * @brief Non-linear optimizer parameters 
+     * @brief Non-linear optimizer parameters
      * (SEE NLOPT DOCUMENTATION FOR MORE DETAILS)
      */
     struct NLParameters : Parameters
@@ -88,20 +122,24 @@ namespace mpc
         NLParameters() = default;
 
         /// @brief the percentage of the objective function value below which the optimization is considered converged
-        double relative_ftol = 1e-10;
+        // negative value means that the convergence check is disabled
+        double relative_ftol = -1;
         /// @brief the percentage of the optimization variables below which the optimization is considered converged
-        double relative_xtol = 1e-10;
+        // negative value means that the convergence check is disabled
+        double relative_xtol = -1;
         /// @brief the absolute value of the objective function value below which the optimization is considered converged
-        double absolute_ftol = 1e-10;
+        // negative value means that the convergence check is disabled
+        double absolute_ftol = -1;
         /// @brief the absolute value of the optimization variables below which the optimization is considered converged
-        double absolute_xtol = 1e-10;
+        // negative value means that the convergence check is disabled
+        double absolute_xtol = -1;
 
         /// @brief If enabled, the slack variable is constrained to be zero (forcing the inequality constraints to be hard constraints)
         bool hard_constraints = true;
     };
 
     /**
-     * @brief Linear optimizer parameters 
+     * @brief Linear optimizer parameters
      * (SEE OSQP DOCUMENTATION FOR MORE DETAILS)
      */
     struct LParameters : Parameters
@@ -115,8 +153,6 @@ namespace mpc
         double eps_abs = 1e-4;
         double eps_prim_inf = 1e-3;
         double eps_dual_inf = 1e-3;
-        
-        bool enable_warm_start = false;
 
         bool verbose = false;
         bool adaptive_rho = true;
@@ -131,15 +167,15 @@ namespace mpc
     template <int Tnu = Eigen::Dynamic>
     struct Result
     {
-        Result() : retcode(0), cost(0), status(ResultStatus::UNKNOWN)
+        Result() : solver_status(0), cost(0), status(ResultStatus::UNKNOWN), solver_status_msg("")
         {
             cmd.setZero();
         }
 
-        int retcode;
+        int solver_status;
+        std::string solver_status_msg;
         double cost;
         ResultStatus status;
-        std::string status_msg;
         cvec<Tnu> cmd;
     };
 
@@ -187,5 +223,29 @@ namespace mpc
     }
 
     constexpr double inf = std::numeric_limits<double>::infinity();
+
+// Define a macro to conditionally resize Eigen vectors or matrices
+// TODO: the condition to check if the size is dynamic should be done
+// on the whole sizer not just on the nx value (even if this condition
+// is enough for the current implementation, it is better to be more
+// general)
+#define COND_RESIZE_MAT(sizer, matrix, desired_rows, desired_cols) \
+    if constexpr (sizer.nx.value == Eigen::Dynamic)                \
+    {                                                              \
+        matrix.resize(desired_rows, desired_cols);                 \
+    }                                                              \
+    else                                                           \
+    {                                                              \
+    }
+
+// Define a macro to conditionally resize Eigen vectors and resort to
+// the previous macro by setting the desired_cols to 1
+#define COND_RESIZE_CVEC(sizer, vector, desired_size) \
+    COND_RESIZE_MAT(sizer, vector, desired_size, 1)
+
+// Define a macro to conditionally resize Eigen vectors and resort to
+// the previous macro by setting the desired_rows to 1
+#define COND_RESIZE_RVEC(sizer, vector, desired_size) \
+    COND_RESIZE_MAT(sizer, vector, 1, desired_size)
 
 } // namespace mpc

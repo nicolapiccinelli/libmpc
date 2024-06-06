@@ -7,7 +7,6 @@
 #include <mpc/IDimensionable.hpp>
 #include <mpc/IOptimizer.hpp>
 #include <mpc/Profiler.hpp>
-
 namespace mpc
 {
     /**
@@ -44,21 +43,75 @@ namespace mpc
          * @return false
          */
         virtual bool setDiscretizationSamplingTime(const double) = 0;
+
         /**
          * @brief Set the scaling factor for the control input. This can be used to normalize
          * the control input with respect to the different measurment units
          */
         virtual void setInputScale(const cvec<sizer.nu>) = 0;
+
         /**
          * @brief Set the scaling factor for the dynamical system's states variables.
          * This can be used to normalize the dynamical system's states variables
          * with respect to the different measurment units
          */
         virtual void setStateScale(const cvec<sizer.nx>) = 0;
+
         /**
          * @brief Set the solver specific parameters
          */
         virtual void setOptimizerParameters(const Parameters &) = 0;
+
+        /**
+         * @brief Set the state constraints
+         *
+         * @param XMinMat the minimum state constraints matrix
+         * @param XMaxMat the maximum state constraints matrix
+         */
+        virtual bool setStateBounds(const mat<sizer.nx, sizer.ph>& XMinMat, const mat<sizer.nx, sizer.ph>& XMaxMat) = 0;
+
+        /**
+         * @brief Set the input constraints
+         *
+         * @param UMinMat the minimum input constraints matrix
+         * @param UMaxMat the maximum input constraints matrix
+         */
+        virtual bool setInputBounds(const mat<sizer.nu, sizer.ch>& UMinMat, const mat<sizer.nu, sizer.ch>& UMaxMat) = 0;
+
+        /**
+         * @brief Set the output constraints
+         *
+         * @param YMinMat the minimum output constraints matrix
+         * @param YMaxMat the maximum output constraints matrix
+         */
+        virtual bool setOutputBounds(const mat<sizer.ny, sizer.ph>& YMinMat, const mat<sizer.ny, sizer.ph>& YMaxMat) = 0;
+
+        /**
+         * @brief Set the state constraints on a certain slice of the horizon
+         *
+         * @param XMin the minimum state constraints vector
+         * @param XMax the maximum state constraints vector
+         * @param slice the slice of the horizon to apply the constraints to
+         */
+        virtual bool setStateBounds(const cvec<sizer.nx>& XMin, const cvec<sizer.nx>& XMax, const HorizonSlice& slice) = 0;
+
+        /**
+         * @brief Set the input constraints on a certain slice of the horizon
+         *
+         * @param UMin the minimum input constraints vector
+         * @param UMax the maximum input constraints vector
+         * @param slice the slice of the horizon to apply the constraints to
+         */
+        virtual bool setInputBounds(const cvec<sizer.nu>& UMin, const cvec<sizer.nu>& UMax, const HorizonSlice& slice) = 0;
+
+        /**
+         * @brief Set the output constraints on a certain slice of the horizon
+         *
+         * @param YMin the minimum output constraints vector
+         * @param YMax the maximum output constraints vector
+         * @param slice the slice of the horizon to apply the constraints to
+         */
+        virtual bool setOutputBounds(const cvec<sizer.ny>& YMin, const cvec<sizer.ny>& YMax, const HorizonSlice& slice) = 0;
 
         /**
          * @brief Set the logger level
@@ -104,7 +157,8 @@ namespace mpc
             Logger::instance().log(Logger::log_type::INFO)
                 << "Optimization step completed" << std::endl
                 << "duration: " << duration_s.count() << " (sec)" << std::endl
-                << "status: " << optPtr->result.status << " (opt code: " << optPtr->result.retcode << ")" << std::endl
+                << "status: " << optPtr->result.status << " (opt code: " << optPtr->result.solver_status << ")" << std::endl
+                << "status message: " << optPtr->result.solver_status_msg << std::endl
                 << "cost: " << optPtr->result.cost << std::endl;
 
             return optPtr->result;
@@ -123,9 +177,9 @@ namespace mpc
         /**
          * @brief Get the Optimal Sequence object
          *
-         * @return OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph> last optimal sequence (zeros if optimization fails)
+         * @return OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph + 1> last optimal sequence (zeros if optimization fails)
          */
-        OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph> getOptimalSequence()
+        OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph+1> getOptimalSequence()
         {
             return optPtr->sequence;
         }
@@ -169,9 +223,63 @@ namespace mpc
          */
         void onInit() override
         {
+            // check if openmp is enabled and print a message containing the information
+            // about the number of threads used
+            #ifdef _OPENMP
+            Logger::instance().log(Logger::log_type::INFO) << "OpenMP enabled" << std::endl;
+            #pragma omp parallel
+            {
+                #pragma omp master
+                {
+                    Logger::instance().log(Logger::log_type::INFO) << "Number of threads: " << omp_get_num_threads() << std::endl;
+                }
+            }
+            #endif
+            
             profiler.reset();
             onSetup();
         };
+
+        bool isSliceUnset(const HorizonSlice& slice)
+        {
+            return slice.start == -1 && slice.end == -1;
+        }
+
+        /**
+         * @brief Check if the prediction horizon slice is valid
+         *
+         * @param slice the slice to check
+         * @return true if the slice is valid
+         * @return false if the slice is not valid
+         */
+        bool isPredictionHorizonSliceValid(const HorizonSlice& slice)
+        {
+            if (slice.start >= slice.end || slice.start > (int)ph() || slice.end > (int)ph() || slice.start + slice.end > (int)ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The prediction horizon slice is out of bounds" << std::endl;
+                return false;
+            }
+
+            return true;
+        }
+
+        /**
+         * @brief Check if the control horizon slice is valid
+         *
+         * @param slice the slice to check
+         * @return true if the slice is valid
+         * @return false if the slice is not valid
+         */
+        bool isControlHorizonSliceValid(const HorizonSlice &slice)
+        {
+            if (slice.start >= slice.end || slice.start > (int)ch() || slice.end > (int)ch() || slice.start + slice.end > (int)ch())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The control horizon slice is out of bounds" << std::endl;
+                return false;
+            }
+
+            return true;
+        }
 
         /**
          * @brief Initilization hook for the linear and non-linear interfaces
