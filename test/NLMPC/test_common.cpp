@@ -104,3 +104,66 @@ TEMPLATE_TEST_CASE_SIG(
     // check slack value
     REQUIRE(x(x.size() - 1) == e);
 }
+
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("Checking horizon slicing validation"),
+    MPC_TEST_TAGS("[horizon slicing][template]"),
+    ((int Tnx, int Tnu, int Tph, int Tch), Tnx, Tnu, Tph, Tch),
+    (1, 1, 1, 1), (5, 1, 1, 1), (5, 3, 1, 1),
+    (5, 3, 7, 1), (5, 3, 7, 4), (5, 3, 7, 7))
+{
+    // instantiate the nlmpc class
+    const size_t Tny = Tnx;
+    mpc::NLMPC<> nlmpc(Tnx, Tnu, Tny, Tph, Tch, 0, 0);
+    mpc::LMPC<> lmpc(Tnx, Tnu, 0, Tny, Tph, Tch);
+
+    // test various horizon slice
+    mpc::HorizonSlice slice = mpc::HorizonSlice::all();
+    REQUIRE(nlmpc.isSliceUnset(slice));
+    REQUIRE_FALSE(nlmpc.isPredictionHorizonSliceValid(slice));
+    REQUIRE_FALSE(nlmpc.isControlHorizonSliceValid(slice));
+
+    REQUIRE(lmpc.isSliceUnset(slice));
+    REQUIRE_FALSE(lmpc.isPredictionHorizonSliceValid(slice));
+    REQUIRE_FALSE(lmpc.isControlHorizonSliceValid(slice));
+
+    slice.start = 0;
+    slice.end = Tph;
+
+    REQUIRE_FALSE(nlmpc.isSliceUnset(slice));
+    REQUIRE(nlmpc.isPredictionHorizonSliceValid(slice));
+
+    REQUIRE_FALSE(lmpc.isSliceUnset(slice));
+    REQUIRE(lmpc.isPredictionHorizonSliceValid(slice));
+
+    slice.start = 0;
+    slice.end = Tch;
+
+    REQUIRE_FALSE(nlmpc.isSliceUnset(slice));
+    REQUIRE(nlmpc.isControlHorizonSliceValid(slice));
+
+    REQUIRE_FALSE(lmpc.isSliceUnset(slice));
+    REQUIRE(lmpc.isControlHorizonSliceValid(slice));
+
+    slice.start = 0;
+    slice.end = std::min(Tph, Tch);
+
+    REQUIRE_FALSE(nlmpc.isSliceUnset(slice));
+    REQUIRE(nlmpc.isPredictionHorizonSliceValid(slice));
+    REQUIRE(nlmpc.isControlHorizonSliceValid(slice));
+
+    REQUIRE_FALSE(lmpc.isSliceUnset(slice));
+    REQUIRE(lmpc.isPredictionHorizonSliceValid(slice));
+    REQUIRE(lmpc.isControlHorizonSliceValid(slice));
+
+    slice.start = 0;
+    slice.end = Tph + 1;
+
+    REQUIRE_FALSE(nlmpc.isSliceUnset(slice));
+    REQUIRE_FALSE(nlmpc.isPredictionHorizonSliceValid(slice));
+    REQUIRE_FALSE(nlmpc.isControlHorizonSliceValid(slice));
+
+    REQUIRE_FALSE(lmpc.isSliceUnset(slice));
+    REQUIRE_FALSE(lmpc.isPredictionHorizonSliceValid(slice));
+    REQUIRE_FALSE(lmpc.isControlHorizonSliceValid(slice));
+}
