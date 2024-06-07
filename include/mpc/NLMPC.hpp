@@ -342,7 +342,7 @@ namespace mpc
             // set the state bounds to the optimizer
             bool res = true;
 
-            res = isPredictionHorizonSliceValid(slice);
+            res = isSliceUnset(slice) || isPredictionHorizonSliceValid(slice);
             if (res)
             {
                 res &= ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setStateBounds(XMin, XMax, slice);
@@ -366,7 +366,7 @@ namespace mpc
             // set the input bounds to the optimizer
             bool res = true;
 
-            res = isControlHorizonSliceValid(slice);
+            res = isSliceUnset(slice) || isControlHorizonSliceValid(slice);
             if (res)
             {
                 res &= ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setInputBounds(UMin, UMax, slice);
