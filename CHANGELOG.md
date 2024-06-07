@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.6.1] - 2024-06-07
+### Fixed
+- Fixed the horizon slicing for the non-linear mpc. The horizon slicing was not working properly when set via the HorizonSlice struct
+
 ## [0.6.0] - 2024-06-05
 ### Added
 - Added support for input and state bound constraints in the non-linear mpc. These constraints are actually restricing the search space of the optimization problem
