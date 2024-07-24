@@ -111,9 +111,11 @@ namespace mpc
          * @return false
          */
         bool setIneqConstraints(
-            const typename Base<sizer>::IConFunHandle handle)
+            const typename Base<sizer>::IConFunHandle handle, const float& tolerance)
         {
             checkOrQuit();
+
+            ieq_tolerance = tolerance;
             return ieqUser = handle, true;
         }
 
@@ -125,10 +127,66 @@ namespace mpc
          * @return false
          */
         bool setEqConstraints(
-            const typename Base<sizer>::EConFunHandle handle)
+            const typename Base<sizer>::EConFunHandle handle, const float& tolerance)
         {
             checkOrQuit();
+
+            eq_tolerance = tolerance;
             return eqUser = handle, true;
+        }
+
+        /**
+         * @brief Evaluate the feasibility of the optimization vector
+         *
+         * @param x optimization vector
+         * @return true if the vector is feasible
+         * @return false if the vector is not feasible
+         */
+        bool isFeasible(
+            const Eigen::Matrix<double, (sizer.ph * sizer.nx + sizer.nu * sizer.ch + 1), 1> &x)
+        {
+            checkOrQuit();
+            mapping->unwrapVector(x, x0, Xmat, Umat, e);
+
+            if (hasIneqConstraints())
+            {
+                Eigen::Matrix<double, sizer.ph + 1, sizer.ny> Ymat = model->getOutput(Xmat, Umat);
+                ieqUser(cineq_user, Xmat, Ymat, Umat, e);
+
+                // print the vector of inequality constraints
+                Logger::instance().log(Logger::log_type::DETAIL)
+                    << "User inequality constraints value (feasibility):\n"
+                    << std::setprecision(10)
+                    << cineq_user
+                    << std::endl;
+
+                // Check if all inequality constraints are satisfied (<= 0)
+                if ((cineq_user.array() > ieq_tolerance).any())
+                {
+                    return false;
+                }
+
+            }
+
+            if (hasEqConstraints())
+            {
+                eqUser(ceq_user, Xmat, Umat);
+
+                // print the vector of equality constraints
+                Logger::instance().log(Logger::log_type::DETAIL)
+                    << "User equality constraints value (feasibility):\n"
+                    << std::setprecision(10)
+                    << ceq_user
+                    << std::endl;
+
+                // Check if all equality constraints are satisfied (== 0)
+                if (ceq_user.array().abs().maxCoeff() > eq_tolerance)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /**
@@ -148,6 +206,8 @@ namespace mpc
 
             if (hasIneqConstraints())
             {
+                Logger::instance().log(Logger::log_type::DETAIL) << "User inequality constraints detected" << std::endl;
+
                 // check if the output function of the system is defined
                 // if so, let's compute the output along the horizon
                 mat<(sizer.ph + 1), sizer.ny> Ymat = model->getOutput(Xmat, Umat);
@@ -170,6 +230,24 @@ namespace mpc
                     Umat,
                     e);
 
+                Logger::instance().log(Logger::log_type::DETAIL)
+                    << "User inequality state constraints gradient:\n"
+                    << std::setprecision(10)
+                    << Jieqx
+                    << std::endl;
+
+                Logger::instance().log(Logger::log_type::DETAIL)
+                    << "User inequality inputs constraints gradient:\n"
+                    << std::setprecision(10)
+                    << Jieqmv
+                    << std::endl;
+
+                Logger::instance().log(Logger::log_type::DETAIL)
+                    << "User inequality slack constraints gradient:\n"
+                    << std::setprecision(10)
+                    << Jie
+                    << std::endl;
+
                 glueJacobian<sizer.ineq>(
                     Jcineq_user,
                     Jieqx,
@@ -186,6 +264,7 @@ namespace mpc
                         {
                             scaled_Jcineq_user(ioff + ix, j) = scaled_Jcineq_user(ioff + ix, j) * mapping->StateScaling()(ix);
                         }
+
                         ioff = ioff + nx();
                     }
                 }
@@ -194,6 +273,8 @@ namespace mpc
             }
             else
             {
+                Logger::instance().log(Logger::log_type::DETAIL) << "No user inequality constraints detected" << std::endl;
+
                 cineq_user.setZero();
                 Jcineq_user.setZero();
             }
@@ -209,6 +290,7 @@ namespace mpc
                 << std::setprecision(10)
                 << c.value
                 << std::endl;
+
             if (!hasGradient)
             {
                 Logger::instance().log(Logger::log_type::DETAIL)
@@ -290,6 +372,8 @@ namespace mpc
             // Add user defined constraints
             if (hasEqConstraints())
             {
+                Logger::instance().log(Logger::log_type::DETAIL) << "User equality constraints detected" << std::endl;
+
                 eqUser(ceq_user, Xmat, Umat);
 
                 mat<sizer.eq, (sizer.ph * sizer.nx)> Jeqx;
@@ -328,6 +412,8 @@ namespace mpc
             }
             else
             {
+                Logger::instance().log(Logger::log_type::DETAIL) << "No user equality constraints detected" << std::endl;
+
                 ceq_user.setZero();
                 Jceq_user.setZero();
             }
@@ -573,102 +659,65 @@ namespace mpc
                 for (size_t j = 0; j < nx(); j++)
                 {
                     int ix = i + 1;
-                    double dx = dv * Xa(ix, j); // Use Xa instead of Xa.array() to access element
+                    double dx = dv * Xa.array()(j);
                     x0(ix, j) += dx;
-
                     cvec<sizer.ineq> f_plus, f_minus;
-                    COND_RESIZE_CVEC(sizer,f_plus, ineq());
-                    COND_RESIZE_CVEC(sizer,f_minus, ineq());
+                    COND_RESIZE_CVEC(sizer, f_plus, ineq());
+                    COND_RESIZE_CVEC(sizer, f_minus, ineq());
 
-                    mat<(sizer.ph + 1), sizer.ny> y_plus, y_minus;
-                    y_plus = model->getOutput(x0, u0);
+                    mat<(sizer.ph + 1), sizer.ny> y0_plus = model->getOutput(x0, u0);
+                    ieqUser(f_plus, x0, y0_plus, u0, e0);
+
                     x0(ix, j) -= 2 * dx;
-                    y_minus = model->getOutput(x0, u0);
+                    mat<(sizer.ph + 1), sizer.ny> y0_minus = model->getOutput(x0, u0);
+                    ieqUser(f_minus, x0, y0_minus, u0, e0);
+
                     x0(ix, j) += dx;
 
-                    ieqUser(f_plus, x0, y_plus, u0, e0);
-                    ieqUser(f_minus, x0, y_minus, u0, e0);
-
-                    cvec<sizer.ineq> df;
-                    df = (f_plus - f_minus) / (2 * dx);
+                    cvec<sizer.ineq> df = (f_plus - f_minus) / (2 * dx);
                     Jconx.middleCols(i * nx(), nx()).col(j) = df;
-
-                    // Restore the original value of x0(ix, j)
-                    x0(ix, j) -= dx;
                 }
             }
 
             mat<(sizer.ph + 1), sizer.nu> Ua;
             Ua = u0.cwiseAbs().cwiseMax(1.0);
 
-            for (size_t i = 0; i < (ph() - 1); i++)
+            for (size_t i = 0; i < ph(); i++)
             {
                 for (size_t j = 0; j < nu(); j++)
                 {
-                    double du = dv * Ua(ph() - 1, j); // Access Ua at the correct index
+                    double du = dv * Ua.array()(j);
                     u0(i, j) += du;
-
                     cvec<sizer.ineq> f_plus, f_minus;
-                    COND_RESIZE_CVEC(sizer,f_plus, ineq());
-                    COND_RESIZE_CVEC(sizer,f_minus, ineq());
+                    COND_RESIZE_CVEC(sizer, f_plus, ineq());
+                    COND_RESIZE_CVEC(sizer, f_minus, ineq());
 
-                    mat<(sizer.ph + 1), sizer.ny> y_plus, y_minus;
-                    y_plus = model->getOutput(x0, u0);
+                    mat<(sizer.ph + 1), sizer.ny> y0_plus = model->getOutput(x0, u0);
+                    ieqUser(f_plus, x0, y0_plus, u0, e0);
+
                     u0(i, j) -= 2 * du;
-                    y_minus = model->getOutput(x0, u0);
+                    mat<(sizer.ph + 1), sizer.ny> y0_minus = model->getOutput(x0, u0);
+                    ieqUser(f_minus, x0, y0_minus, u0, e0);
+
                     u0(i, j) += du;
 
-                    ieqUser(f_plus, x0, y_plus, u0, e0);
-                    ieqUser(f_minus, x0, y_minus, u0, e0);
-
-                    cvec<sizer.ineq> df;
-                    df = (f_plus - f_minus) / (2 * du);
+                    cvec<sizer.ineq> df = (f_plus - f_minus) / (2 * du);
                     Jconmv.middleCols(i * nu(), nu()).col(j) = df;
-
-                    // Restore the original value of u0(i, j)
-                    u0(i, j) -= du;
                 }
             }
 
-            for (size_t j = 0; j < nu(); j++)
-            {
-                double du = dv * Ua(ph() - 1, j); // Access Ua at the correct index
-                u0(ph() - 1, j) += du;
-                u0(ph(), j) += du;
-
-                cvec<sizer.ineq> f_plus, f_minus;
-                COND_RESIZE_CVEC(sizer,f_plus, ineq());
-                COND_RESIZE_CVEC(sizer,f_minus, ineq());
-
-                mat<(sizer.ph + 1), sizer.ny> y_plus, y_minus;
-                y_plus = model->getOutput(x0, u0);
-                u0(ph() - 1, j) -= 2 * du;
-                u0(ph(), j) -= 2 * du;
-                y_minus = model->getOutput(x0, u0);
-                u0(ph() - 1, j) += du;
-                u0(ph(), j) += du;
-
-                ieqUser(f_plus, x0, y_plus, u0, e0);
-                ieqUser(f_minus, x0, y_minus, u0, e0);
-
-                cvec<sizer.ineq> df;
-                df = (f_plus - f_minus) / (2 * du);
-                Jconmv.middleCols(((ph() - 1) * nu()), nu()).col(j) = df;
-            }
-
-            double ea = fmax(1e-6, abs(e0));
+            double ea = fmax(dv, fabs(e0));
             double de = ea * dv;
-            cvec<sizer.ineq> f1;
-            COND_RESIZE_CVEC(sizer,f1, ineq());
+            cvec<sizer.ineq> f1, f2;
+            COND_RESIZE_CVEC(sizer, f1, ineq());
+            COND_RESIZE_CVEC(sizer, f2, ineq());
 
             mat<(sizer.ph + 1), sizer.ny> y0 = model->getOutput(x0, u0);
             ieqUser(f1, x0, y0, u0, e0 + de);
 
-            cvec<sizer.ineq> f2;
-            COND_RESIZE_CVEC(sizer,f2, ineq());
-
             y0 = model->getOutput(x0, u0);
             ieqUser(f2, x0, y0, u0, e0 - de);
+
             Jcone = (f1 - f2) / (2 * de);
         }
 
@@ -880,5 +929,6 @@ namespace mpc
         using Base<sizer>::niteration;
 
         const double dv = sqrt(std::numeric_limits<double>::epsilon());
+        double ieq_tolerance, eq_tolerance;
     };
 } // namespace mpc

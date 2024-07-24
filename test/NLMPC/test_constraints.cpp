@@ -112,7 +112,7 @@ TEMPLATE_TEST_CASE_SIG(
     conFunc->setModel(model, mapping);
 
     conFunc->setIneqConstraints([](
-                                   mpc::cvec<TVAR(Tineq)> &eq_con,
+                                   mpc::cvec<TVAR(Tineq)> &ieq_con,
                                    const mpc::mat<TVAR(Tph + 1), TVAR(Tnx)>& x,
                                    const mpc::mat<TVAR(Tph + 1), TVAR(Tny)>&,
                                    const mpc::mat<TVAR(Tph + 1), TVAR(Tnu)>&,
@@ -120,8 +120,8 @@ TEMPLATE_TEST_CASE_SIG(
                                {
         for (int i = 0; i < Tineq; i++)
         {
-            eq_con[i] = x(0,0);
-        } });
+            ieq_con[i] = x(0,0);
+        } },1e-10);
 
     mpc::cvec<TVAR(Tnx)> x0;
     x0.resize(Tnx);
@@ -186,7 +186,7 @@ TEMPLATE_TEST_CASE_SIG(
         for (int i = 0; i < Teq; i++)
         {
             eq_con[i] = x(0, 0);
-        } });
+        } },1e-10);
 
     mpc::cvec<TVAR(Tnx)> x0;
     x0.resize(Tnx);

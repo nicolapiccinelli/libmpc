@@ -158,6 +158,7 @@ namespace mpc
                 << "Optimization step completed" << std::endl
                 << "duration: " << duration_s.count() << " (sec)" << std::endl
                 << "status: " << optPtr->result.status << " (opt code: " << optPtr->result.solver_status << ")" << std::endl
+                << "feasibility: " << optPtr->result.is_feasible << std::endl
                 << "status message: " << optPtr->result.solver_status_msg << std::endl
                 << "cost: " << optPtr->result.cost << std::endl;
 
