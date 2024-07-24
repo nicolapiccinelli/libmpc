@@ -341,6 +341,7 @@ namespace mpc
                 r.cmd = sequence.input.row(0);
                 r.solver_status = work->info->status_val;
                 r.cost = work->info->obj_val;
+                r.is_feasible = work->info->status_val == OSQP_SOLVED || work->info->status_val == OSQP_SOLVED_INACCURATE || work->info->status_val == OSQP_MAX_ITER_REACHED;
                 // convert the return code from the optimizer to the result status
                 r.status = convertToResultStatus(r.solver_status);
             }

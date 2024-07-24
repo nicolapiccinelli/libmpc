@@ -167,12 +167,13 @@ namespace mpc
     template <int Tnu = Eigen::Dynamic>
     struct Result
     {
-        Result() : solver_status(0), cost(0), status(ResultStatus::UNKNOWN), solver_status_msg("")
+        Result() : solver_status(0), cost(0), status(ResultStatus::UNKNOWN), solver_status_msg(""), is_feasible(false)
         {
             cmd.setZero();
         }
 
         int solver_status;
+        bool is_feasible;
         std::string solver_status_msg;
         double cost;
         ResultStatus status;

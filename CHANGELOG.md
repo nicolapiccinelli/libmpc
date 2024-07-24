@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2] - 2024-07-24
+### Added
+- The `Result` struct now contains the feasibility of the solution vector in the `is_feasible` field
+
+### Fixed
+- Version 0.6 and 0.6.1 were affected by a bug which was preventing the proper computation of the Jacobian of the user-defined inequality constraints. This bug has been fixed in this version
+
 ## [0.6.1] - 2024-06-07
 ### Fixed
 - Fixed the horizon slicing for the non-linear mpc. The horizon slicing was not working properly when set via the HorizonSlice struct

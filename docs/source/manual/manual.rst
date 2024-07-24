@@ -144,6 +144,7 @@ Optimization result
 The optimization result is stored in the **Result** structure. The structure contains the following fields:
 
 * solver_status: the return code of the optimization solver
+* is_feasible: a boolean flag that indicates if the optimal solution is feasible
 * solver_status_msg: the status message of the optimization solver
 * cost: the optimal cost of the optimization problem
 * status: the status of the MPC
@@ -154,6 +155,7 @@ The optimization result is stored in the **Result** structure. The structure con
     Result<Tnu> res = ctrl.optimize(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
 
     std::cout << "Solver status code: " << res.solver_status << std::endl;
+    std::cout << "Is feasible: " << res.is_feasible << std::endl;
     std::cout << "Solver status message: " << res.solver_status_msg << std::endl;
     std::cout << "Cost: " << res.cost << std::endl;
     std::cout << "Status: " << res.status << std::endl;

@@ -134,36 +134,7 @@ namespace mpc
             innerOpt->set_ftol_abs(nl_param->absolute_ftol);
             innerOpt->set_xtol_abs(nl_param->absolute_xtol);
 
-            // print the parameters
-            Logger::instance().log(Logger::log_type::DETAIL)
-                << "Setting relative function tolerance: "
-                << nl_param->relative_ftol
-                << std::endl;
-
-            Logger::instance().log(Logger::log_type::DETAIL)
-                << "Setting relative variable tolerance: "
-                << nl_param->relative_xtol
-                << std::endl;
-
-            Logger::instance().log(Logger::log_type::DETAIL)
-                << "Setting absolute function tolerance: "
-                << nl_param->absolute_ftol
-                << std::endl;
-
-            Logger::instance().log(Logger::log_type::DETAIL)
-                << "Setting absolute variable tolerance: "
-                << nl_param->absolute_xtol
-                << std::endl;
-
-            Logger::instance().log(Logger::log_type::DETAIL)
-                << "Setting maximum number of function evaluations: "
-                << nl_param->maximum_iteration
-                << std::endl;
-
-            Logger::instance().log(Logger::log_type::DETAIL)
-                << "Setting maximum time limit: "
-                << nl_param->time_limit
-                << std::endl;
+            innerOpt->set_x_weights(1.0);
 
             if (nl_param->time_limit > 0)
             {
@@ -171,6 +142,37 @@ namespace mpc
             }
 
             innerOpt->set_maxeval(nl_param->maximum_iteration);
+
+            // print the parameters
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting relative function tolerance: "
+                << nl_param->relative_ftol << ", internal value: "
+                << innerOpt->get_ftol_rel()
+                << std::endl;
+
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting relative variable tolerance: "
+                << nl_param->relative_xtol << ", internal value: "
+                << innerOpt->get_xtol_rel()
+                << std::endl;
+
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting absolute function tolerance: "
+                << nl_param->absolute_ftol << ", internal value: "
+                << innerOpt->get_ftol_abs()
+                << std::endl;
+
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting maximum number of function evaluations: "
+                << nl_param->maximum_iteration << ", internal value: "
+                << innerOpt->get_maxeval()
+                << std::endl;
+
+            Logger::instance().log(Logger::log_type::DETAIL)
+                << "Setting maximum time limit: "
+                << nl_param->time_limit << ", internal value: "
+                << innerOpt->get_maxtime()
+                << std::endl;
 
             // set the bounds for the slack variable
             // in case of hard constraints we are forcing the slack variable to be 0
@@ -502,6 +504,22 @@ namespace mpc
                 Eigen::Map<cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>>(opt_v.data(), opt_v.size()).swap(opt_vector);
                 optimizationSuccess = true;
                 is_first_iteration = false;
+
+                // check if the solution vector is feasible or not
+                r.is_feasible = conFunc->isFeasible(opt_vector);
+
+                if (r.is_feasible)
+                {
+                    Logger::instance().log(Logger::log_type::DETAIL)
+                        << "Optimal solution found"
+                        << std::endl;
+                }
+                else
+                {
+                    Logger::instance().log(Logger::log_type::DETAIL)
+                        << "Optimal solution found but not feasible"
+                        << std::endl;
+                }
             }
             catch (nlopt::roundoff_limited &e)
             {

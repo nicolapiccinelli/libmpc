@@ -73,3 +73,49 @@ TEMPLATE_TEST_CASE_SIG(
         }
     }
 }
+
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("Checking default state and input bounds"),
+    MPC_TEST_TAGS("[nloptimizer][template]"),
+    ((int Tnx, int Tnu, int Tph, int Tch), Tnx, Tnu, Tph, Tch),
+    (1, 1, 1, 1), (5, 1, 1, 1), (5, 3, 1, 1),
+    (5, 3, 7, 1), (5, 3, 7, 4), (5, 3, 7, 7))
+{
+    // create the sizer
+    static constexpr auto sizer = mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(0), TVAR(Tph), TVAR(Tch), TVAR(0), TVAR(0));
+
+    // create the nloptimizer
+    std::shared_ptr<mpc::NLOptimizer<sizer>> nlopt;
+    nlopt = std::make_shared<mpc::NLOptimizer<sizer>>();
+    nlopt->initialize(Tnx, Tnu, 0, 0, Tph, Tch, 0, 0);
+    nlopt->onInit();
+
+    std::cout << "Initialized the nloptimizer" << std::endl;
+
+    // check if the bounds are set correctly
+    auto lb_check = nlopt->getLowerBound();
+    auto ub_check = nlopt->getUpperBound();
+
+    std::cout << "Got the lower bound" << std::endl;
+    std::cout << lb_check << std::endl;
+    std::cout << "Got the upper bound" << std::endl;
+    std::cout << ub_check << std::endl;
+
+    for (int i = 0; i < Tph; i++)
+    {
+        for (int j = 0; j < Tnx; j++)
+        {
+            REQUIRE(lb_check[(i * Tnx) + j] == -std::numeric_limits<double>::infinity());
+            REQUIRE(ub_check[(i * Tnx) + j] == std::numeric_limits<double>::infinity());
+        }
+    }
+
+    for (int i = 0; i < Tch; i++)
+    {
+        for (int j = 0; j < Tnu; j++)
+        {
+            REQUIRE(lb_check[(Tph * Tnx) + ((i * Tnu) + j)] == -std::numeric_limits<double>::infinity());
+            REQUIRE(ub_check[(Tph * Tnx) + ((i * Tnu) + j)] == std::numeric_limits<double>::infinity());
+        }
+    }
+}

@@ -231,7 +231,7 @@ namespace mpc
             cvec<Tineq> tol_vec;
             tol_vec = cvec<Tineq>::Ones(ineq());
 
-            auto res = conF->setIneqConstraints(handle);
+            auto res = conF->setIneqConstraints(handle, tol);
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserIneq(constraints_type::UINEQ, tol_vec * tol);
             return res;
         }
@@ -253,7 +253,7 @@ namespace mpc
             cvec<Teq> tol_vec;
             tol_vec = cvec<Teq>::Ones(Size(Teq));
 
-            auto res = conF->setEqConstraints(handle);
+            auto res = conF->setEqConstraints(handle, tol);
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserEq(constraints_type::UEQ, tol_vec * tol);
             return res;
         }
