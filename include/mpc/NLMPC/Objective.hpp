@@ -42,7 +42,7 @@ namespace mpc
         struct Cost
         {
             double value;
-            cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> grad;
+            cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> gradient;
         };
 
         Objective() = default;
@@ -56,6 +56,8 @@ namespace mpc
          */
         void onInit() override
         {
+            COND_RESIZE_CVEC(sizer, c.gradient, ((ph() * nx()) + (nu() * ch()) + 1));
+
             COND_RESIZE_CVEC(sizer,x0, nx());
             COND_RESIZE_MAT(sizer,Xmat, (ph() + 1), nx());
             COND_RESIZE_MAT(sizer,Umat, (ph() + 1), nu());
@@ -86,21 +88,21 @@ namespace mpc
          * @param hasGradient request the computation of the gradient
          * @return Cost associated cost
          */
-        Cost evaluate(
+        Cost& evaluate(
             cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> x,
             bool hasGradient)
         {
-            checkOrQuit();
+            // measure the execution time
+            auto start = std::chrono::high_resolution_clock::now();
 
-            Cost c;
-            COND_RESIZE_CVEC(sizer,c.grad, ((ph() * nx()) + (nu() * ch()) + 1));
+            checkOrQuit();
 
             mapping->unwrapVector(x, x0, Xmat, Umat, e);
             c.value = fuser(Xmat, model->getOutput(Xmat, Umat), Umat, e);
 
             if (hasGradient)
             {
-                computeJacobian(Xmat, Umat, c.value, e);
+                computeGradient(Xmat, Umat, c.value, e);
 
                 for (int i = 0; i < Xmat.cols(); i++)
                 {
@@ -114,7 +116,7 @@ namespace mpc
                 {
                     for (int i = 0; i < (int)Jx.rows(); i++)
                     {
-                        c.grad(counter++) = Jx(i, j);
+                        c.gradient(counter++) = Jx(i, j);
                     }
                 }
 
@@ -136,22 +138,23 @@ namespace mpc
                 // #pragma omp parallel for
                 for (size_t j = 0; j < (ch() * nu()); j++)
                 {
-                    c.grad(counter++) = res(j);
+                    c.gradient(counter++) = res(j);
                 }
 
-                c.grad(((ph() * nx()) + (nu() * ch()) + 1) - 1) = Je;
+                c.gradient(((ph() * nx()) + (nu() * ch()) + 1) - 1) = Je;
             }
 
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "("
                 << niteration
                 << ") Objective function value: \n"
                 << std::setprecision(10)
                 << c.value
                 << std::endl;
+                
             if (!hasGradient)
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "("
                     << niteration
                     << ") Gradient not currectly used"
@@ -159,45 +162,51 @@ namespace mpc
             }
             else
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "("
                     << niteration
                     << ") Objective function gradient: \n"
                     << std::setprecision(10)
-                    << c.grad
+                    << c.gradient
                     << std::endl;
             }
 
             // debug information
             niteration++;
 
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+            // Logger::instance().log(Logger::LogType::INFO)
+            //     << "Objective function evaluation time: "
+            //     << duration.count()
+            //     << " microseconds"
+            //     << std::endl;
+                
             return c;
         }
 
     private:
         /**
-         * @brief Approximate the objective function Jacobian matrices
+         * @brief Approximate the objective function gradient matrices
          *
          * @param x0 current state configuration
          * @param u0 current optimal input configuration
          * @param f0 current user inequality constraints values
          * @param e0 current slack value
          */
-        void computeJacobian(
+        void computeGradient(
             mat<(sizer.ph + 1), sizer.nx> x0,
             mat<(sizer.ph + 1), sizer.nu> u0,
             double f0,
             double e0)
         {
-            double dv = 1e-6;
-
             Jx.setZero();
             // TODO support measured disturbaces
             Jmv.setZero();
 
             mat<(sizer.ph + 1), sizer.nx> Xa;
-            Xa = x0.cwiseAbs().unaryExpr([](double d)
-                                         { return (d < 1) ? 1 : d; });
+            Xa = x0.cwiseAbs().cwiseMax(1.0);
 
             // #pragma omp parallel for
             for (size_t i = 0; i < ph(); i++)
@@ -215,8 +224,7 @@ namespace mpc
             }
 
             mat<(sizer.ph + 1), sizer.nu> Ua;
-            Ua = u0.cwiseAbs().unaryExpr([](double d)
-                                         { return (d < 1) ? 1 : d; });
+            Ua = u0.cwiseAbs().cwiseMax(1.0);
 
             // #pragma omp parallel for
             for (size_t i = 0; i < (ph() - 1); i++)
@@ -249,7 +257,7 @@ namespace mpc
                 Jmv(j, (ph() - 1)) = df;
             }
 
-            double ea = fmax(1e-6, abs(e0));
+            double ea = fmax(dv, abs(e0));
             double de = ea * dv;
             double f1 = fuser(x0, model->getOutput(x0, u0), u0, e0 + de);
             double f2 = fuser(x0, model->getOutput(x0, u0), u0, e0 - de);
@@ -258,6 +266,7 @@ namespace mpc
 
         typename Base<sizer>::ObjFunHandle fuser = nullptr;
 
+        Cost c;
         mat<sizer.nx, sizer.ph> Jx;
         mat<sizer.nu, sizer.ph> Jmv;
 
@@ -270,5 +279,7 @@ namespace mpc
         using Base<sizer>::Umat;
         using Base<sizer>::e;
         using Base<sizer>::niteration;
+
+        const double dv = sqrt(std::numeric_limits<double>::epsilon());
     };
 } // namespace mpc

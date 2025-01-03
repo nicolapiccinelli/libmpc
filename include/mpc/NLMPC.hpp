@@ -79,7 +79,7 @@ namespace mpc
          */
         bool setDiscretizationSamplingTime(const double ts) override
         {
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting sampling time to: "
                 << ts
                 << " sec(s)"
@@ -138,13 +138,13 @@ namespace mpc
          */
         bool setObjectiveFunction(const typename IDimensionable<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::ObjFunHandle handle)
         {
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting objective function handle"
                 << std::endl;
 
             auto res = objF->setObjective(handle);
 
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Binding objective function handle"
                 << std::endl;
 
@@ -173,7 +173,7 @@ namespace mpc
             COND_RESIZE_CVEC(MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq), eq_tol_vec, (ph() * nx()));
             eq_tol_vec.setOnes();
 
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting state space function handle"
                 << std::endl;
 
@@ -183,11 +183,11 @@ namespace mpc
             conF->setModel(model, mapping);
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
 
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Binding state space constraints"
                 << std::endl;
 
-            res = res & ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindEq(constraints_type::EQ, eq_tol_vec * eq_tol);
+            res = res & ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindEq(ConstraintsType::EQ, eq_tol_vec * eq_tol);
 
             return res;
         }
@@ -201,7 +201,7 @@ namespace mpc
          */
         bool setOutputFunction(const typename IDimensionable<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::OutFunHandle handle)
         {
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting output function handle"
                 << std::endl;
 
@@ -228,11 +228,22 @@ namespace mpc
         bool setIneqConFunction(
             const typename IDimensionable<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::IConFunHandle handle, const float tol = 1e-10)
         {
+            // the system should prevent the definition of a custom callback for the inequality constraints
+            // in case the number of inequality constraints is zero
+            if (ineq() == 0)
+            {
+                Logger::instance().log(Logger::LogType::ERROR)
+                    << "The number of inequality constraints is zero, you cannot define a custom callback for the inequality constraints"
+                    << std::endl;
+
+                return false;
+            }
+
             cvec<Tineq> tol_vec;
             tol_vec = cvec<Tineq>::Ones(ineq());
 
             auto res = conF->setIneqConstraints(handle, tol);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserIneq(constraints_type::UINEQ, tol_vec * tol);
+            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserIneq(ConstraintsType::UINEQ, tol_vec * tol);
             return res;
         }
 
@@ -250,11 +261,22 @@ namespace mpc
         bool setEqConFunction(
             const typename IDimensionable<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::EConFunHandle handle, const float tol = 1e-10)
         {
+            // the system should prevent the definition of a custom callback for the equality constraints
+            // in case the number of equality constraints is zero
+            if (eq() == 0)
+            {
+                Logger::instance().log(Logger::LogType::ERROR)
+                    << "The number of equality constraints is zero, you cannot define a custom callback for the equality constraints"
+                    << std::endl;
+
+                return false;
+            }
+
             cvec<Teq> tol_vec;
             tol_vec = cvec<Teq>::Ones(Size(Teq));
 
             auto res = conF->setEqConstraints(handle, tol);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserEq(constraints_type::UEQ, tol_vec * tol);
+            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserEq(ConstraintsType::UEQ, tol_vec * tol);
             return res;
         }
 
@@ -319,7 +341,7 @@ namespace mpc
          */
         bool setOutputBounds(const mat<Tny, Tph> &/*YMinMat*/, const mat<Tny, Tph> &/*YMaxMat*/) override
         {
-            Logger::instance().log(Logger::log_type::ERROR)
+            Logger::instance().log(Logger::LogType::ERROR)
                 << "Output constraints cannot be set for this type of MPC, the ouput is not\
                 considered in the optimization process. Thus we cannot restrict the search space."
                 << std::endl;
@@ -387,7 +409,7 @@ namespace mpc
          */
         bool setOutputBounds(const cvec<Tny> &/*YMin*/, const cvec<Tny> &/*YMax*/, const HorizonSlice &/*slice*/) override
         {
-            Logger::instance().log(Logger::log_type::ERROR)
+            Logger::instance().log(Logger::LogType::ERROR)
                 << "Output constraints cannot be set for this type of MPC, the ouput is not\
                 considered in the optimization process. Thus we cannot restrict the search space."
                 << std::endl;
@@ -436,7 +458,7 @@ namespace mpc
             // set the objective function and the constraints functions to the optimizer
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setCostAndConstraints(objF, conF);
 
-            Logger::instance().log(Logger::log_type::INFO)
+            Logger::instance().log(Logger::LogType::INFO)
                 << "Mapping assignment done"
                 << std::endl;
         }

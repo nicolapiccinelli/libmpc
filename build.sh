@@ -1,4 +1,4 @@
-#!bin/bash
+#!/bin/bash
 cd "$(dirname "$0")"
 
 # Create build directory

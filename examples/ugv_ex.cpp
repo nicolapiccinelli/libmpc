@@ -27,7 +27,7 @@ int main()
     double Ts = 0.1;
 
     mpc::NLMPC<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq> controller;
-    controller.setLoggerLevel(mpc::Logger::log_level::NORMAL);
+    controller.setLoggerLevel(mpc::Logger::LogLevel::NORMAL);
 
     mpc::mat<Tnx, Tnx> A(Tnx, Tnx);
     mpc::mat<Tnx, Tnu> B(Tnx, Tnu);

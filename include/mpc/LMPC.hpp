@@ -110,7 +110,7 @@ namespace mpc
          */
         bool setStateBounds(const mat<Tnx, Tph> &XMinMat, const mat<Tnx, Tph> &XMaxMat) override
         {
-            Logger::instance().log(Logger::log_type::DETAIL) << "Setting state bounds" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "Setting state bounds" << std::endl;
             return builder.setStateBounds(XMinMat, XMaxMat);
         }
 
@@ -123,7 +123,7 @@ namespace mpc
          */
         bool setInputBounds(const mat<Tnu, Tch> &UMinMat, const mat<Tnu, Tch> &UMaxMat) override
         {
-            Logger::instance().log(Logger::log_type::DETAIL) << "Setting input bounds" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "Setting input bounds" << std::endl;
             return builder.setInputBounds(UMinMat, UMaxMat);
         }
 
@@ -136,7 +136,7 @@ namespace mpc
          */
         bool setOutputBounds(const mat<Tny, Tph> &YMinMat, const mat<Tny, Tph> &YMaxMat) override
         {
-            Logger::instance().log(Logger::log_type::DETAIL) << "Setting output bounds" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "Setting output bounds" << std::endl;
             return builder.setOutputBounds(YMinMat, YMaxMat);
         }
 
@@ -166,7 +166,7 @@ namespace mpc
                     XMaxMat.col(i) = XMax;
                 }
 
-                Logger::instance().log(Logger::log_type::DETAIL) << "Setting state bounds equally on the horizon" << std::endl;
+                Logger::instance().log(Logger::LogType::DETAIL) << "Setting state bounds equally on the horizon" << std::endl;
                 return builder.setStateBounds(XMinMat, XMaxMat);
             }
             else
@@ -178,7 +178,7 @@ namespace mpc
 
                     for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
                     {
-                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting state bounds for the step " << i << std::endl;
+                        Logger::instance().log(Logger::LogType::DETAIL) << "Setting state bounds for the step " << i << std::endl;
                         ret = ret && builder.setStateBounds(i, XMin, XMax);
                     }
 
@@ -218,7 +218,7 @@ namespace mpc
                     UMaxMat.col(i) = UMax;
                 }
 
-                Logger::instance().log(Logger::log_type::DETAIL) << "Setting input bounds equally on the horizon" << std::endl;
+                Logger::instance().log(Logger::LogType::DETAIL) << "Setting input bounds equally on the horizon" << std::endl;
                 return builder.setInputBounds(UMinMat, UMaxMat);
             }
             else
@@ -230,7 +230,7 @@ namespace mpc
 
                     for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
                     {
-                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting input bounds for the step " << i << std::endl;
+                        Logger::instance().log(Logger::LogType::DETAIL) << "Setting input bounds for the step " << i << std::endl;
                         ret = ret && builder.setInputBounds(i, UMin, UMax);
                     }
 
@@ -268,7 +268,7 @@ namespace mpc
                     YMaxMat.col(i) = YMax;
                 }
 
-                Logger::instance().log(Logger::log_type::DETAIL) << "Setting output bounds equally on the horizon" << std::endl;
+                Logger::instance().log(Logger::LogType::DETAIL) << "Setting output bounds equally on the horizon" << std::endl;
                 return builder.setOutputBounds(YMinMat, YMaxMat);
             }
             else
@@ -280,7 +280,7 @@ namespace mpc
 
                     for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
                     {
-                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting output bounds for the step " << i << std::endl;
+                        Logger::instance().log(Logger::LogType::DETAIL) << "Setting output bounds for the step " << i << std::endl;
                         ret = ret && builder.setOutputBounds(i, YMin, YMax);
                     }
 
@@ -308,7 +308,7 @@ namespace mpc
             const mat<Tnu, Tph> &UWeightMat,
             const mat<Tnu, Tph> &DeltaUWeightMat)
         {
-            Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "Setting weights" << std::endl;
             return builder.setObjective(OWeightMat, UWeightMat, DeltaUWeightMat);
         }
 
@@ -331,11 +331,11 @@ namespace mpc
         {
             if (index >= ph())
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "Horizon index out of bounds" << std::endl;
+                Logger::instance().log(Logger::LogType::ERROR) << "Horizon index out of bounds" << std::endl;
                 return false;
             }
 
-            Logger::instance().log(Logger::log_type::DETAIL) << "Setting constraints for the step " << index << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "Setting constraints for the step " << index << std::endl;
             return builder.setConstraints(index, XMin, UMin, YMin, XMax, UMax, YMax);
         }
 
@@ -372,7 +372,7 @@ namespace mpc
                     Max.row(i) << max;
                 }
 
-                Logger::instance().log(Logger::log_type::DETAIL) << "Setting scalar constraint equally on the horizon" << std::endl;
+                Logger::instance().log(Logger::LogType::DETAIL) << "Setting scalar constraint equally on the horizon" << std::endl;
                 return builder.setScalarConstraint(Min, Max, X, U);
             }
             else
@@ -384,7 +384,7 @@ namespace mpc
 
                     for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
                     {
-                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting scalar constraints for the step " << i << std::endl;
+                        Logger::instance().log(Logger::LogType::DETAIL) << "Setting scalar constraints for the step " << i << std::endl;
                         ret = ret && builder.setScalarConstraint(i, min, max, X, U);
                     }
 
@@ -413,11 +413,11 @@ namespace mpc
         {
             if (index >= ph())
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "Horizon index out of bounds" << std::endl;
+                Logger::instance().log(Logger::LogType::ERROR) << "Horizon index out of bounds" << std::endl;
                 return false;
             }
 
-            Logger::instance().log(Logger::log_type::DETAIL) << "Setting scalar constraint" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "Setting scalar constraint" << std::endl;
             return builder.setScalarConstraint(index, min, max, X, U);
         }
 
@@ -457,7 +457,7 @@ namespace mpc
                     DeltaUWeightMat.col(i) = DeltaUWeight;
                 }
 
-                Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights equally on the horizon" << std::endl;
+                Logger::instance().log(Logger::LogType::DETAIL) << "Setting weights equally on the horizon" << std::endl;
                 return builder.setObjective(OWeightMat, UWeightMat, DeltaUWeightMat);
             }
             else
@@ -469,7 +469,7 @@ namespace mpc
 
                     for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
                     {
-                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights for the step " << i << std::endl;
+                        Logger::instance().log(Logger::LogType::DETAIL) << "Setting weights for the step " << i << std::endl;
                         ret = ret && builder.setObjective(i, OWeight, UWeight, DeltaUWeight);
                     }
 
@@ -495,7 +495,7 @@ namespace mpc
             const mat<Tny, Tnx> &C)
         {
 
-            Logger::instance().log(Logger::log_type::DETAIL) << "Setting state space model" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "Setting state space model" << std::endl;
             return builder.setStateModel(A, B, C);
         }
 
@@ -520,7 +520,7 @@ namespace mpc
             const mat<Tny, Tndu> &Dd)
         {
 
-            Logger::instance().log(Logger::log_type::DETAIL) << "Setting disturbances matrices" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "Setting disturbances matrices" << std::endl;
             return builder.setExogenousInput(Bd, Dd);
         }
 
@@ -648,7 +648,7 @@ namespace mpc
 
                     for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
                     {
-                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting references for the step " << i << std::endl;
+                        Logger::instance().log(Logger::LogType::DETAIL) << "Setting references for the step " << i << std::endl;
                         ret = ret && ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setReferences(i, outRef, cmdRef, deltaCmdRef);
                     }
 

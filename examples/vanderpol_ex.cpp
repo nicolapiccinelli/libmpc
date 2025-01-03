@@ -22,7 +22,7 @@ int main()
         ineq_c, eq_c>
         controller;
 
-    controller.setLoggerLevel(mpc::Logger::log_level::NONE);
+    controller.setLoggerLevel(mpc::Logger::LogLevel::NONE);
     controller.setDiscretizationSamplingTime(ts);
 
     mpc::NLParameters params;

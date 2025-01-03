@@ -193,6 +193,45 @@ The sequence contains also the initial condition of the optimization problem.
     std::cout << seq.input << std::endl;
     std::cout << seq.output << std::endl;
 
+Logging and verbosity
+---------------------
+The verbosity of the library can be controlled by setting the logger level. The logger level can be one of the following:
+* DEEP (0): deep logging with maximum verbosity level (will harm the performance, use only for debugging)
+* NORMAL (1): default logging level with normal verbosity
+* ALERT (2): only alert-level messages
+* NONE (3): no logging at all (useful for production)
+
+.. code-block:: c++
+    enum LogLevel
+        {
+            UNSET = -1,
+            DEEP = 0,
+            NORMAL = 1,
+            ALERT = 2,
+            NONE = 3
+        };
+
+At any time the logger level can be set by calling the **setLoggerLevel** method from the library main interfaces **LMPC** and **NLMPC**.
+It is also possible to set a custom prefix for the logger messages by calling the **setLoggerPrefix** method from the library main interfaces.
+This is useful when you have multiple instances of the library running in parallel.
+
+.. code-block:: c++
+
+    mpc.setLoggerLevel(mpc::Logger::LogLevel::NORMAL);
+    mpc.setLoggerPrefix("YOUR_CUSTOM_PREFIX");
+
+If you need advanced logging functionalities you can directly use the static instance of the logger class **Logger**. If you want to log
+not in the standard output but on a user-defined stream you can set the stream by calling the **setStream** method.
+
+.. code-block:: c++
+
+    std::stringstream stream;
+    mpc::Logger::setStream(stream);
+    mpc::Logger::log(mpc::Logger::LogLevel::NORMAL) << "Your message is sent to the stringstream" << std::endl;
+
+    mpc::Logger::setStream(&std::cout);
+    mpc::Logger::log(mpc::Logger::LogLevel::NORMAL) << "Your message is sent again to the standard output" << std::endl;
+
 Linear MPC (LMPC)
 -----------------
 
@@ -200,7 +239,7 @@ This example shows how to regulate a quadcopter about a reference state with con
 
 .. code-block:: c++
 
-    lmpc.setLoggerLevel(mpc::Logger::log_level::NORMAL);
+    lmpc.setLoggerLevel(mpc::Logger::LogLevel::NORMAL);
 
     mpc::mat<Tnx, Tnx> Ad;
     Ad << 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0,
@@ -292,7 +331,7 @@ This example shows how to drives the states of a Van der Pol oscillator to zero 
 
     double ts = 0.1;
 
-    nlmpc.setLoggerLevel(mpc::Logger::log_level::NORMAL);
+    nlmpc.setLoggerLevel(mpc::Logger::LogLevel::NORMAL);
     nlmpc.setDiscretizationSamplingTime(ts);
 
     auto stateEq = [&](mpc::cvec<Tnx>& dx,

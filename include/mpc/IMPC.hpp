@@ -120,7 +120,7 @@ namespace mpc
          * @return true
          * @return false
          */
-        bool setLoggerLevel(Logger::log_level l)
+        bool setLoggerLevel(Logger::LogLevel l)
         {
             Logger::instance().setLevel(l);
             return true;
@@ -154,7 +154,7 @@ namespace mpc
             optPtr->run(x0, lastU);
             auto duration_s = profiler.solutionEnd<sizer.nu>(optPtr->result);
 
-            Logger::instance().log(Logger::log_type::INFO)
+            Logger::instance().log(Logger::LogType::INFO)
                 << "Optimization step completed" << std::endl
                 << "duration: " << duration_s.count() << " (sec)" << std::endl
                 << "status: " << optPtr->result.status << " (opt code: " << optPtr->result.solver_status << ")" << std::endl
@@ -227,12 +227,12 @@ namespace mpc
             // check if openmp is enabled and print a message containing the information
             // about the number of threads used
             #ifdef _OPENMP
-            Logger::instance().log(Logger::log_type::INFO) << "OpenMP enabled" << std::endl;
+            Logger::instance().log(Logger::LogType::INFO) << "OpenMP enabled" << std::endl;
             #pragma omp parallel
             {
                 #pragma omp master
                 {
-                    Logger::instance().log(Logger::log_type::INFO) << "Number of threads: " << omp_get_num_threads() << std::endl;
+                    Logger::instance().log(Logger::LogType::INFO) << "Number of threads: " << omp_get_num_threads() << std::endl;
                 }
             }
             #endif
@@ -255,9 +255,9 @@ namespace mpc
          */
         bool isPredictionHorizonSliceValid(const HorizonSlice& slice)
         {
-            if (slice.start >= slice.end || slice.start > (int)ph() || slice.end > (int)ph() || slice.start + slice.end > (int)ph())
+            if (slice.start >= slice.end || slice.start > (int)ph() || slice.end > (int)ph())
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "The prediction horizon slice is out of bounds" << std::endl;
+                Logger::instance().log(Logger::LogType::ERROR) << "The prediction horizon slice is out of bounds" << std::endl;
                 return false;
             }
 
@@ -273,9 +273,9 @@ namespace mpc
          */
         bool isControlHorizonSliceValid(const HorizonSlice &slice)
         {
-            if (slice.start >= slice.end || slice.start > (int)ch() || slice.end > (int)ch() || slice.start + slice.end > (int)ch())
+            if (slice.start >= slice.end || slice.start > (int)ch() || slice.end > (int)ch())
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "The control horizon slice is out of bounds" << std::endl;
+                Logger::instance().log(Logger::LogType::ERROR) << "The control horizon slice is out of bounds" << std::endl;
                 return false;
             }
 

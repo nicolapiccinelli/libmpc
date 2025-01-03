@@ -63,6 +63,9 @@ namespace mpc
         {
             innerOpt = new nlopt::opt(nlopt::LD_SLSQP, ((ph() * nx()) + (nu() * ch()) + 1));
 
+            COND_RESIZE_MAT(sizer, Xmat, (ph() + 1), nx());
+            COND_RESIZE_MAT(sizer, Umat, (ph() + 1), nu());
+
             COND_RESIZE_CVEC(sizer,lb,((ph() * nx()) + (nu() * ch()) + 1));
             lb.setConstant(-std::numeric_limits<float>::infinity());
 
@@ -144,31 +147,31 @@ namespace mpc
             innerOpt->set_maxeval(nl_param->maximum_iteration);
 
             // print the parameters
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting relative function tolerance: "
                 << nl_param->relative_ftol << ", internal value: "
                 << innerOpt->get_ftol_rel()
                 << std::endl;
 
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting relative variable tolerance: "
                 << nl_param->relative_xtol << ", internal value: "
                 << innerOpt->get_xtol_rel()
                 << std::endl;
 
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting absolute function tolerance: "
                 << nl_param->absolute_ftol << ", internal value: "
                 << innerOpt->get_ftol_abs()
                 << std::endl;
 
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting maximum number of function evaluations: "
                 << nl_param->maximum_iteration << ", internal value: "
                 << innerOpt->get_maxeval()
                 << std::endl;
 
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting maximum time limit: "
                 << nl_param->time_limit << ", internal value: "
                 << innerOpt->get_maxtime()
@@ -186,7 +189,7 @@ namespace mpc
 
             updateBounds();
 
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting tolerances and stopping criterias"
                 << std::endl;
         }
@@ -209,7 +212,7 @@ namespace mpc
             }
             catch (const std::exception &e)
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Unable to bind objective function: "
                     << e.what()
                     << std::endl;
@@ -226,7 +229,7 @@ namespace mpc
          * @return false
          */
         bool bindEq(
-            constraints_type,
+            ConstraintsType,
             const cvec<(sizer.ph * sizer.nx)> tol)
         {
             checkOrQuit();
@@ -239,14 +242,14 @@ namespace mpc
                     std::vector<double>(
                         tol.data(),
                         tol.data() + tol.rows() * tol.cols()));
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Adding state defined equality constraints"
                     << std::endl;
                 return true;
             }
             catch (const std::exception &e)
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Unable to bind constraints function\n"
                     << e.what()
                     << '\n';
@@ -263,7 +266,7 @@ namespace mpc
          * @return false
          */
         bool bindUserIneq(
-            constraints_type,
+            ConstraintsType,
             const cvec<sizer.ineq> tol)
         {
             checkOrQuit();
@@ -276,14 +279,14 @@ namespace mpc
                     std::vector<double>(
                         tol.data(),
                         tol.data() + tol.rows() * tol.cols()));
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Adding user inequality constraints"
                     << std::endl;
                 return true;
             }
             catch (const std::exception &e)
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Unable to bind constraints function\n"
                     << e.what()
                     << '\n';
@@ -301,7 +304,7 @@ namespace mpc
          * @return false
          */
         bool bindUserEq(
-            constraints_type /*type*/,
+            ConstraintsType /*type*/,
             const cvec<sizer.eq> tol)
         {
             checkOrQuit();
@@ -314,14 +317,14 @@ namespace mpc
                     std::vector<double>(
                         tol.data(),
                         tol.data() + tol.rows() * tol.cols()));
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Adding user equality constraints"
                     << std::endl;
                 return true;
             }
             catch (const std::exception &e)
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Unable to bind constraints function\n"
                     << e.what()
                     << '\n';
@@ -410,6 +413,9 @@ namespace mpc
             const cvec<sizer.nx> &x0,
             const cvec<sizer.nu> &u0) override
         {
+            // measure the time
+            auto start = std::chrono::high_resolution_clock::now();
+
             checkOrQuit();
 
             Result<sizer.nu> r;
@@ -417,6 +423,11 @@ namespace mpc
             std::vector<double> optX0;
             optX0.assign(((ph() * nx()) + (nu() * ch()) + 1),0.0);
 
+            // the opt vector contains the optimal solution at the previous iteration
+            // thus, if we are in the first iteration we have to initialize it with the initial state
+            // and the initial control action. The same works also if the warm start is disabled
+            // the best guess for the optimization vector is the initial state and the initial control action
+            // propagated for the full prediction horizon
             if(is_first_iteration || !enable_warm_start)
             {
                 // the whole optimization vector is initialized with the initial state x0
@@ -438,6 +449,10 @@ namespace mpc
                     }
                 }
             }
+
+            // verify if the optimization vector is feasible against bounds
+            // if not, we have to fix it
+            fixOptimalSolution();
             
             // fill the remaining elements with the previous state starting from
             // the third element of the prediction horizon 
@@ -499,7 +514,18 @@ namespace mpc
 
             try
             {
+                // measure the pure optimization time
+                auto start_opt = std::chrono::high_resolution_clock::now();
                 std::vector<double> opt_v = innerOpt->optimize(optX0);
+                auto end_opt = std::chrono::high_resolution_clock::now();
+                auto duration_opt = std::chrono::duration_cast<std::chrono::microseconds>(end_opt - start_opt);
+
+                // Logger::instance().log(Logger::LogType::INFO)
+                //     << "Internal optimization time: "
+                //     << duration_opt.count()
+                //     << " microseconds"
+                //     << std::endl;
+
                 // convert from std vector to eigen vector by copying the data
                 Eigen::Map<cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>>(opt_v.data(), opt_v.size()).swap(opt_vector);
                 optimizationSuccess = true;
@@ -510,20 +536,20 @@ namespace mpc
 
                 if (r.is_feasible)
                 {
-                    Logger::instance().log(Logger::log_type::DETAIL)
+                    Logger::instance().log(Logger::LogType::DETAIL)
                         << "Optimal solution found"
                         << std::endl;
                 }
                 else
                 {
-                    Logger::instance().log(Logger::log_type::DETAIL)
+                    Logger::instance().log(Logger::LogType::DETAIL)
                         << "Optimal solution found but not feasible"
                         << std::endl;
                 }
             }
             catch (nlopt::roundoff_limited &e)
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "No optimal solution found: "
                     << e.what()
                     << std::endl;
@@ -534,7 +560,7 @@ namespace mpc
             }
             catch (const std::exception &e)
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "No optimal solution found: "
                     << e.what()
                     << std::endl;
@@ -551,35 +577,29 @@ namespace mpc
                 // convert from nlopt result code to ResultStatus enum
                 r.status = convertToResultStatus(r.solver_status);
 
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Optimization end after: "
                     << innerOpt->get_numevals()
                     << " evaluation steps"
                     << std::endl;
 
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Optimization end with code: "
                     << r.solver_status
                     << std::endl;
 
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Optimization end with cost: "
                     << r.cost
                     << std::endl;
 
-                mat<(sizer.ph + 1), sizer.nx> Xmat;
-                COND_RESIZE_MAT(sizer,Xmat,(ph() + 1), nx());
-
-                mat<(sizer.ph + 1), sizer.nu> Umat;
-                COND_RESIZE_MAT(sizer,Umat,(ph() + 1), nu());
-
                 mapping->unwrapVector(opt_vector, x0, Xmat, Umat, currentSlack);
 
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Optimal predicted state vector\n"
                     << Xmat
                     << std::endl;
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "Optimal predicted control input vector\n"
                     << Umat
                     << std::endl;
@@ -602,6 +622,16 @@ namespace mpc
                 sequence.input.setZero();
                 sequence.output.setZero();
             }
+
+            // measure the time
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+            // Logger::instance().log(Logger::LogType::INFO)
+            //     << "Optimization time: "
+            //     << duration.count()
+            //     << " microseconds"
+            //     << std::endl;
 
             // update the result
             result = r;
@@ -645,7 +675,7 @@ namespace mpc
             auto ub_solver = innerOpt->get_upper_bounds();
 
             // print the bounds
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting lower bounds: "
                 << std::endl;
             std::stringstream ss_lb;
@@ -654,9 +684,9 @@ namespace mpc
             {
                 ss_lb << lb_solver[i] << "\n";
             }
-            Logger::instance().log(Logger::log_type::DETAIL) << ss_lb.str() << "\n";
+            Logger::instance().log(Logger::LogType::DETAIL) << ss_lb.str() << "\n";
 
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting upper bounds: "
                 << std::endl;
             std::stringstream ss_ub;
@@ -665,8 +695,24 @@ namespace mpc
             {
                 ss_ub << ub_solver[i] << "\n";
             }
-            Logger::instance().log(Logger::log_type::DETAIL) << ss_ub.str() << "\n";
+            Logger::instance().log(Logger::LogType::DETAIL) << ss_ub.str() << "\n";
+        }
 
+        /**
+         * @brief Fix the optimal solution vector if it is not feasible
+         * against the bounds setting the elements to the middle point
+         */
+        void fixOptimalSolution()
+        {
+            // check if the optimization vector is feasible against the bounds
+            // for each element if it is not within the bounds we set it to the middle point
+            for (size_t i = 0; i < opt_vector.size(); i++)
+            {
+                if (opt_vector(i) < lb(i) || opt_vector(i) > ub(i))
+                {
+                    opt_vector(i) = (ub(i) - lb(i)) / 2.0;
+                }
+            }
         }
 
         /**
@@ -707,29 +753,42 @@ namespace mpc
          * @brief Forward the objective function evaluation to the internal solver
          *
          * @param x current optimization vector
-         * @param grad objective gradient w.r.t. the current optimization vector
+         * @param gradient objective gradient w.r.t. the current optimization vector
          * @param objFunc reference to the objective class
          * @return double objective function value
          */
         static double nloptObjFunWrapper(
             const std::vector<double> &x,
-            std::vector<double> &grad,
+            std::vector<double> &gradient,
             void *objFunc)
         {
-            bool hasGradient = !grad.empty();
+            // measure the time
+            auto start = std::chrono::high_resolution_clock::now();
+
+            bool hasGradient = !gradient.empty();
             cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> x_arr;
             x_arr = Eigen::Map<cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>>((double *)x.data(), x.size());
 
-            auto res = ((Objective<sizer> *)objFunc)->evaluate(x_arr, hasGradient);
+            auto& res = ((Objective<sizer> *)objFunc)->evaluate(x_arr, hasGradient);
 
             if (hasGradient)
             {
-                // The gradient should be transposed since the difference between matlab and nlopt
                 std::copy_n(
-                    &res.grad.transpose()[0],
-                    res.grad.cols() * res.grad.rows(),
-                    grad.begin());
+                    &res.gradient[0],
+                    res.gradient.cols() * res.gradient.rows(),
+                    gradient.begin());
             }
+
+            // measure the time
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+            // Logger::instance().log(Logger::LogType::INFO)
+            //     << "Objective function evaluation time: "
+            //     << duration.count()
+            //     << " microseconds"
+            //     << std::endl;
+
             return res.value;
         }
 
@@ -739,7 +798,7 @@ namespace mpc
          * @param result constraints value
          * @param n dimension of the optimization vector
          * @param x current optimization vector
-         * @param grad equality constraints gradient w.r.t. the current optimization vector
+         * @param jacobian equality constraints gradient w.r.t. the current optimization vector
          * @param conFunc reference to the constraints class
          */
         static void nloptEqConFunWrapper(
@@ -747,14 +806,17 @@ namespace mpc
             double *result,
             unsigned int n,
             const double *x,
-            double *grad,
+            double *jacobian,
             void *conFunc)
         {
-            bool hasGradient = (grad != NULL);
+            // measure the time
+            auto start = std::chrono::high_resolution_clock::now();
+
+            bool hasGradient = (jacobian != NULL);
             cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> x_arr;
             x_arr = Eigen::Map<cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>>((double *)x, n);
 
-            auto res = static_cast<Constraints<sizer> *>(conFunc)->evaluateStateModelEq(x_arr, hasGradient);
+            auto& res = static_cast<Constraints<sizer> *>(conFunc)->evaluateStateModelEq(x_arr, hasGradient);
 
             std::memcpy(
                 result,
@@ -763,12 +825,39 @@ namespace mpc
 
             if (hasGradient)
             {
-                // The gradient should be transposed since the difference between matlab and nlopt
-                std::memcpy(
-                    grad,
-                    res.grad.transpose().data(),
-                    res.grad.rows() * res.grad.cols() * sizeof(double));
+                // nlopt is expecting the gradient in row-major order and representing the
+                // jacobian as a matrix with the following structure:
+                // m rows: the number of constraints
+                // n columns: the number of decision variables
+                // since we are using Eigen the jacobian is in column-major order and we have
+                // to transpose it before copying it to the jacobian pointer
+                if(res.jacobian.IsRowMajor)
+                {
+                    std::memcpy(
+                        jacobian,
+                        res.jacobian.data(),
+                        res.jacobian.rows() * res.jacobian.cols() * sizeof(double));
+                }
+                else
+                {
+                    Eigen::MatrixXd resJacT = res.jacobian.transpose();
+
+                    std::memcpy(
+                        jacobian,
+                        resJacT.data(),
+                        res.jacobian.rows() * res.jacobian.cols() * sizeof(double));
+                }
             }
+
+            // measure the time
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+            // Logger::instance().log(Logger::LogType::INFO)
+            //     << "Equality constraints evaluation time: "
+            //     << duration.count()
+            //     << " microseconds"
+            //     << std::endl;
         }
 
         /**
@@ -777,7 +866,7 @@ namespace mpc
          * @param result constraints value
          * @param n dimension of the optimization vector
          * @param x current optimization vector
-         * @param grad equality constraints gradient w.r.t. the current optimization vector
+         * @param jacobian equality constraints gradient w.r.t. the current optimization vector
          * @param conFunc reference to the constraints class
          */
         static void nloptUserIneqConFunWrapper(
@@ -785,14 +874,17 @@ namespace mpc
             double *result,
             unsigned int n,
             const double *x,
-            double *grad,
+            double *jacobian,
             void *conFunc)
         {
-            bool hasGradient = (grad != NULL);
+            // measure the time
+            auto start = std::chrono::high_resolution_clock::now();
+
+            bool hasGradient = (jacobian != NULL);
             cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> x_arr;
             x_arr = Eigen::Map<cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>>((double *)x, n);
 
-            auto res = static_cast<Constraints<sizer> *>(conFunc)->evaluateIneq(x_arr, hasGradient);
+            auto& res = static_cast<Constraints<sizer> *>(conFunc)->evaluateIneq(x_arr, hasGradient);
 
             std::memcpy(
                 result,
@@ -801,12 +893,39 @@ namespace mpc
 
             if (hasGradient)
             {
-                // The gradient should be transposed since the difference between matlab and nlopt
-                std::memcpy(
-                    grad,
-                    res.grad.transpose().data(),
-                    res.grad.rows() * res.grad.cols() * sizeof(double));
+                // nlopt is expecting the gradient in row-major order and representing the
+                // jacobian as a matrix with the following structure:
+                // m rows: the number of constraints
+                // n columns: the number of decision variables
+                // since we are using Eigen the jacobian is in column-major order and we have
+                // to transpose it before copying it to the jacobian pointer
+                if (res.jacobian.IsRowMajor)
+                {
+                    std::memcpy(
+                        jacobian,
+                        res.jacobian.data(),
+                        res.jacobian.rows() * res.jacobian.cols() * sizeof(double));
+                }
+                else
+                {
+                    Eigen::MatrixXd resJacT = res.jacobian.transpose();
+
+                    std::memcpy(
+                        jacobian,
+                        resJacT.data(),
+                        res.jacobian.rows() * res.jacobian.cols() * sizeof(double));
+                }
             }
+
+            // measure the time
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+            // Logger::instance().log(Logger::LogType::INFO)
+            //     << "Inequality constraints evaluation time: "
+            //     << duration.count()
+            //     << " microseconds"
+            //     << std::endl;
         }
 
         /**
@@ -815,7 +934,7 @@ namespace mpc
          * @param result constraints value
          * @param n dimension of the optimization vector
          * @param x current optimization vector
-         * @param grad equality constraints gradient w.r.t. the current optimization vector
+         * @param jacobian equality constraints gradient w.r.t. the current optimization vector
          * @param conFunc reference to the constraints class
          */
         static void nloptUserEqConFunWrapper(
@@ -823,14 +942,17 @@ namespace mpc
             double *result,
             unsigned int n,
             const double *x,
-            double *grad,
+            double *jacobian,
             void *conFunc)
         {
-            bool hasGradient = (grad != NULL);
+            // measure the time
+            auto start = std::chrono::high_resolution_clock::now();
+
+            bool hasGradient = (jacobian != NULL);
             cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> x_arr;
             x_arr = Eigen::Map<cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>>((double *)x, n);
 
-            auto res = static_cast<Constraints<sizer> *>(conFunc)->evaluateEq(x_arr, hasGradient);
+            auto& res = static_cast<Constraints<sizer> *>(conFunc)->evaluateEq(x_arr, hasGradient);
 
             std::memcpy(
                 result,
@@ -839,12 +961,39 @@ namespace mpc
 
             if (hasGradient)
             {
-                // The gradient should be transposed since the difference between matlab and nlopt
-                std::memcpy(
-                    grad,
-                    res.grad.transpose().data(),
-                    res.grad.rows() * res.grad.cols() * sizeof(double));
+                // nlopt is expecting the gradient in row-major order and representing the
+                // jacobian as a matrix with the following structure:
+                // m rows: the number of constraints
+                // n columns: the number of decision variables
+                // since we are using Eigen the jacobian is in column-major order and we have
+                // to transpose it before copying it to the jacobian pointer
+                if (res.jacobian.IsRowMajor)
+                {
+                    std::memcpy(
+                        jacobian,
+                        res.jacobian.data(),
+                        res.jacobian.rows() * res.jacobian.cols() * sizeof(double));
+                }
+                else
+                {
+                    Eigen::MatrixXd resJacT = res.jacobian.transpose();
+
+                    std::memcpy(
+                        jacobian,
+                        resJacT.data(),
+                        res.jacobian.rows() * res.jacobian.cols() * sizeof(double));
+                }
             }
+
+            // measure the time
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+            // Logger::instance().log(Logger::LogType::INFO)
+            //     << "Equality constraints evaluation time: "
+            //     << duration.count()
+            //     << " microseconds"
+            //     << std::endl;
         }
 
         nlopt::opt *innerOpt;
@@ -854,8 +1003,12 @@ namespace mpc
         std::shared_ptr<Mapping<sizer>> mapping;
         std::shared_ptr<Model<sizer>> model;
 
+        mat<(sizer.ph + 1), sizer.nx> Xmat;
+        mat<(sizer.ph + 1), sizer.nu> Umat;
+
         cvec<(sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1>  lb, ub;
         cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> opt_vector;
+
         bool is_first_iteration = true;
         bool enable_warm_start = false;
     };

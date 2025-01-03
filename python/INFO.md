@@ -1,0 +1,1 @@
+To support *numpy 2* we have to use *pybind11* from version *2.12.0*. This is the minimum version that supports the new numpy API.

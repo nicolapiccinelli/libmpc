@@ -29,7 +29,7 @@ int DiscreteLtiSiso()
     mpc::NLMPC<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq> optsolver;
 #endif
         
-    optsolver.setLoggerLevel(mpc::Logger::log_level::NORMAL);
+    optsolver.setLoggerLevel(mpc::Logger::LogLevel::NORMAL);
     optsolver.setDiscretizationSamplingTime(ts);
     
     mpc::mat<TVAR(Tnx), TVAR(Tnx)> A(Tnx, Tnx);

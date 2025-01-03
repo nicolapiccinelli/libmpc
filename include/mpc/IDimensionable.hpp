@@ -67,14 +67,14 @@ namespace mpc
             onInit();
         }
 
-        size_t nx() { return runtime_size_nx; }
-        size_t nu() { return runtime_size_nu; }
-        size_t ndu() { return runtime_size_ndu; }
-        size_t ny() { return runtime_size_ny; }
-        size_t ph() { return runtime_size_ph; }
-        size_t ch() { return runtime_size_ch; }
-        size_t ineq() { return runtime_size_ineq; }
-        size_t eq() { return runtime_size_eq; }
+        inline size_t nx() { return runtime_size_nx; }
+        inline size_t nu() { return runtime_size_nu; }
+        inline size_t ndu() { return runtime_size_ndu; }
+        inline size_t ny() { return runtime_size_ny; }
+        inline size_t ph() { return runtime_size_ph; }
+        inline size_t ch() { return runtime_size_ch; }
+        inline size_t ineq() { return runtime_size_ineq; }
+        inline size_t eq() { return runtime_size_eq; }
 
         /**
          * @brief Initialization hook used to perform sub-classes

@@ -30,7 +30,7 @@ int VanderPol()
         optsolver;
 #endif
 
-    optsolver.setLoggerLevel(mpc::Logger::log_level::NONE);
+    optsolver.setLoggerLevel(mpc::Logger::LogLevel::NONE);
     optsolver.setDiscretizationSamplingTime(ts);
 
     auto stateEq = [&](
