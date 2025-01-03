@@ -196,6 +196,7 @@ The sequence contains also the initial condition of the optimization problem.
 Logging and verbosity
 ---------------------
 The verbosity of the library can be controlled by setting the logger level. The logger level can be one of the following:
+
 * DEEP (0): deep logging with maximum verbosity level (will harm the performance, use only for debugging)
 * NORMAL (1): default logging level with normal verbosity
 * ALERT (2): only alert-level messages
