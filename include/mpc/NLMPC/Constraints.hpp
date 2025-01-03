@@ -36,7 +36,7 @@ namespace mpc
 
     public:
         /**
-         * @brief Internal structure containing the value and the gradient
+         * @brief Internal structure containing the value and the Jacobian
          * of the evaluated constraints.
          *
          * @tparam Tcon number of the constraints
@@ -45,7 +45,8 @@ namespace mpc
         struct Cost
         {
             cvec<Tcon> value;
-            cvec<(Tcon * ((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1))> grad;
+            Eigen::Matrix<double, Tcon, ((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1), Eigen::RowMajor> jacobian;
+            // mat<Tcon, ((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> jacobian;
         };
 
         Constraints() : Base<sizer>()
@@ -62,21 +63,18 @@ namespace mpc
          */
         void onInit() override
         {
-            COND_RESIZE_CVEC(sizer,x0, nx());
-            COND_RESIZE_MAT(sizer,Xmat, ph() + 1, nx());
-            COND_RESIZE_MAT(sizer,Umat, ph() + 1, nu());
+            COND_RESIZE_CVEC(sizer, x0, nx());
+            COND_RESIZE_MAT(sizer, Xmat, ph() + 1, nx());
+            COND_RESIZE_MAT(sizer, Umat, ph() + 1, nu());
 
-            COND_RESIZE_CVEC(sizer,ceq, ph() * nx());
-            COND_RESIZE_MAT(sizer,Jceq, (ph() * nx()) + (nu() * ch()) + 1, ph() * nx());
+            COND_RESIZE_CVEC(sizer, c_eq_sys.value, ph() * nx());
+            COND_RESIZE_MAT(sizer, c_eq_sys.jacobian, ph() * nx(), ((ph() * nx()) + (nu() * ch()) + 1));
 
-            COND_RESIZE_CVEC(sizer,cineq, 2 * (ph() * ny()));
-            COND_RESIZE_MAT(sizer,Jcineq, (ph() * nx()) + (nu() * ch()) + 1, 2 * (ph() * ny()));
+            COND_RESIZE_CVEC(sizer, c_eq_user_def.value, eq());
+            COND_RESIZE_MAT(sizer, c_eq_user_def.jacobian, eq(), ((ph() * nx()) + (nu() * ch()) + 1));
 
-            COND_RESIZE_CVEC(sizer,ceq_user, eq());
-            COND_RESIZE_MAT(sizer,Jceq_user, (ph() * nx()) + (nu() * ch()) + 1, eq());
-
-            COND_RESIZE_CVEC(sizer,cineq_user, ineq());
-            COND_RESIZE_MAT(sizer,Jcineq_user, (ph() * nx()) + (nu() * ch()) + 1, ineq());
+            COND_RESIZE_CVEC(sizer, c_ineq_user_def.value, ineq());
+            COND_RESIZE_MAT(sizer, c_ineq_user_def.jacobian, ineq(), ((ph() * nx()) + (nu() * ch()) + 1));
         }
 
         /**
@@ -115,6 +113,13 @@ namespace mpc
         {
             checkOrQuit();
 
+            // if the number of inequality constraints is zero let's avoid
+            // the definition of the user inequality constraints
+            if (ineq() == 0)
+            {
+                return false;
+            }
+
             ieq_tolerance = tolerance;
             return ieqUser = handle, true;
         }
@@ -130,6 +135,13 @@ namespace mpc
             const typename Base<sizer>::EConFunHandle handle, const float& tolerance)
         {
             checkOrQuit();
+
+            // if the number of equality constraints is zero let's avoid
+            // the definition of the user equality constraints
+            if (eq() == 0)
+            {
+                return false;
+            }
 
             eq_tolerance = tolerance;
             return eqUser = handle, true;
@@ -151,17 +163,17 @@ namespace mpc
             if (hasIneqConstraints())
             {
                 Eigen::Matrix<double, sizer.ph + 1, sizer.ny> Ymat = model->getOutput(Xmat, Umat);
-                ieqUser(cineq_user, Xmat, Ymat, Umat, e);
+                ieqUser(c_ineq_user_def.value, Xmat, Ymat, Umat, e);
 
                 // print the vector of inequality constraints
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "User inequality constraints value (feasibility):\n"
                     << std::setprecision(10)
-                    << cineq_user
+                    << c_ineq_user_def.value
                     << std::endl;
 
                 // Check if all inequality constraints are satisfied (<= 0)
-                if ((cineq_user.array() > ieq_tolerance).any())
+                if ((c_ineq_user_def.value.array() > ieq_tolerance).any())
                 {
                     return false;
                 }
@@ -170,17 +182,17 @@ namespace mpc
 
             if (hasEqConstraints())
             {
-                eqUser(ceq_user, Xmat, Umat);
+                eqUser(c_eq_user_def.value, Xmat, Umat);
 
                 // print the vector of equality constraints
-                Logger::instance().log(Logger::log_type::DETAIL)
+                Logger::instance().log(Logger::LogType::DETAIL)
                     << "User equality constraints value (feasibility):\n"
                     << std::setprecision(10)
-                    << ceq_user
+                    << c_eq_user_def.value
                     << std::endl;
 
                 // Check if all equality constraints are satisfied (== 0)
-                if (ceq_user.array().abs().maxCoeff() > eq_tolerance)
+                if (c_eq_user_def.value.array().abs().maxCoeff() > eq_tolerance)
                 {
                     return false;
                 }
@@ -193,12 +205,12 @@ namespace mpc
          * @brief Evaluate the user defined inequality constraints
          *
          * @param x internal optimization vector
-         * @param hasGradient request the computation of the gradient
+         * @param hasJacobian request the computation of the jacobian
          * @return Cost<sizer.ineq> associated cost
          */
-        Cost<sizer.ineq> evaluateIneq(
+        Cost<sizer.ineq> &evaluateIneq(
             cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> x,
-            bool hasGradient)
+            bool hasJacobian)
         {
             checkOrQuit();
 
@@ -206,21 +218,21 @@ namespace mpc
 
             if (hasIneqConstraints())
             {
-                Logger::instance().log(Logger::log_type::DETAIL) << "User inequality constraints detected" << std::endl;
+                Logger::instance().log(Logger::LogType::DETAIL) << "User inequality constraints detected" << std::endl;
 
                 // check if the output function of the system is defined
                 // if so, let's compute the output along the horizon
                 mat<(sizer.ph + 1), sizer.ny> Ymat = model->getOutput(Xmat, Umat);
-                ieqUser(cineq_user, Xmat, Ymat, Umat, e);
+                ieqUser(c_ineq_user_def.value, Xmat, Ymat, Umat, e);
 
                 mat<sizer.ineq, (sizer.ph * sizer.nx)> Jieqx;
-                COND_RESIZE_MAT(sizer,Jieqx, ineq(), (ph() * nx()));
+                COND_RESIZE_MAT(sizer, Jieqx, ineq(), (ph() * nx()));
 
                 mat<sizer.ineq, (sizer.ph * sizer.nu)> Jieqmv;
-                COND_RESIZE_MAT(sizer,Jieqmv, ineq(), (ph() * nu()));
+                COND_RESIZE_MAT(sizer, Jieqmv, ineq(), (ph() * nu()));
 
                 cvec<sizer.ineq> Jie;
-                COND_RESIZE_CVEC(sizer,Jie, ineq());
+                COND_RESIZE_CVEC(sizer, Jie, ineq());
 
                 computeIneqJacobian(
                     Jieqx,
@@ -230,141 +242,129 @@ namespace mpc
                     Umat,
                     e);
 
-                Logger::instance().log(Logger::log_type::DETAIL)
-                    << "User inequality state constraints gradient:\n"
+                Logger::instance().log(Logger::LogType::DETAIL)
+                    << "User inequality state constraints jacobian:\n"
                     << std::setprecision(10)
                     << Jieqx
                     << std::endl;
 
-                Logger::instance().log(Logger::log_type::DETAIL)
-                    << "User inequality inputs constraints gradient:\n"
+                Logger::instance().log(Logger::LogType::DETAIL)
+                    << "User inequality inputs constraints jacobian:\n"
                     << std::setprecision(10)
                     << Jieqmv
                     << std::endl;
 
-                Logger::instance().log(Logger::log_type::DETAIL)
-                    << "User inequality slack constraints gradient:\n"
+                Logger::instance().log(Logger::LogType::DETAIL)
+                    << "User inequality slack constraints jacobian:\n"
                     << std::setprecision(10)
                     << Jie
                     << std::endl;
 
                 glueJacobian<sizer.ineq>(
-                    Jcineq_user,
+                    c_ineq_user_def.jacobian,
                     Jieqx,
                     Jieqmv,
                     Jie);
 
-                auto scaled_Jcineq_user = Jcineq_user;
-                for (int j = 0; j < Jcineq_user.cols(); j++)
+                auto scaled_Jcineq_user = c_ineq_user_def.jacobian;
+                for (int j = 0; j < c_ineq_user_def.jacobian.rows(); j++)
                 {
                     int ioff = 0;
                     for (size_t k = 0; k < ph(); k++)
                     {
                         for (size_t ix = 0; ix < nx(); ix++)
                         {
-                            scaled_Jcineq_user(ioff + ix, j) = scaled_Jcineq_user(ioff + ix, j) * mapping->StateScaling()(ix);
+                            scaled_Jcineq_user(j,ioff + ix) = scaled_Jcineq_user(j,ioff + ix) * mapping->StateScaling()(ix);
                         }
 
                         ioff = ioff + nx();
                     }
                 }
 
-                Jcineq_user = scaled_Jcineq_user;
+                c_ineq_user_def.jacobian = scaled_Jcineq_user;
             }
             else
             {
-                Logger::instance().log(Logger::log_type::DETAIL) << "No user inequality constraints detected" << std::endl;
+                Logger::instance().log(Logger::LogType::DETAIL) << "No user inequality constraints detected" << std::endl;
 
-                cineq_user.setZero();
-                Jcineq_user.setZero();
+                c_ineq_user_def.value.setZero();
+                c_ineq_user_def.jacobian.setZero();
             }
 
-            Cost<sizer.ineq> c;
-            c.value = cineq_user;
-            c.grad = Eigen::Map<cvec<(sizer.ineq * ((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1))>>(
-                Jcineq_user.data(),
-                Jcineq_user.size());
-
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "User inequality constraints value:\n"
                 << std::setprecision(10)
-                << c.value
+                << c_ineq_user_def.value
                 << std::endl;
 
-            if (!hasGradient)
+            if (!hasJacobian)
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
-                    << "Gradient user inequality constraints not currently used"
+                Logger::instance().log(Logger::LogType::DETAIL)
+                    << "Jacobian user inequality constraints not currently used"
                     << std::endl;
             }
             else
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
-                    << "User inequality constraints gradient:\n"
+                Logger::instance().log(Logger::LogType::DETAIL)
+                    << "User inequality constraints jacobian:\n"
                     << std::setprecision(10)
-                    << c.grad
+                    << c_ineq_user_def.jacobian
                     << std::endl;
             }
 
-            return c;
+            return c_ineq_user_def;
         }
 
         /**
          * @brief Evaluate the equality constraints for the system's dynamic
          *
          * @param x internal optimization vector
-         * @param hasGradient request the computation of the gradient
+         * @param hasJacobian request the computation of the jacobian
          * @return Cost<(sizer.ph * sizer.nx)> associated cost
          */
-        Cost<(sizer.ph * sizer.nx)> evaluateStateModelEq(
+        Cost<(sizer.ph * sizer.nx)> &evaluateStateModelEq(
             cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> x,
-            bool hasGradient)
+            bool hasJacobian)
         {
             checkOrQuit();
             mapping->unwrapVector(x, x0, Xmat, Umat, e);
 
             // Set MPC constraints
-            getStateEqConstraints(hasGradient);
+            getStateEqConstraints(hasJacobian);
 
-            Cost<(sizer.ph * sizer.nx)> c;
-            c.value = ceq;
-            c.grad = Eigen::Map<cvec<((sizer.ph * sizer.nx) * ((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1))>>(
-                Jceq.data(),
-                Jceq.size());
-
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "State equality constraints value:\n"
                 << std::setprecision(10)
-                << c.value
+                << c_eq_sys.value
                 << std::endl;
-            if (!hasGradient)
+            if (!hasJacobian)
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
-                    << "State equality constraints gradient not currectly used"
+                Logger::instance().log(Logger::LogType::DETAIL)
+                    << "State equality constraints jacobian not currectly used"
                     << std::endl;
             }
             else
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
-                    << "State equality constraints gradient:\n"
+                Logger::instance().log(Logger::LogType::DETAIL)
+                    << "State equality constraints jacobian:\n"
                     << std::setprecision(10)
-                    << c.grad
+                    << c_eq_sys.jacobian
                     << std::endl;
             }
 
-            return c;
+            return c_eq_sys;
         }
 
         /**
          * @brief Evaluate the user defined equality constraints
          *
          * @param x internal optimization vector
-         * @param hasGradient request the computation of the gradient
+         * @param hasJacobian request the computation of the jacobian
          * @return Cost<sizer.eq> associated cost
          */
-        Cost<sizer.eq> evaluateEq(
+        Cost<sizer.eq> &evaluateEq(
             cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> x,
-            bool hasGradient)
+            bool hasJacobian)
         {
             checkOrQuit();
             mapping->unwrapVector(x, x0, Xmat, Umat, e);
@@ -372,15 +372,15 @@ namespace mpc
             // Add user defined constraints
             if (hasEqConstraints())
             {
-                Logger::instance().log(Logger::log_type::DETAIL) << "User equality constraints detected" << std::endl;
+                Logger::instance().log(Logger::LogType::DETAIL) << "User equality constraints detected" << std::endl;
 
-                eqUser(ceq_user, Xmat, Umat);
+                eqUser(c_eq_user_def.value, Xmat, Umat);
 
                 mat<sizer.eq, (sizer.ph * sizer.nx)> Jeqx;
-                COND_RESIZE_MAT(sizer,Jeqx, eq(), (ph() * nx()));
+                COND_RESIZE_MAT(sizer, Jeqx, eq(), (ph() * nx()));
 
                 mat<sizer.eq, (sizer.ph * sizer.nu)> Jeqmv;
-                COND_RESIZE_MAT(sizer,Jeqmv, eq(), (ph() * nu()));
+                COND_RESIZE_MAT(sizer, Jeqmv, eq(), (ph() * nu()));
 
                 computeEqJacobian(
                     Jeqx,
@@ -389,62 +389,56 @@ namespace mpc
                     Umat);
 
                 glueJacobian<sizer.eq>(
-                    Jceq_user,
+                    c_eq_user_def.jacobian,
                     Jeqx,
                     Jeqmv,
                     cvec<sizer.eq>::Zero(eq()));
 
-                auto scaled_Jceq_user = Jceq_user;
-                for (int j = 0; j < Jceq_user.cols(); j++)
+                auto scaled_Jceq_user = c_eq_user_def.jacobian;
+                for (int j = 0; j < c_eq_user_def.jacobian.rows(); j++)
                 {
                     int ioff = 0;
                     for (size_t k = 0; k < ph(); k++)
                     {
                         for (size_t ix = 0; ix < nx(); ix++)
                         {
-                            scaled_Jceq_user(ioff + ix, j) = scaled_Jceq_user(ioff + ix, j) * mapping->StateScaling()(ix);
+                            scaled_Jceq_user(j,ioff + ix) = scaled_Jceq_user(j,ioff + ix) * mapping->StateScaling()(ix);
                         }
                         ioff = ioff + nx();
                     }
                 }
 
-                Jceq_user = scaled_Jceq_user;
+                c_eq_user_def.jacobian = scaled_Jceq_user;
             }
             else
             {
-                Logger::instance().log(Logger::log_type::DETAIL) << "No user equality constraints detected" << std::endl;
-
-                ceq_user.setZero();
-                Jceq_user.setZero();
+                Logger::instance().log(Logger::LogType::DETAIL) << "No user equality constraints detected" << std::endl;
+                
+                c_eq_user_def.value.setZero();
+                c_eq_user_def.jacobian.setZero();
             }
 
-            Cost<sizer.eq> c;
-            c.value = ceq_user;
-            c.grad = Eigen::Map<cvec<(sizer.eq * ((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1))>>(
-                Jceq_user.data(),
-                Jceq_user.size());
-
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "User equality constraints value:\n"
                 << std::setprecision(10)
-                << c.value
+                << c_eq_user_def.value
                 << std::endl;
-            if (!hasGradient)
+            if (!hasJacobian)
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
-                    << "Gradient user equality constraints not currectly used"
+                Logger::instance().log(Logger::LogType::DETAIL)
+                    << "Jacobian user equality constraints not currectly used"
                     << std::endl;
             }
             else
             {
-                Logger::instance().log(Logger::log_type::DETAIL)
-                    << "User equality constraints gradient:\n"
+                Logger::instance().log(Logger::LogType::DETAIL)
+                    << "User equality constraints jacobian:\n"
                     << std::setprecision(10)
-                    << c.grad
+                    << c_eq_user_def.jacobian
                     << std::endl;
             }
 
-            return c;
+            return c_eq_user_def;
         }
 
     private:
@@ -460,7 +454,7 @@ namespace mpc
          */
         template <int Tnc>
         void glueJacobian(
-            mat<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1), Tnc> &Jres,
+            Eigen::Matrix<double, Tnc, ((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1), Eigen::RowMajor> &Jres,
             const mat<Tnc, (sizer.ph * sizer.nx)> &Jstate,
             const mat<Tnc, (sizer.ph * sizer.nu)> &Jmanvar,
             const cvec<Tnc> &Jcon)
@@ -468,51 +462,54 @@ namespace mpc
             // #pragma omp parallel for
             for (size_t i = 0; i < ph(); i++)
             {
-                Jres.middleRows(i * nx(), nx()) = Jstate.middleCols(i * nx(), nx()).transpose();
+                Jres.middleCols(i * nx(), nx()) = Jstate.middleCols(i * nx(), nx());
             }
 
             mat<Tnc, sizer.ph * sizer.nu> Jmanvar_mat;
-            COND_RESIZE_MAT(sizer,Jmanvar_mat, Jres.cols(), ph() * nu());
+            COND_RESIZE_MAT(sizer, Jmanvar_mat, Jres.rows(), ph() * nu());
 
+            // Fill the manipulated variable part
             // #pragma omp parallel for
             for (size_t i = 0; i < ph(); i++)
             {
-                Jmanvar_mat.block(0, i * nu(), Jres.cols(), nu()) = Jmanvar.middleCols(i * nu(), nu());
+                Jmanvar_mat.block(0, i * nu(), Jres.rows(), nu()) = Jmanvar.middleCols(i * nu(), nu());
             }
 
-            Jres.middleRows(ph() * nx(), nu() * ch()) = (Jmanvar_mat * mapping->Iz2u()).transpose();
-            Jres.bottomRows(1) = Jcon.transpose();
+            Jres.middleCols(ph() * nx(), nu() * ch()) = (Jmanvar_mat * mapping->Iz2u());
+
+            // Fill the constraints part (last column)
+            Jres.middleCols((ph() * nx()) + (nu() * ch()), 1) = Jcon;
         }
 
         /**
          * @brief Compute the internal state equality constraints penalty
          * and if requested the associated Jacobian matrix
          *
-         * @param hasGradient request the computation of the gradient
+         * @param hasJacobian request the computation of the jacobian
          */
         void getStateEqConstraints(
-            bool hasGradient)
+            bool hasJacobian)
         {
-            ceq.setZero();
-            Jceq.setZero();
+            c_eq_sys.value.setZero();
+            c_eq_sys.jacobian.setZero();
 
             mat<(sizer.ph * sizer.nx), (sizer.ph * sizer.nx)> Jx;
-            COND_RESIZE_MAT(sizer,Jx, (ph() * nx()), (ph() * nx()));
+            COND_RESIZE_MAT(sizer, Jx, (ph() * nx()), (ph() * nx()));
             Jx.setZero();
 
             // TODO support measured noise
             mat<(sizer.ph * sizer.nx), (sizer.ph * sizer.nu)> Jmv;
-            COND_RESIZE_MAT(sizer,Jmv, (ph() * nx()), (ph() * nu()));
+            COND_RESIZE_MAT(sizer, Jmv, (ph() * nx()), (ph() * nu()));
             Jmv.setZero();
 
             cvec<(sizer.ph * sizer.nx)> Je;
-            COND_RESIZE_CVEC(sizer,Je, (ph() * nx()));
+            COND_RESIZE_CVEC(sizer, Je, (ph() * nx()));
             Je.setZero();
 
             int ic = 0;
 
             mat<sizer.nx, sizer.nx> Ix;
-            COND_RESIZE_MAT(sizer,Ix, nx(), nx());
+            COND_RESIZE_MAT(sizer, Ix, nx(), nx());
             Ix.setIdentity(nx(), nx());
 
             mat<sizer.nx, sizer.nx> Sx, Tx;
@@ -522,7 +519,7 @@ namespace mpc
             // TODO bind for continuous time
             if (model->isContinuousTime)
             {
-                Logger::instance().log(Logger::log_type::DETAIL) << "Continuous time model detected, using finite differences" << std::endl;
+                Logger::instance().log(Logger::LogType::DETAIL) << "Continuous time model detected, using finite differences" << std::endl;
 
                 // #pragma omp parallel for
                 for (size_t i = 0; i < ph(); i++)
@@ -538,30 +535,30 @@ namespace mpc
                     xk1 = Xmat.row(i + 1).transpose();
 
                     cvec<sizer.nx> fk, fk1;
-                    COND_RESIZE_CVEC(sizer,fk, nx());
-                    COND_RESIZE_CVEC(sizer,fk1, nx());
+                    COND_RESIZE_CVEC(sizer, fk, nx());
+                    COND_RESIZE_CVEC(sizer, fk1, nx());
 
                     model->vectorField(fk, xk, uk, i);
                     model->vectorField(fk1, xk1, uk, i);
 
-                    ceq.middleRows(ic, nx()) = xk + (h * (fk + fk1)) - xk1;
-                    ceq.middleRows(ic, nx()) = ceq.middleRows(ic, nx()).array() / mapping->StateScaling().array();
+                    c_eq_sys.value.middleRows(ic, nx()) = xk + (h * (fk + fk1)) - xk1;
+                    c_eq_sys.value.middleRows(ic, nx()) = c_eq_sys.value.middleRows(ic, nx()).array() / mapping->StateScaling().array();
 
-                    if (hasGradient)
+                    if (hasJacobian)
                     {
                         mat<sizer.nx, sizer.nx> Ak;
-                        COND_RESIZE_MAT(sizer,Ak, nx(), nx());
+                        COND_RESIZE_MAT(sizer, Ak, nx(), nx());
 
                         mat<sizer.nx, sizer.nu> Bk;
-                        COND_RESIZE_MAT(sizer,Bk, nx(), nu());
+                        COND_RESIZE_MAT(sizer, Bk, nx(), nu());
 
                         computeStateEqJacobian(Ak, Bk, xk, uk, i);
 
                         mat<sizer.nx, sizer.nx> Ak1;
-                        COND_RESIZE_MAT(sizer,Ak1, nx(), nx());
+                        COND_RESIZE_MAT(sizer, Ak1, nx(), nx());
 
                         mat<sizer.nx, sizer.nu> Bk1;
-                        COND_RESIZE_MAT(sizer,Bk1, nx(), nu());
+                        COND_RESIZE_MAT(sizer, Bk1, nx(), nu());
 
                         computeStateEqJacobian(Ak1, Bk1, xk1, uk, i);
 
@@ -579,7 +576,7 @@ namespace mpc
             }
             else
             {
-                Logger::instance().log(Logger::log_type::DETAIL) << "Discrete time model detected" << std::endl;
+                Logger::instance().log(Logger::LogType::DETAIL) << "Discrete time model detected" << std::endl;
 
                 // #pragma omp parallel for
                 for (size_t i = 0; i < ph(); i++)
@@ -590,20 +587,20 @@ namespace mpc
                     xk = Xmat.row(i).transpose();
 
                     cvec<sizer.nx> xk1;
-                    COND_RESIZE_CVEC(sizer,xk1, nx());
+                    COND_RESIZE_CVEC(sizer, xk1, nx());
 
                     model->vectorField(xk1, xk, uk, i);
 
-                    ceq.middleRows(ic, nx()) = Xmat.row(i + 1).transpose() - xk1;
-                    ceq.middleRows(ic, nx()) = ceq.middleRows(ic, nx()).array() / mapping->StateScaling().array();
+                    c_eq_sys.value.middleRows(ic, nx()) = Xmat.row(i + 1).transpose() - xk1;
+                    c_eq_sys.value.middleRows(ic, nx()) = c_eq_sys.value.middleRows(ic, nx()).array() / mapping->StateScaling().array();
 
-                    if (hasGradient)
+                    if (hasJacobian)
                     {
                         mat<sizer.nx, sizer.nx> Ak;
-                        COND_RESIZE_MAT(sizer,Ak, nx(), nx());
+                        COND_RESIZE_MAT(sizer, Ak, nx(), nx());
 
                         mat<sizer.nx, sizer.nu> Bk;
-                        COND_RESIZE_MAT(sizer,Bk, nx(), nu());
+                        COND_RESIZE_MAT(sizer, Bk, nx(), nu());
 
                         computeStateEqJacobian(Ak, Bk, xk, uk, i);
 
@@ -622,9 +619,11 @@ namespace mpc
                 }
             }
 
-            if (hasGradient)
+            if (hasJacobian)
             {
-                glueJacobian<sizer.ph * sizer.nx>(Jceq, Jx, Jmv, Je);
+                glueJacobian<sizer.ph * sizer.nx>(
+                    c_eq_sys.jacobian,
+                    Jx, Jmv, Je);
             }
         }
 
@@ -752,13 +751,13 @@ namespace mpc
                     // Forward perturbation
                     x0(ix, j) += dx;
                     cvec<sizer.eq> f_plus;
-                    COND_RESIZE_CVEC(sizer,f_plus, eq());
+                    COND_RESIZE_CVEC(sizer, f_plus, eq());
                     // Compute equality constraints with perturbed state
                     eqUser(f_plus, x0, u0);
                     // Backward perturbation
                     x0(ix, j) -= 2 * dx;
                     cvec<sizer.eq> f_minus;
-                    COND_RESIZE_CVEC(sizer,f_minus, eq());
+                    COND_RESIZE_CVEC(sizer, f_minus, eq());
                     // Compute equality constraints with perturbed state
                     eqUser(f_minus, x0, u0);
                     // Restore original state
@@ -782,13 +781,13 @@ namespace mpc
                     // Forward perturbation
                     u0(i, j) += du;
                     cvec<sizer.eq> f_plus;
-                    COND_RESIZE_CVEC(sizer,f_plus, eq());
+                    COND_RESIZE_CVEC(sizer, f_plus, eq());
                     // Compute equality constraints with perturbed control
                     eqUser(f_plus, x0, u0);
                     // Backward perturbation
                     u0(i, j) -= 2 * du;
                     cvec<sizer.eq> f_minus;
-                    COND_RESIZE_CVEC(sizer,f_minus, eq());
+                    COND_RESIZE_CVEC(sizer, f_minus, eq());
                     // Compute equality constraints with perturbed control
                     eqUser(f_minus, x0, u0);
                     // Restore original control
@@ -810,7 +809,7 @@ namespace mpc
                 // Forward perturbation
                 u0(ph(), j) += du;
                 cvec<sizer.eq> f_plus;
-                COND_RESIZE_CVEC(sizer,f_plus, eq());
+                COND_RESIZE_CVEC(sizer, f_plus, eq());
                 // Compute equality constraints with perturbed control
                 eqUser(f_plus, x0, u0);
                 // Backward perturbation
@@ -818,7 +817,7 @@ namespace mpc
                 // Backward perturbation
                 u0(ph(), j) -= 2 * du;
                 cvec<sizer.eq> f_minus;
-                COND_RESIZE_CVEC(sizer,f_minus, eq());
+                COND_RESIZE_CVEC(sizer, f_minus, eq());
                 // Compute equality constraints with perturbed control
                 eqUser(f_minus, x0, u0);
                 // Restore original control
@@ -870,8 +869,8 @@ namespace mpc
                 x_minus(i) -= dx;
 
                 cvec<sizer.nx> f_plus, f_minus;
-                COND_RESIZE_CVEC(sizer,f_plus, nx());
-                COND_RESIZE_CVEC(sizer,f_minus, nx());
+                COND_RESIZE_CVEC(sizer, f_plus, nx());
+                COND_RESIZE_CVEC(sizer, f_minus, nx());
 
                 model->vectorField(f_plus, x_plus, u0, p);
                 model->vectorField(f_minus, x_minus, u0, p);
@@ -894,8 +893,8 @@ namespace mpc
                 u_minus(i) -= du;
 
                 cvec<sizer.nx> f_plus, f_minus;
-                COND_RESIZE_CVEC(sizer,f_plus, nx());
-                COND_RESIZE_CVEC(sizer,f_minus, nx());
+                COND_RESIZE_CVEC(sizer, f_plus, nx());
+                COND_RESIZE_CVEC(sizer, f_minus, nx());
 
                 model->vectorField(f_plus, x0, u_plus, p);
                 model->vectorField(f_minus, x0, u_minus, p);
@@ -905,17 +904,9 @@ namespace mpc
             }
         }
 
-        cvec<sizer.ph * sizer.nx> ceq;
-        mat<(sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1, sizer.ph * sizer.nx> Jceq;
-
-        cvec<2 * sizer.ph * sizer.ny> cineq;
-        mat<(sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1, 2 * sizer.ph * sizer.ny> Jcineq;
-
-        cvec<sizer.eq> ceq_user;
-        mat<(sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1, sizer.eq> Jceq_user;
-
-        cvec<sizer.ineq> cineq_user;
-        mat<(sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1, sizer.ineq> Jcineq_user;
+        Cost<sizer.ph * sizer.nx> c_eq_sys;
+        Cost<sizer.eq> c_eq_user_def;
+        Cost<sizer.ineq> c_ineq_user_def;
 
         typename Base<sizer>::IConFunHandle ieqUser = nullptr;
         typename Base<sizer>::EConFunHandle eqUser = nullptr;

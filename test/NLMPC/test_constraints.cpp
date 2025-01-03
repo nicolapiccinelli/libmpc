@@ -23,10 +23,45 @@ TEMPLATE_TEST_CASE_SIG(
 }
 
 TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("Checking zero Tineq user inequality constraints"),
+    MPC_TEST_TAGS("[constraints][template]"),
+    ((int Tnx, int Tnu, int Tny, int Tph, int Tch, int Teq), Tnx, Tnu, Tny, Tph, Tch, Teq),
+    (1, 1, 1, 1, 1, 0), (5, 1, 1, 1, 1, 0), (5, 3, 1, 1, 1, 0),
+    (5, 3, 1, 7, 1, 0), (5, 3, 1, 7, 4, 0), (5, 3, 1, 7, 7, 0))
+{
+    constexpr int Tineq = 0;
+
+    mpc::Constraints<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> conFunc;
+    conFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
+
+    auto res = conFunc.setIneqConstraints(nullptr, 1e-3);
+    REQUIRE_FALSE(res);
+    REQUIRE_FALSE(conFunc.hasIneqConstraints());
+}
+
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("Checking zero Teq user equality constraints"),
+    MPC_TEST_TAGS("[constraints][template]"),
+    ((int Tnx, int Tnu, int Tny, int Tph, int Tch, int Tineq), Tnx, Tnu, Tny, Tph, Tch, Tineq),
+    (1, 1, 1, 1, 1, 0), (5, 1, 1, 1, 1, 0), (5, 3, 1, 1, 1, 0),
+    (5, 3, 1, 7, 1, 0), (5, 3, 1, 7, 4, 0), (5, 3, 1, 7, 7, 0))
+{
+    constexpr int Teq = 0;
+
+    mpc::Constraints<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq))> conFunc;
+    conFunc.initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
+
+    auto res = conFunc.setEqConstraints(nullptr, 1e-3);
+
+    REQUIRE_FALSE(res);
+    REQUIRE_FALSE(conFunc.hasEqConstraints());
+}
+
+TEMPLATE_TEST_CASE_SIG(
     MPC_TEST_NAME("Checking model equality constraints"),
     MPC_TEST_TAGS("[constraints][template]"),
     ((int Tnx, int Tnu, int Tny, int Tph, int Tch, int Tineq), Tnx, Tnu, Tny, Tph, Tch, Tineq),
-    (2, 1, 1, 5, 5, 0))
+    (2, 1, 1, 2, 2, 0))
 {
     constexpr int Teq = 0;
     static constexpr auto sizer = mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(0), TVAR(Tny), TVAR(Tph), TVAR(Tch), TVAR(Tineq), TVAR(Teq));
@@ -43,7 +78,7 @@ TEMPLATE_TEST_CASE_SIG(
     model = std::make_shared<mpc::Model<sizer>>();
     model->initialize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
 
-    model->setContinuous(true);
+    model->setContinuous(true,0.01);
     model->setStateModel([](
                             mpc::cvec<TVAR(Tnx)> &dx,
                             const mpc::cvec<TVAR(Tnx)> &x,
@@ -68,14 +103,42 @@ TEMPLATE_TEST_CASE_SIG(
         x[i] = i;
     }
 
+    std::cout << "Input optimal vector:\n" << x << std::endl;
+
     mpc::cvec<TVAR(Tph * Tnx)> costExpected;
     costExpected.resize(Tph * Tnx);
-    costExpected << 0, -1, -2, -2, -2, -2, -2, -2, -2, -2;
+    costExpected << 0.035, -1, -2.05, -1.99;
 
+    std::cout << "State equality constraints without jacobian" << std::endl;
     auto c = conFunc->evaluateStateModelEq(x, false);
 
-    REQUIRE(c.value == costExpected);
-    REQUIRE(c.grad.isZero());
+    for (int i = 0; i < c.value.size(); ++i)
+    {
+        REQUIRE(std::fabs(c.value[i] - costExpected[i]) < 1e-3);
+    }
+
+    REQUIRE(c.jacobian.isZero());
+
+    std::cout << "State equality constraints with jacobian" << std::endl;    
+    auto c1 = conFunc->evaluateStateModelEq(x, true);
+
+    for (int i = 0; i < c.value.size(); ++i)
+    {
+        REQUIRE(std::fabs(c.value[i] - costExpected[i]) < 1e-3);
+    }
+
+    // check the jacobian against the expected values
+    mpc::mat<TVAR(Tph * Tnx), TVAR(((Tph * Tnx) + (Tnu * Tch) + 1))> jacobianExpected;
+    jacobianExpected.resize(Tph * Tnx, (Tph * Tnx) + (Tnu * Tch) + 1);
+    jacobianExpected << -1, -0.005, 0, 0, 0.01, 0, 0, 0.005, -1, 0, 0, 0, 0, 0, 1, -0.005, -1.04, -0.065, 0, 0.01, 0, 0.005, 1, 0.005, -1, 0, 0, 0;
+
+    for (int i = 0; i < c1.jacobian.rows(); ++i)
+    {
+        for (int j = 0; j < c1.jacobian.cols(); ++j)
+        {
+            REQUIRE(std::fabs(c1.jacobian(i, j) - jacobianExpected(i, j)) < 1e-3);
+        }
+    }
 }
 
 TEMPLATE_TEST_CASE_SIG(
@@ -142,7 +205,7 @@ TEMPLATE_TEST_CASE_SIG(
     auto c = conFunc->evaluateIneq(x, false);
 
     REQUIRE(c.value == costExpected);
-    REQUIRE(c.grad.isZero());
+    REQUIRE(c.jacobian.isZero());
 }
 
 TEMPLATE_TEST_CASE_SIG(
@@ -207,5 +270,5 @@ TEMPLATE_TEST_CASE_SIG(
     auto c = conFunc->evaluateEq(x, false);
 
     REQUIRE(c.value == costExpected);
-    REQUIRE(c.grad.isZero());
+    REQUIRE(c.jacobian.isZero());
 }

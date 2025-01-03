@@ -14,7 +14,7 @@ int main()
     Tph, Tch>
     controller;
 
-    controller.setLoggerLevel(mpc::Logger::log_level::NORMAL);
+    controller.setLoggerLevel(mpc::Logger::LogLevel::NORMAL);
 
     mpc::mat<Tnx, Tnx> Ad;
     Ad << 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0,

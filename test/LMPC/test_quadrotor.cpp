@@ -28,7 +28,7 @@ TEST_CASE(
         optsolver;
 #endif
 
-    optsolver.setLoggerLevel(mpc::Logger::log_level::NONE);
+    optsolver.setLoggerLevel(mpc::Logger::LogLevel::NONE);
 
     mpc::mat<Tnx, Tnx> Ad;
     Ad << 1, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0,

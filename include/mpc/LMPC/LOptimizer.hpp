@@ -102,7 +102,7 @@ namespace mpc
             checkOrQuit();
             lin_params = *dynamic_cast<LParameters *>(const_cast<Parameters *>(&param));
 
-            Logger::instance().log(Logger::log_type::DETAIL)
+            Logger::instance().log(Logger::LogType::DETAIL)
                 << "Setting tolerances and stopping criterias"
                 << std::endl;
         }
@@ -199,16 +199,16 @@ namespace mpc
             mpcProblem.getSparse(P, A);
 
             Eigen::IOFormat OctaveFmt(Eigen::StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
-            Logger::instance().log(Logger::log_type::DETAIL) << "P = " << mpcProblem.P.format(OctaveFmt) << std::endl;
-            Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
-            Logger::instance().log(Logger::log_type::DETAIL) << "A = " << mpcProblem.A.format(OctaveFmt) << std::endl;
-            Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
-            Logger::instance().log(Logger::log_type::DETAIL) << "q = " << mpcProblem.q.format(OctaveFmt) << std::endl;
-            Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
-            Logger::instance().log(Logger::log_type::DETAIL) << "l = " << mpcProblem.l.format(OctaveFmt) << std::endl;
-            Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
-            Logger::instance().log(Logger::log_type::DETAIL) << "u = " << mpcProblem.u.format(OctaveFmt) << std::endl;
-            Logger::instance().log(Logger::log_type::DETAIL) << "---------------------" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "P = " << mpcProblem.P.format(OctaveFmt) << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "---------------------" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "A = " << mpcProblem.A.format(OctaveFmt) << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "---------------------" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "q = " << mpcProblem.q.format(OctaveFmt) << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "---------------------" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "l = " << mpcProblem.l.format(OctaveFmt) << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "---------------------" << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "u = " << mpcProblem.u.format(OctaveFmt) << std::endl;
+            Logger::instance().log(Logger::LogType::DETAIL) << "---------------------" << std::endl;
 
             // getting optimization problem size
             int numVars = P.rows();
@@ -224,14 +224,14 @@ namespace mpc
 
                 if (!createOsqpSparseMatrix(P, data->P))
                 {
-                    Logger::instance().log(Logger::log_type::ERROR) << "Unable to create the P matrix" << std::endl;
+                    Logger::instance().log(Logger::LogType::ERROR) << "Unable to create the P matrix" << std::endl;
                 }
 
                 data->q = (c_float *)mpcProblem.q.data();
 
                 if (!createOsqpSparseMatrix(A, data->A))
                 {
-                    Logger::instance().log(Logger::log_type::ERROR) << "Unable to create the A matrix" << std::endl;
+                    Logger::instance().log(Logger::LogType::ERROR) << "Unable to create the A matrix" << std::endl;
                 }
 
                 data->l = (c_float *)mpcProblem.l.data();
@@ -261,7 +261,7 @@ namespace mpc
             exitflag = osqp_setup(&work, data, settings);
             if (exitflag > 0)
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "Unable to setup " << exitflag << std::endl;
+                Logger::instance().log(Logger::LogType::ERROR) << "Unable to setup " << exitflag << std::endl;
             }
 
             // warm starting the solver
@@ -270,7 +270,7 @@ namespace mpc
                 exitflag = osqp_warm_start(work, optimal_prev_x.data(), optimal_prev_y.data());
                 if (exitflag > 0)
                 {
-                    Logger::instance().log(Logger::log_type::ERROR) << "Unable to warm start " << exitflag << std::endl;
+                    Logger::instance().log(Logger::LogType::ERROR) << "Unable to warm start " << exitflag << std::endl;
                 }
             }
             else
@@ -284,7 +284,7 @@ namespace mpc
             exitflag = osqp_solve(work);
             if (exitflag > 0)
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "Unable to solve " << exitflag << std::endl;
+                Logger::instance().log(Logger::LogType::ERROR) << "Unable to solve " << exitflag << std::endl;
             }
 
             // if the solution is valid update the solution otherwise
@@ -295,10 +295,10 @@ namespace mpc
                 optimal_prev_x = std::vector<double>(work->solution->x, work->solution->x + numVars);
                 optimal_prev_y = std::vector<double>(work->solution->y, work->solution->y + numConstraints);
 
-                Logger::instance().log(Logger::log_type::DETAIL) << "Optimal vector: " << std::endl;
+                Logger::instance().log(Logger::LogType::DETAIL) << "Optimal vector: " << std::endl;
                 for (size_t i = 0; i < (size_t)P.rows(); i++)
                 {
-                    Logger::instance().log(Logger::log_type::DETAIL) << work->solution->x[i] << std::endl;
+                    Logger::instance().log(Logger::LogType::DETAIL) << work->solution->x[i] << std::endl;
                 }
 
                 // loop over the rows of the optimal sequence

@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.7.0] - 2025-01-03
+### Added
+- Added logger verbosity managment via environment variable `MPCXX_LOG_LEVEL_OVERRIDE`
+- In python bindings added the possibility to set the optimization problem parameters, to retrive the optimal sequence and to set horizon slice
+- Reduced memory fooprint in the non-linear mpc
+- Added python script for benchmarking the non-linear and linear mpc
+
+### Changed
+- Pybind11 dependency updated to version 2.12.0 to support numpy 2
+- When an element of the optimization vector from the previous iteration violates the bounds, it is overwritten with the value in the middle of the bounds
+- Breaking change: The enum `Logger::log_level` has been renamed to `Logger::LogLevel`
+- Breaking change: The enum `Logger::log_type` has been renamed to `Logger::LogType`
+- Breaking change: The enum `constraints_type` has been renamed to `ConstraintsType`
+
+### Fixed
+- Fixed `IMPC::isControlHorizonSliceValid()` and `IMPC::isPredictionHorizonSliceValid()`, before was not possible to set a slice where the start+end was bigger than the horizon
+- Fixed possibly wrong initialization when warm start is disabled. The optimization vector was initialized with the first previous solution, which however might not respect some of the boundaries
+- Fixed undefined behavior in case Tineq and/or Teq were set to zero, now the user-defined constraints are not evaluated in such a case
+
 ## [0.6.2] - 2024-07-24
 ### Added
 - The `Result` struct now contains the feasibility of the solution vector in the `is_feasible` field

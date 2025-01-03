@@ -172,24 +172,22 @@ namespace mpc
          * @param slack slackness values along the prediction horizon
          */
         void unwrapVector(
-            const cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> x,
-            const cvec<sizer.nx> x0,
+            const cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>& x,
+            const cvec<sizer.nx>& x0,
             mat<(sizer.ph + 1), sizer.nx> &Xmat,
             mat<(sizer.ph + 1), sizer.nu> &Umat,
             double &slack)
         {
             checkOrQuit();
 
-            cvec<(sizer.nu * sizer.ch)> u_vec;
-            u_vec = x.middleRows((ph() * nx()), (nu() * ch()));
+            cvec<(sizer.nu * sizer.ch)> u_vec = x.middleRows((ph() * nx()), (nu() * ch()));
 
             mat<sizer.ph + 1, sizer.nu> Umv;
             COND_RESIZE_MAT(sizer,Umv,(ph() + 1), nu());
 
             cvec<(sizer.ph * sizer.nu)> tmp_mult;
             tmp_mult = Iz2uMat * u_vec;
-            mat<sizer.nu, sizer.ph> tmp_mapped;
-            tmp_mapped = Eigen::Map<mat<sizer.nu, sizer.ph>>(tmp_mult.data(), nu(), ph());
+            Eigen::Map<mat<sizer.nu, sizer.ph>> tmp_mapped(tmp_mult.data(), nu(), ph());
 
             Umv.setZero();
             Umv.middleRows(0, ph()) = tmp_mapped.transpose();
@@ -202,10 +200,8 @@ namespace mpc
                 Xmat.row(i) = x.middleRows(((i - 1) * nx()), nx()).transpose();
             }
 
-            for (int i = 0; i < Xmat.cols(); i++)
-            {
-                Xmat.col(i) /= 1.0 / state_scaling(i);
-            }
+            // Scale Xmat using element-wise division
+            Xmat = Xmat.array().rowwise() / state_scaling.transpose().array();
 
             // TODO add disturbaces manipulated vars
             Umat.setZero();

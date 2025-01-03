@@ -28,7 +28,7 @@ TEST_CASE(
         optsolver;
 #endif
 
-    optsolver.setLoggerLevel(mpc::Logger::log_level::DEEP);
+    optsolver.setLoggerLevel(mpc::Logger::LogLevel::DEEP);
 
     mpc::mat<Tnx, Tnx> A, Ad;
     A << 0, 1, 0, 2;
@@ -89,7 +89,7 @@ TEST_CASE(
         std::cout << seq.state.row(i) << std::endl;
     }
 
-    optsolver.setLoggerLevel(mpc::Logger::log_level::NONE);
+    optsolver.setLoggerLevel(mpc::Logger::LogLevel::NONE);
 }
 
 TEST_CASE(

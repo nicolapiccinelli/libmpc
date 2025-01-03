@@ -100,9 +100,10 @@ namespace mpc
     {
     protected:
         Parameters() = default;
-        virtual ~Parameters() = default;
 
     public:
+        virtual ~Parameters() = default;
+        
         /// @brief Set the maximum number of iterations before stopping the optimization
         int maximum_iteration = 100;
         /// @brief Set the maximum time before stopping the optimization (in seconds)
@@ -196,7 +197,7 @@ namespace mpc
         mat<Tph, Tnu> input;
     };
 
-    enum constraints_type
+    enum ConstraintsType
     {
         INEQ,
         EQ,

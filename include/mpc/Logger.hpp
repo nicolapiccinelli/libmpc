@@ -7,6 +7,7 @@
 #include <iostream>
 #include <ostream>
 #include <string>
+#include <cstdlib> // for std::getenv
 
 #ifdef ERROR
 #undef ERROR
@@ -15,16 +16,15 @@
 namespace mpc
 {
     /**
-     * @brief Basic logger system
+     * @brief Basic logging system for different log levels and types.
      */
     class Logger
     {
     public:
         /**
-         * @brief Internal log message enumerator
-         * 
+         * @brief Enumerates the different log types.
          */
-        enum log_type
+        enum LogType
         {
             DETAIL = 0,
             INFO = 1,
@@ -32,20 +32,20 @@ namespace mpc
         };
 
         /**
-         * @brief External desired log level enumerator
+         * @brief Enumerates the external log levels that control the verbosity.
          */
-        enum log_level
+        enum LogLevel
         {
-            DEEP = 0,
-            NORMAL = 1,
-            ALERT = 2,
-            NONE
+            UNSET = -1, ///< Unset log level
+            DEEP = 0,   ///< Deep logging with maximum verbosity
+            NORMAL = 1, ///< Normal logging
+            ALERT = 2,  ///< Only alert-level messages
+            NONE = 3    ///< No logging
         };
 
         /**
-         * @brief Return the instance of the logger
-         * 
-         * @return Logger& logger instance
+         * @brief Gets the singleton instance of the Logger.
+         * @return Logger& The logger instance.
          */
         static Logger &instance()
         {
@@ -54,34 +54,24 @@ namespace mpc
         }
 
         /**
-         * @brief Reset the logger configuration
-         * 
-         * @return Logger& logger instance
+         * @brief Resets the logger configuration to its default state.
+         * @return Logger& The updated logger instance.
          */
         Logger &reset()
         {
-            resetImpl();
-            return *this;
-        }
+            prefix.clear();
+            thresholdLevel = LogLevel::NORMAL;
+            verboseOverride = false;
 
-        /**
-         * @brief Define the log type for the following message
-         * 
-         * @param type level type enumerator
-         * @return Logger& logger instance
-         */
-        Logger &log(log_type type)
-        {
-            Logger::instance().currentType = type;
-            if ((int)Logger::instance().thresholdLevel <= (int)Logger::instance().currentType) {
-                *(Logger::instance().os) << "[MPC++";
-                if (!Logger::instance().prefix.empty())
+            if (const char *env_p = std::getenv("MPCXX_LOG_LEVEL_OVERRIDE"))
+            {
+                verboseOverride = true;
+
+                thresholdLevelOverride = parseLogLevel(env_p);
+                
+                if (thresholdLevelOverride == LogLevel::UNSET)
                 {
-                    *(Logger::instance().os) << " " << Logger::instance().prefix << "] ";
-                }
-                else
-                {
-                    *(Logger::instance().os) << "] ";
+                    verboseOverride = false;
                 }
             }
 
@@ -89,87 +79,152 @@ namespace mpc
         }
 
         /**
-         * @brief Set the stream output for the logger
-         * 
-         * @param opt_stream output stream
-         * @return Logger& logger instance
+         * @brief Sets the log type for the next log message.
+         * @param type The log type (e.g., INFO, ERROR).
+         * @return Logger& The updated logger instance.
          */
-        Logger &setStream(std::ostream *opt_stream)
+        Logger &log(LogType type)
         {
-            os = opt_stream;
+            currentType = type;
+
+            if (shouldLog())
+            {
+                writePrefix();
+            }
             return *this;
         }
 
         /**
-         * @brief Set the logger level
-         * 
-         * @param l level type enumerator
-         * @return Logger& logger instance
+         * @brief Sets the output stream for the logger (e.g., std::cout or file stream).
+         * @param outputStream The output stream.
+         * @return Logger& The updated logger instance.
          */
-        Logger &setLevel(log_level l)
+        Logger &setStream(std::ostream *outputStream)
         {
-            thresholdLevel = l;
+            os = outputStream;
             return *this;
         }
 
         /**
-         * @brief Set the logger's messages prefix
-         * 
-         * @param s prefix string
-         * @return Logger& logger instance
+         * @brief Sets the log level that controls the verbosity of log messages.
+         * @param level The log level.
+         * @return Logger& The updated logger instance.
          */
-        Logger &setPrefix(std::string s)
+        Logger &setLevel(LogLevel level)
         {
-            prefix = s;
+            thresholdLevel = level;
             return *this;
         }
 
+        /**
+         * @brief Sets a custom prefix for log messages.
+         * @param prefix The custom prefix string.
+         * @return Logger& The updated logger instance.
+         */
+        Logger &setPrefix(const std::string &prefix)
+        {
+            this->prefix = prefix;
+            return *this;
+        }
+
+        /**
+         * @brief Writes the log message to the output stream.
+         * @param message The message to log.
+         * @return Logger& The updated logger instance.
+         */
         template <typename T>
-        Logger &operator<<(const T &x)
+        Logger &operator<<(const T &message)
         {
-            if ((int)thresholdLevel <= (int)currentType) {
-                *os << x;
+            if (shouldLog())
+            {
+                *os << message;
             }
-
             return *this;
         }
 
-        Logger &operator<<(std::ostream &(*f)(std::ostream &o))
+        /**
+         * @brief Handles formatting of the log stream.
+         * @param manip The manipulator function (e.g., std::endl).
+         * @return Logger& The updated logger instance.
+         */
+        Logger &operator<<(std::ostream &(*manip)(std::ostream &))
         {
-            if ((int)thresholdLevel <= (int)currentType) {
-                *os << f;
+            if (shouldLog())
+            {
+                *os << manip;
             }
-
             return *this;
-        };
+        }
 
     private:
-        /**
-         * @brief Construct a new Logger, currently the output stream is forced to be
-         * the standard output
-         * 
-         */
         Logger() : os(&std::cout)
         {
-            resetImpl();
+            reset();
         }
 
         /**
-         * @brief Reset function implementation
+         * @brief Determines whether the current log message should be printed based on the threshold level.
+         * @return true if the message should be logged, false otherwise.
          */
-        void resetImpl()
+        bool shouldLog() const
         {
-            prefix = "";
-            thresholdLevel = log_level::NORMAL;
+            int activeLevel = verboseOverride ? (int)thresholdLevelOverride : (int)thresholdLevel;
+            return activeLevel <= (int)currentType;
         }
 
+        /**
+         * @brief Parses a log level string from the environment variable.
+         * @param level The environment variable value.
+         * @return LogLevel The corresponding log level.
+         */
+        LogLevel parseLogLevel(const std::string &level)
+        {
+            if (level == "DEEP")
+            {
+                return LogLevel::DEEP;
+            }
+
+            if (level == "NORMAL")
+            {
+                return LogLevel::NORMAL;
+            }
+
+            if (level == "ALERT")
+            {
+                return LogLevel::ALERT;
+            }
+
+            if (level == "NONE")
+            {
+                return LogLevel::NONE;
+            }
+            
+            return LogLevel::UNSET;
+        }
+
+        /**
+         * @brief Writes the log prefix (if set) to the output stream.
+         */
+        void writePrefix()
+        {
+            *os << "[MPC++";
+            if (!prefix.empty())
+            {
+                *os << " " << prefix;
+            }
+            *os << "] ";
+        }
+
+        // Deleted copy constructor and assignment operator to prevent copying of the Logger.
         Logger(const Logger &) = delete;
         Logger &operator=(const Logger &) = delete;
 
-        std::ostream *os;
-        std::string prefix;
-        log_level thresholdLevel;
-        log_type currentType;
+        std::ostream *os;                                   ///< The output stream (default is std::cout).
+        std::string prefix;                                 ///< The custom prefix for log messages.
+        bool verboseOverride = false;                       ///< Flag indicating whether environment variable overrides are active.
+        LogLevel thresholdLevel = LogLevel::NORMAL;         ///< The default log level threshold.
+        LogLevel thresholdLevelOverride = LogLevel::NORMAL; ///< The log level override from the environment.
+        LogType currentType = LogType::INFO;                ///< The current log type.
     };
 
 } // namespace mpc

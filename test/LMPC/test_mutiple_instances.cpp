@@ -10,7 +10,7 @@ TEST_CASE(
     MPC_TEST_NAME("Linear multiple instances"),
     MPC_TEST_TAGS("[linear]"))
 {
-    mpc::Logger::instance().setLevel(mpc::Logger::log_level::DEEP);
+    mpc::Logger::instance().setLevel(mpc::Logger::LogLevel::DEEP);
 
     // MPC LATERAL CONTROLLER
     constexpr int num_states_1 = 8;

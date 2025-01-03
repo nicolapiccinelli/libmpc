@@ -125,6 +125,34 @@ void expose_LMPC(py::module &m)
 
 PYBIND11_MODULE(pympcxx, m)
 {
+    // Expose the base class 'mpc::Parameters'
+    py::class_<mpc::Parameters, std::shared_ptr<mpc::Parameters>>(m, "Parameters")
+        .def_readwrite("maximum_iteration", &mpc::Parameters::maximum_iteration)
+        .def_readwrite("time_limit", &mpc::Parameters::time_limit)
+        .def_readwrite("enable_warm_start", &mpc::Parameters::enable_warm_start);
+
+    // Expose the derived class 'LParameters' and bind it to 'mpc::Parameters'
+    py::class_<mpc::LParameters, mpc::Parameters, std::shared_ptr<mpc::LParameters>>(m, "LParameters")
+        .def(py::init<>())
+        .def_readwrite("alpha", &mpc::LParameters::alpha)
+        .def_readwrite("rho", &mpc::LParameters::rho)
+        .def_readwrite("eps_rel", &mpc::LParameters::eps_rel)
+        .def_readwrite("eps_abs", &mpc::LParameters::eps_abs)
+        .def_readwrite("eps_prim_inf", &mpc::LParameters::eps_prim_inf)
+        .def_readwrite("eps_dual_inf", &mpc::LParameters::eps_dual_inf)
+        .def_readwrite("verbose", &mpc::LParameters::verbose)
+        .def_readwrite("adaptive_rho", &mpc::LParameters::adaptive_rho)
+        .def_readwrite("polish", &mpc::LParameters::polish);
+
+    // Expose the derived class 'NLParameters' and bind it to 'mpc::Parameters'
+    py::class_<mpc::NLParameters, mpc::Parameters, std::shared_ptr<mpc::NLParameters>>(m, "NLParameters")
+        .def(py::init<>())
+        .def_readwrite("relative_ftol", &mpc::NLParameters::relative_ftol)
+        .def_readwrite("relative_xtol", &mpc::NLParameters::relative_xtol)
+        .def_readwrite("absolute_ftol", &mpc::NLParameters::absolute_ftol)
+        .def_readwrite("absolute_xtol", &mpc::NLParameters::absolute_xtol)
+        .def_readwrite("hard_constraints", &mpc::NLParameters::hard_constraints);
+
     // export the API for the NLMPC class
     expose_NLMPC<Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic>(m);
 
@@ -132,11 +160,11 @@ PYBIND11_MODULE(pympcxx, m)
     expose_LMPC<Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic>(m);
 
     // export the logger level enum
-    py::enum_<mpc::Logger::log_level>(m, "LoggerLevel")
-        .value("DEEP", mpc::Logger::log_level::DEEP)
-        .value("NORMAL", mpc::Logger::log_level::NORMAL)
-        .value("ALERT", mpc::Logger::log_level::ALERT)
-        .value("NONE", mpc::Logger::log_level::NONE)
+    py::enum_<mpc::Logger::LogLevel>(m, "LoggerLevel")
+        .value("DEEP", mpc::Logger::LogLevel::DEEP)
+        .value("NORMAL", mpc::Logger::LogLevel::NORMAL)
+        .value("ALERT", mpc::Logger::LogLevel::ALERT)
+        .value("NONE", mpc::Logger::LogLevel::NONE)
         .export_values();
 
     // export the result struct to python
@@ -174,4 +202,12 @@ PYBIND11_MODULE(pympcxx, m)
     py::class_<mpc::HorizonSlice>(m, "HorizonSlice")
         .def(py::init<int, int>())
         .def_static("all", &mpc::HorizonSlice::all);
+
+    // export the OptimalSequence struct to python
+    using OptSeqType = mpc::OptSequence<Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic>;
+
+    py::class_<OptSeqType>(m, "OptSequence")
+        .def_readonly("state", &OptSeqType::state)
+        .def_readonly("output", &OptSeqType::output)
+        .def_readonly("input", &OptSeqType::input);
 }
