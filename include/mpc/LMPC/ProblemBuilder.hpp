@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023 Nicola Piccinelli
+ *   Copyright (c) 2023-2025 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -405,8 +405,8 @@ namespace mpc
             // then the last bounds of the control horizon are used to fill the remaining part of the prediction horizon
             if (ch() < ph())
             {
-                minU.block(0, ch(), nu(), ph() - ch()) = UMinMat.col(ch());
-                maxU.block(0, ch(), nu(), ph() - ch()) = UMaxMat.col(ch());
+                minU.block(0, ch(), nu(), ph() - ch()) = UMinMat.col(ch() - 1).replicate(1, ph() - ch());
+                maxU.block(0, ch(), nu(), ph() - ch()) = UMaxMat.col(ch() - 1).replicate(1, ph() - ch());
             }
 
             return buildTimeInvariantTems();

@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023 Nicola Piccinelli
+ *   Copyright (c) 2023-2025 Nicola Piccinelli
  *   All rights reserved.
  */
 #include "basic.hpp"
@@ -7,7 +7,87 @@
 #include <catch2/catch_template_test_macros.hpp>
 
 TEST_CASE(
-    MPC_TEST_NAME("Linear quadrotor example"),
+    MPC_TEST_NAME("Linear multiple instances"),
+    MPC_TEST_TAGS("[linear]"))
+{
+    mpc::Logger::instance().setLevel(mpc::Logger::LogLevel::DEEP);
+
+    // MPC LATERAL CONTROLLER
+    constexpr int num_states_1 = 8;
+    constexpr int num_output_1 = 2;
+    constexpr int num_inputs_1 = 2;
+    constexpr int num_dinputs_1 = 5;
+
+    constexpr int num_states_2 = 4;
+    constexpr int num_output_2 = 1;
+    constexpr int num_inputs_2 = 1;
+    constexpr int num_dinputs_2 = 3;
+
+    constexpr int pred_hor = 10;
+    constexpr int ctrl_hor = 3;
+
+    // MPC LATERAL CONTROLLER
+#ifdef MPC_DYNAMIC
+    mpc::LMPC<> latController(
+        num_states_1, num_inputs_1, num_dinputs_1, num_output_1,
+        pred_hor, ctrl_hor);
+#else
+    mpc::LMPC<
+        TVAR(num_states_1), TVAR(num_inputs_1), TVAR(num_dinputs_1), TVAR(num_output_1),
+        TVAR(pred_hor), TVAR(ctrl_hor)>
+        latController;
+#endif
+
+    mpc::mat<num_states_1, num_states_1> Ad;
+    Ad.setIdentity();
+    mpc::mat<num_states_1, num_inputs_1> Bd;
+    Bd.setZero();
+    mpc::mat<num_output_1, num_states_1> Cd;
+    Cd.setZero();
+
+    latController.setStateSpaceModel(Ad, Bd, Cd);
+    latController.getLastResult();
+
+    // MPC LONGITUDINAL CONTROLLER
+#ifdef MPC_DYNAMIC
+    mpc::LMPC<> longController(
+        num_states_1, num_inputs_1, num_dinputs_1, num_output_1,
+        pred_hor, ctrl_hor);
+#else
+    mpc::LMPC<
+        TVAR(num_states_1), TVAR(num_inputs_1), TVAR(num_dinputs_1), TVAR(num_output_1),
+        TVAR(pred_hor), TVAR(ctrl_hor)>
+        longController;
+#endif
+
+    longController.setStateSpaceModel(Ad, Bd, Cd);
+    longController.getLastResult();
+
+    // MPC VERTICAL CONTROLLER
+#ifdef MPC_DYNAMIC
+    mpc::LMPC<> vertController(
+        num_states_2, num_inputs_2, num_dinputs_2, num_output_2,
+        pred_hor, ctrl_hor);
+#else
+    mpc::LMPC<
+        TVAR(num_states_2), TVAR(num_inputs_2), TVAR(num_dinputs_2), TVAR(num_output_2),
+        TVAR(pred_hor), TVAR(ctrl_hor)>
+        vertController;
+#endif
+
+    mpc::mat<num_states_2, num_states_2> Ad_2;
+    Ad_2.setIdentity();
+    mpc::mat<num_states_2, num_inputs_2> Bd_2;
+    Bd_2.setZero();
+    mpc::mat<num_output_2, num_states_2> Cd_2;
+    Cd_2.setIdentity();
+
+    vertController.setStateSpaceModel(Ad_2, Bd_2, Cd_2);
+    vertController.getLastResult();
+}
+
+TEST_CASE(
+    MPC_TEST_NAME("LMPC interface test"),
     MPC_TEST_TAGS("[linear]"))
 {
     constexpr int Tnx = 12;
@@ -154,4 +234,47 @@ TEST_CASE(
     std::cout << "Obtained result: " << res.cmd << std::endl;
 
     REQUIRE(res.cmd.isApprox(testRes, 1e-4));
+}
+
+TEST_CASE(
+    MPC_TEST_NAME("Linear output mapping"),
+    MPC_TEST_TAGS("[linear]"))
+{
+    constexpr int Tnx = 3;
+    constexpr int Tny = 6;
+    constexpr int Tnu = 0;
+    constexpr int Tndu = 7;
+    constexpr int Tph = 1;
+    constexpr int Tch = 1;
+
+    mpc::ProblemBuilder<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(Tndu), TVAR(Tny), TVAR(Tph), TVAR(Tch), 0, 0)> builder;
+    builder.initialize(Tnx, Tnu, Tndu, Tny, Tph, Tch);
+
+    mpc::mat<Tnx, Tnx> Ad;
+    Ad.setZero();
+
+    mpc::mat<Tnx, Tnu> Bd;
+    Bd.setZero();
+
+    mpc::mat<Tny, Tnx> Cd;
+    Cd.setRandom();
+
+    mpc::mat<Tny, Tnu> Dd;
+    Dd.setZero();
+
+    mpc::mat<Tnx, Tndu> Bdv;
+    Bdv.setZero();
+
+    mpc::mat<Tny, Tndu> Ddv;
+    Ddv.setRandom();
+
+    builder.setStateModel(Ad, Bd, Cd);
+    builder.setExogenousInput(Bdv, Ddv);
+
+    mpc::cvec<Tnx> x;
+    x.setRandom();
+    mpc::cvec<Tndu> du;
+    du.setRandom();
+
+    REQUIRE(builder.mapToOutput(x, du).isApprox(Cd * x + Ddv * du));
 }

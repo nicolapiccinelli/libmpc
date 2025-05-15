@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.1] - 2025-05-15
+
+### Changed
+- Improved unit testing for APIs in LMPC and NLMPC classes
+
+### Fixed
+- The documentation was reporting an outdated initialization procedure for dynamic allocation
+- Fixed the `setInputBounds` for LMPC. The function was giving a segmentation error when the control horizon was shorter than the prediction horizon
+- Fixed a bad memory access in the non-linear mpc while setting equality constraints via `setEqConFunction` with dynamic size
+
 ## [0.7.0] - 2025-01-03
 ### Added
 - Added logger verbosity managment via environment variable `MPCXX_LOG_LEVEL_OVERRIDE`

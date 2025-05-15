@@ -20,13 +20,13 @@ import sphinx_rtd_theme
 # -- Project information -----------------------------------------------------
 
 project = u'libmpc++'
-copyright = u'2024, Nicola Piccinelli'
+copyright = u'2025, Nicola Piccinelli'
 author = u'Nicola Piccinelli'
 
 # The short X.Y version
 version = u''
 # The full version, including alpha/beta/rc tags
-release = u'0.7.0'
+release = u'0.7.1'
 
 
 # -- General configuration ---------------------------------------------------
