@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023 Nicola Piccinelli
+ *   Copyright (c) 2023-2025 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -273,7 +273,7 @@ namespace mpc
             }
 
             cvec<Teq> tol_vec;
-            tol_vec = cvec<Teq>::Ones(Size(Teq));
+            tol_vec = cvec<Teq>::Ones(eq());
 
             auto res = conF->setEqConstraints(handle, tol);
             ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserEq(ConstraintsType::UEQ, tol_vec * tol);

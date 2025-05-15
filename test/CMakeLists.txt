@@ -44,17 +44,13 @@ set(MPC_TEST_LIB_SOURCES
     "NLMPC/test_objective.cpp"
     "NLMPC/test_common.cpp"
     "NLMPC/test_nloptimizer.cpp"
+    "NLMPC/test_nlmpc.cpp"
+    "LMPC/test_constraints.cpp"
+    "LMPC/test_common.cpp"
     "LMPC/test_lmpc.cpp"
-    "LMPC/test_mutiple_instances.cpp"
     "test_utils.cpp"
     "test_profiler.cpp"
     "test_logger.cpp"
-    "test_main.cpp")
-
-set(MPC_TEST_CASES_SOURCES
-    "NLMPC/test_discrete_lti_siso.cpp"
-    "NLMPC/test_vanderpol.cpp"
-    "LMPC/test_quadrotor.cpp"
     "test_main.cpp")
 
 add_executable(test_lib_dynamic ${MPC_TEST_LIB_SOURCES})
@@ -68,17 +64,6 @@ target_link_libraries(test_lib_static ${MPC_LINK_LIB})
 target_compile_definitions(test_lib_static PUBLIC debug)
 catch_discover_tests(test_lib_static)
 
-add_executable(test_cases_dynamic ${MPC_TEST_CASES_SOURCES})
-target_link_libraries(test_cases_dynamic ${MPC_LINK_LIB})
-target_compile_definitions(test_cases_dynamic PUBLIC debug)
-target_compile_definitions(test_cases_dynamic PUBLIC MPC_DYNAMIC)
-catch_discover_tests(test_cases_dynamic)
-
-add_executable(test_cases_static ${MPC_TEST_CASES_SOURCES})
-target_link_libraries(test_cases_static ${MPC_LINK_LIB})
-target_compile_definitions(test_cases_static PUBLIC debug)
-catch_discover_tests(test_cases_static)
-
 if(USE_SHOW_STACKTRACE)
     set(STACKTRACE_LIBS 
         dl
@@ -89,6 +74,4 @@ if(USE_SHOW_STACKTRACE)
 
     target_link_libraries(test_lib_dynamic ${STACKTRACE_LIBS})
     target_link_libraries(test_lib_static ${STACKTRACE_LIBS})
-    target_link_libraries(test_cases_dynamic ${STACKTRACE_LIBS})
-    target_link_libraries(test_cases_static ${STACKTRACE_LIBS})
 endif()

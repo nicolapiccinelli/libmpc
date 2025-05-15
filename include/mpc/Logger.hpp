@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023 Nicola Piccinelli
+ *   Copyright (c) 2023-2025 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once

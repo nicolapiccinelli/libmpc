@@ -93,8 +93,8 @@ Dynamic allocation
 
 .. code-block:: c++
 
-    mpc::NLMPC<> nlmpc(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq);
-    mpc::LMPC<> lmpc(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0);
+    mpc::NLMPC<> nlmpc(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq);
+    mpc::LMPC<> lmpc(Tnx, Tnu, Tndu, Tny, Tph, Tch);
 
 Solver parametrization
 ----------------------

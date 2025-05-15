@@ -1,338 +1,243 @@
 /*
- *   Copyright (c) 2023 Nicola Piccinelli
+ *   Copyright (c) 2023-2025 Nicola Piccinelli
  *   All rights reserved.
  */
 #include "basic.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 
-TEST_CASE(
-    MPC_TEST_NAME("State box constraints"),
-    MPC_TEST_TAGS("[linear]"))
-{
-    constexpr int Tnx = 2;
-    constexpr int Tny = 2;
-    constexpr int Tnu = 1;
-    constexpr int Tndu = 0;
-    constexpr int Tph = 15;
-    constexpr int Tch = 15;
+#define LMPC_TEMPLATE_PARAMS ((int Tnx, int Tnu, int Tndu, int Tny, int Tph, int Tch), Tnx, Tnu, Tndu, Tny, Tph, Tch)
+#define LMPC_TEMPLATE_CASES \
+        (1, 1, 1, 1, 1, 1), \
+        (5, 1, 1, 1, 1, 1), \
+        (5, 3, 3, 1, 1, 1), \
+        (5, 3, 3, 7, 7, 7), \
+        (5, 3, 3, 7, 4, 4), \
+        (5, 3, 3, 7, 7, 5)
 
+template <int Tnx, int Tnu, int Tndu, int Tny, int Tph, int Tch>
+auto make_solver()
+{
 #ifdef MPC_DYNAMIC
-    mpc::LMPC<> optsolver(
-        Tnx, Tnu, Tndu, Tny,
-        Tph, Tch);
+    return mpc::LMPC<>(Tnx, Tnu, Tndu, Tny, Tph, Tch);
 #else
-    mpc::LMPC<
-        TVAR(Tnx), TVAR(Tnu), TVAR(Tndu), TVAR(Tny),
-        TVAR(Tph), TVAR(Tch)>
-        optsolver;
+    return mpc::LMPC<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
 #endif
-
-    optsolver.setLoggerLevel(mpc::Logger::LogLevel::DEEP);
-
-    mpc::mat<Tnx, Tnx> A, Ad;
-    A << 0, 1, 0, 2;
-    mpc::mat<Tnx, Tnu> B, Bd;
-    B << 0, 1;
-
-    mpc::discretization<Tnx, Tnu>(A, B, 0.01, Ad, Bd);
-
-    mpc::mat<Tny, Tnx> C;
-    C.setIdentity();
-
-    optsolver.setStateSpaceModel(Ad, Bd, C);
-
-    mpc::cvec<Tnu> InputW, DeltaInputW;
-    mpc::cvec<Tny> OutputW;
-
-    OutputW << 0, 0;
-    InputW << 0;
-    DeltaInputW << 0;
-
-    REQUIRE(optsolver.setObjectiveWeights(OutputW, InputW, DeltaInputW, mpc::HorizonSlice::all()));
-    REQUIRE(optsolver.setReferences(mpc::mat<Tny, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero()));
-
-    mpc::mat<Tnx, Tph> xminmat, xmaxmat;
-    mpc::mat<Tny, Tph> yminmat, ymaxmat;
-    mpc::mat<Tnu, Tch> uminmat, umaxmat;
-
-    xminmat.setConstant(-mpc::inf);
-    xmaxmat.setConstant(mpc::inf);
-    xminmat.col(Tph - 1) << 0.0, 0.0;
-    xmaxmat.col(Tph - 1) << 0.0, 0.0;
-
-    yminmat.setConstant(-mpc::inf);
-    ymaxmat.setConstant(mpc::inf);
-
-    uminmat.setConstant(-mpc::inf);
-    umaxmat.setConstant(mpc::inf);
-
-    optsolver.setStateBounds(xminmat, xmaxmat);
-    optsolver.setInputBounds(uminmat, umaxmat);
-    optsolver.setOutputBounds(yminmat, ymaxmat);
-
-    mpc::cvec<Tnx> x;
-    x << 2.0, 0;
-    mpc::cvec<Tnu> u;
-    u << 0;
-
-    mpc::LParameters params;
-    params.maximum_iteration = 4000;
-    params.verbose = true;
-    optsolver.setOptimizerParameters(params);
-
-    auto res = optsolver.optimize(x, u);
-    auto seq = optsolver.getOptimalSequence();
-
-    for (size_t i = 0; i < Tph; i++)
-    {
-        std::cout << seq.state.row(i) << std::endl;
-    }
-
-    optsolver.setLoggerLevel(mpc::Logger::LogLevel::NONE);
 }
 
-TEST_CASE(
-    MPC_TEST_NAME("Scalar constraints"),
-    MPC_TEST_TAGS("[linear]"))
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setStateBounds matrix"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
 {
-    constexpr int Tnx = 2;
-    constexpr int Tny = 2;
-    constexpr int Tnu = 1;
-    constexpr int Tndu = 0;
-    constexpr int Tph = 5;
-    constexpr int Tch = 5;
-
-#ifdef MPC_DYNAMIC
-    mpc::LMPC<> optsolver(
-        Tnx, Tnu, Tndu, Tny,
-        Tph, Tch);
-#else
-    mpc::LMPC<
-        TVAR(Tnx), TVAR(Tnu), TVAR(Tndu), TVAR(Tny),
-        TVAR(Tph), TVAR(Tch)>
-        optsolver;
-#endif
-
-    mpc::mat<Tnx, Tnx> A, Ad;
-    A << 0, 1, 0, 2;
-    mpc::mat<Tnx, Tnu> B, Bd;
-    B << 0, 1;
-
-    mpc::discretization<Tnx, Tnu>(A, B, 0.001, Ad, Bd);
-
-    mpc::mat<Tny, Tnx> C;
-    C.setIdentity();
-
-    optsolver.setStateSpaceModel(Ad, Bd, C);
-
-    mpc::cvec<Tnu> InputW, DeltaInputW;
-    mpc::cvec<Tny> OutputW;
-
-    OutputW << 1, 0;
-    InputW << 0.1;
-    DeltaInputW << 0;
-
-    REQUIRE(optsolver.setObjectiveWeights(OutputW, InputW, DeltaInputW, {-1, -1}));
-
-    mpc::cvec<Tnx> sX;
-    sX.setOnes();
-    mpc::cvec<Tnu> sU;
-    sU.setOnes();
-    double maxS, minS;
-    maxS = 0.1;
-    minS = -0.5;
-
-    REQUIRE(optsolver.setScalarConstraint(minS, maxS, sX, sU, {-1, -1}));
-    REQUIRE(optsolver.setReferences(mpc::mat<Tny, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero(), mpc::mat<Tnu, Tph>::Zero()));
-
-    mpc::cvec<Tnx> x;
-    x << 10.0, 0;
-    mpc::cvec<Tnu> u;
-    u << 0;
-
-    mpc::LParameters params;
-    params.maximum_iteration = 4000;
-    optsolver.setOptimizerParameters(params);
-
-    auto res = optsolver.optimize(x, u);
-    auto seq = optsolver.getOptimalSequence();
-
-    for (size_t i = 0; i < Tph; i++)
-    {
-        double scalar_res = sU.dot(seq.input.row(i)) + sX.dot(seq.state.row(i));
-        REQUIRE(scalar_res <= maxS + 1e-2);
-        REQUIRE(scalar_res >= minS - 1e-3);
-    }
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::mat<Tnx, Tph> XMinMat = mpc::mat<Tnx, Tph>::Constant(-1.0);
+    mpc::mat<Tnx, Tph> XMaxMat = mpc::mat<Tnx, Tph>::Constant(1.0);
+    REQUIRE(optsolver.setStateBounds(XMinMat, XMaxMat));
 }
 
-TEST_CASE(
-    MPC_TEST_NAME("Linear default constraints"),
-    MPC_TEST_TAGS("[linear]"))
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setInputBounds matrix"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
 {
-    constexpr int Tnx = 3;
-    constexpr int Tny = 4;
-    constexpr int Tnu = 5;
-    constexpr int Tndu = 6;
-    constexpr int Tph = 5;
-    constexpr int Tch = 5;
-
-    mpc::ProblemBuilder<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(Tndu), TVAR(Tny), TVAR(Tph), TVAR(Tch), 0, 0)> builder;
-    builder.initialize(Tnx, Tnu, Tndu, Tny, Tph, Tch);
-
-    mpc::cvec<Tnx> x0;
-    x0.fill(1);
-    mpc::cvec<Tnu> u0;
-    u0.fill(-1);
-
-    mpc::mat<Tny, Tph> yRef;
-    mpc::mat<Tnu, Tph> uRef;
-    mpc::mat<Tnu, Tph> deltaURef;
-    mpc::mat<Tndu, Tph> uMeas;
-
-    auto &res = builder.get(x0, u0, yRef, uRef, deltaURef, uMeas);
-
-    REQUIRE((-1 == res.l.segment(0, Tnx).array()).all());
-    REQUIRE((1 == res.l.segment(Tnx, Tnu).array()).all());
-    REQUIRE(res.l.segment(Tnx + Tnu, Tph * (Tnx + Tnu)).isZero());
-    REQUIRE((-mpc::inf == res.l.segment((Tph + 1) * (Tnx + Tnu), ((Tph + 1) * (Tnu + Tnx)) + ((Tph + 1) * Tny) + (Tph * Tnu) + (Tph + 1)).array()).all());
-
-    REQUIRE((-1 == res.u.segment(0, Tnx).array()).all());
-    REQUIRE((1 == res.u.segment(Tnx, Tnu).array()).all());
-    REQUIRE(res.u.segment(Tnx + Tnu, Tph * (Tnx + Tnu)).isZero());
-    REQUIRE((mpc::inf == res.u.segment((Tph + 1) * (Tnx + Tnu), ((Tph + 1) * (Tnu + Tnx)) + ((Tph + 1) * Tny) + (Tph * Tnu) + (Tph + 1)).array()).all());
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::mat<Tnu, Tch> UMinMat = mpc::mat<Tnu, Tch>::Constant(-1.0);
+    mpc::mat<Tnu, Tch> UMaxMat = mpc::mat<Tnu, Tch>::Constant(1.0);
+    REQUIRE(optsolver.setInputBounds(UMinMat, UMaxMat));
 }
 
-TEST_CASE(
-    MPC_TEST_NAME("Linear constraints")
-        MPC_TEST_TAGS("[linear]"))
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setOutputBounds matrix"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
 {
-    constexpr int Tnx = 2;
-    constexpr int Tny = 3;
-    constexpr int Tnu = 4;
-    constexpr int Tndu = 0;
-    constexpr int Tph = 3;
-    constexpr int Tch = 3;
-
-    mpc::ProblemBuilder<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(Tndu), TVAR(Tny), TVAR(Tph), TVAR(Tch), 0, 0)> builder;
-    builder.initialize(Tnx, Tnu, Tndu, Tny, Tph, Tch);
-
-    mpc::mat<Tnx, Tph> xminmat, xmaxmat;
-    mpc::mat<Tny, Tph> yminmat, ymaxmat;
-    mpc::mat<Tnu, Tch> uminmat, umaxmat;
-
-    xminmat.setConstant(-1);
-    xmaxmat.setConstant(1);
-
-    yminmat.setConstant(-2);
-    ymaxmat.setConstant(2);
-
-    uminmat.setConstant(-3);
-    umaxmat.setConstant(3);
-
-    builder.setStateBounds(xminmat, xmaxmat);
-    builder.setInputBounds(uminmat, umaxmat);
-    builder.setOutputBounds(yminmat, ymaxmat);
-
-    mpc::cvec<Tnx> x0;
-    x0.fill(42.0);
-    mpc::cvec<Tnu> u0;
-    u0.fill(-42.0);
-
-    mpc::cvec<Tph> smin, smax;
-    smin.setConstant(-4);
-    smax.setConstant(4);
-
-    builder.setScalarConstraint(smin, smax, x0, u0);
-
-    mpc::mat<Tny, Tph> yRef;
-    yRef.setZero();
-    mpc::mat<Tnu, Tph> uRef;
-    uRef.setZero();
-    mpc::mat<Tnu, Tph> deltaURef;
-    deltaURef.setZero();
-    mpc::mat<Tndu, Tph> uMeas;
-    uMeas.setZero();
-
-    auto &res = builder.get(x0, u0, yRef, uRef, deltaURef, uMeas);
-
-    mpc::cvec<(Tph + 1) * (Tnu + Tnx)> expected_xu_l, expected_xu_u;
-    for (size_t i = 0; i < Tph + 1; i++)
-    {
-        mpc::cvec<Tnx> t;
-        mpc::cvec<Tnu> tt;
-
-        t.setConstant(-1);
-        tt.setConstant(-3);
-        expected_xu_l.segment(i * (Tnu + Tnx), Tnu + Tnx) << t, tt;
-
-        t.setConstant(1);
-        tt.setConstant(3);
-        expected_xu_u.segment(i * (Tnu + Tnx), Tnu + Tnx) << t, tt;
-    }
-
-    REQUIRE(res.l.segment((Tph + 1) * (Tnu + Tnx), expected_xu_l.size()).isApprox(expected_xu_l));
-    REQUIRE(res.u.segment((Tph + 1) * (Tnu + Tnx), expected_xu_u.size()).isApprox(expected_xu_u));
-
-    mpc::cvec<(Tph + 1) * Tny> expected_y_l, expected_y_u;
-    for (size_t i = 0; i < Tph + 1; i++)
-    {
-        expected_y_l.segment(i * Tny, Tny).setConstant(-2);
-        expected_y_u.segment(i * Tny, Tny).setConstant(2);
-    }
-
-    REQUIRE(res.l.segment(((Tph + 1) * (Tnu + Tnx)) + expected_xu_l.size(), expected_y_l.size()).isApprox(expected_y_l));
-    REQUIRE(res.u.segment(((Tph + 1) * (Tnu + Tnx)) + expected_xu_u.size(), expected_y_u.size()).isApprox(expected_y_u));
-
-    if (Tch >= Tph)
-    {
-        REQUIRE((-mpc::inf == res.l.segment(((Tph + 1) * (Tnu + Tnx)) + expected_xu_l.size() + expected_y_l.size(), Tph * Tnu).array()).all());
-        REQUIRE((mpc::inf == res.u.segment(((Tph + 1) * (Tnu + Tnx)) + expected_xu_u.size() + expected_y_u.size(), Tph * Tnu).array()).all());
-    }
-
-    REQUIRE((-4 == res.l.tail(Tph).array()).all());
-    REQUIRE((4 == res.u.tail(Tph).array()).all());
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::mat<Tny, Tph> YMinMat = mpc::mat<Tny, Tph>::Constant(-1.0);
+    mpc::mat<Tny, Tph> YMaxMat = mpc::mat<Tny, Tph>::Constant(1.0);
+    REQUIRE(optsolver.setOutputBounds(YMinMat, YMaxMat));
 }
 
-TEST_CASE(
-    MPC_TEST_NAME("Linear output mapping"),
-    MPC_TEST_TAGS("[linear]"))
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setStateBounds slice"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
 {
-    constexpr int Tnx = 3;
-    constexpr int Tny = 6;
-    constexpr int Tnu = 0;
-    constexpr int Tndu = 7;
-    constexpr int Tph = 1;
-    constexpr int Tch = 1;
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::cvec<Tnx> XMin = mpc::cvec<Tnx>::Constant(-1.0);
+    mpc::cvec<Tnx> XMax = mpc::cvec<Tnx>::Constant(1.0);
+    
+    mpc::HorizonSlice slice = mpc::HorizonSlice::all();
+    REQUIRE(optsolver.setStateBounds(XMin, XMax, slice));
+}
 
-    mpc::ProblemBuilder<mpc::MPCSize(TVAR(Tnx), TVAR(Tnu), TVAR(Tndu), TVAR(Tny), TVAR(Tph), TVAR(Tch), 0, 0)> builder;
-    builder.initialize(Tnx, Tnu, Tndu, Tny, Tph, Tch);
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setInputBounds slice"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::cvec<Tnu> UMin = mpc::cvec<Tnu>::Constant(-1.0);
+    mpc::cvec<Tnu> UMax = mpc::cvec<Tnu>::Constant(1.0);
 
-    mpc::mat<Tnx, Tnx> Ad;
-    Ad.setZero();
+    mpc::HorizonSlice slice = mpc::HorizonSlice::all();
+    REQUIRE(optsolver.setInputBounds(UMin, UMax, slice));
+}
 
-    mpc::mat<Tnx, Tnu> Bd;
-    Bd.setZero();
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setOutputBounds slice"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::cvec<Tny> YMin = mpc::cvec<Tny>::Constant(-1.0);
+    mpc::cvec<Tny> YMax = mpc::cvec<Tny>::Constant(1.0);
 
-    mpc::mat<Tny, Tnx> Cd;
-    Cd.setRandom();
+    mpc::HorizonSlice slice = mpc::HorizonSlice::all();
+    REQUIRE(optsolver.setOutputBounds(YMin, YMax, slice));
+}
 
-    mpc::mat<Tny, Tnu> Dd;
-    Dd.setZero();
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setObjectiveWeights matrix"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::mat<Tny, Tph> OWeightMat = mpc::mat<Tny, Tph>::Ones();
+    mpc::mat<Tnu, Tph> UWeightMat = mpc::mat<Tnu, Tph>::Ones();
+    mpc::mat<Tndu, Tph> DeltaUWeightMat = mpc::mat<Tndu, Tph>::Ones();
+    REQUIRE(optsolver.setObjectiveWeights(OWeightMat, UWeightMat, DeltaUWeightMat));
+}
 
-    mpc::mat<Tnx, Tndu> Bdv;
-    Bdv.setZero();
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setObjectiveWeights vector"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::cvec<Tny> OWeight = mpc::cvec<Tny>::Ones();
+    mpc::cvec<Tnu> UWeight = mpc::cvec<Tnu>::Ones();
+    mpc::cvec<Tndu> DeltaUWeight = mpc::cvec<Tndu>::Ones();
 
-    mpc::mat<Tny, Tndu> Ddv;
-    Ddv.setRandom();
+    mpc::HorizonSlice slice = mpc::HorizonSlice::all();
+    REQUIRE(optsolver.setObjectiveWeights(OWeight, UWeight, DeltaUWeight, slice));
+}
 
-    builder.setStateModel(Ad, Bd, Cd);
-    builder.setExogenousInput(Bdv, Ddv);
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setStateSpaceModel"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::mat<Tnx, Tnx> A = mpc::mat<Tnx, Tnx>::Identity();
+    mpc::mat<Tnx, Tnu> B = mpc::mat<Tnx, Tnu>::Zero();
+    mpc::mat<Tny, Tnx> C = mpc::mat<Tny, Tnx>::Identity();
+    REQUIRE(optsolver.setStateSpaceModel(A, B, C));
+}
 
-    mpc::cvec<Tnx> x;
-    x.setRandom();
-    mpc::cvec<Tndu> du;
-    du.setRandom();
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setDisturbances"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::mat<Tnx, Tndu> Bd = mpc::mat<Tnx, Tndu>::Zero();
+    mpc::mat<Tny, Tndu> Dd = mpc::mat<Tny, Tndu>::Zero();
+    REQUIRE(optsolver.setDisturbances(Bd, Dd));
+}
 
-    REQUIRE(builder.mapToOutput(x, du).isApprox(Cd * x + Ddv * du));
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setExogenousInputs matrix"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::mat<Tndu, Tph> uMeasMat = mpc::mat<Tndu, Tph>::Zero();
+    REQUIRE(optsolver.setExogenousInputs(uMeasMat));
+}
+
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setExogenousInputs vector"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::cvec<Tndu> uMeas = mpc::cvec<Tndu>::Zero();
+
+    mpc::HorizonSlice slice = mpc::HorizonSlice::all();
+    REQUIRE(optsolver.setExogenousInputs(uMeas, slice));
+}
+
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setReferences matrix"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::mat<Tny, Tph> outRefMat = mpc::mat<Tny, Tph>::Zero();
+    mpc::mat<Tnu, Tph> cmdRefMat = mpc::mat<Tnu, Tph>::Zero();
+    mpc::mat<Tndu, Tph> deltaCmdRefMat = mpc::mat<Tndu, Tph>::Zero();
+    REQUIRE(optsolver.setReferences(outRefMat, cmdRefMat, deltaCmdRefMat));
+}
+
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setReferences vector"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    mpc::cvec<Tny> outRef = mpc::cvec<Tny>::Zero();
+    mpc::cvec<Tnu> cmdRef = mpc::cvec<Tnu>::Zero();
+    mpc::cvec<Tndu> deltaCmdRef = mpc::cvec<Tndu>::Zero();
+
+    mpc::HorizonSlice slice = mpc::HorizonSlice::all();
+    REQUIRE(optsolver.setReferences(outRef, cmdRef, deltaCmdRef, slice));
+}
+
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC getSolverWarmStartPrimal"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    auto res = optsolver.getSolverWarmStartPrimal();
+    REQUIRE(res.size() >= 0);
+}
+
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC getSolverWarmStartDual"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    auto res = optsolver.getSolverWarmStartDual();
+    REQUIRE(res.size() >= 0);
+}
+
+TEMPLATE_TEST_CASE_SIG(
+    MPC_TEST_NAME("LMPC setSolverWarmStart"),
+    MPC_TEST_TAGS("[interface][template]"),
+    LMPC_TEMPLATE_PARAMS,
+    LMPC_TEMPLATE_CASES)
+{
+    auto optsolver = make_solver<Tnx, Tnu, Tndu, Tny, Tph, Tch>();
+    std::vector<double> warm_primal(10, 0.0);
+    std::vector<double> warm_dual(10, 0.0);
+    REQUIRE_NOTHROW(optsolver.setSolverWarmStart(warm_primal, warm_dual));
 }
