@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -67,14 +67,14 @@ namespace mpc
             onInit();
         }
 
-        inline size_t nx() { return runtime_size_nx; }
-        inline size_t nu() { return runtime_size_nu; }
-        inline size_t ndu() { return runtime_size_ndu; }
-        inline size_t ny() { return runtime_size_ny; }
-        inline size_t ph() { return runtime_size_ph; }
-        inline size_t ch() { return runtime_size_ch; }
-        inline size_t ineq() { return runtime_size_ineq; }
-        inline size_t eq() { return runtime_size_eq; }
+        inline size_t nx() const noexcept { return runtime_size_nx; }
+        inline size_t nu() const noexcept { return runtime_size_nu; }
+        inline size_t ndu() const noexcept { return runtime_size_ndu; }
+        inline size_t ny() const noexcept { return runtime_size_ny; }
+        inline size_t ph() const noexcept { return runtime_size_ph; }
+        inline size_t ch() const noexcept { return runtime_size_ch; }
+        inline size_t ineq() const noexcept { return runtime_size_ineq; }
+        inline size_t eq() const noexcept { return runtime_size_eq; }
 
         /**
          * @brief Initialization hook used to perform sub-classes

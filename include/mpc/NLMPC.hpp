@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -8,7 +8,10 @@
 
 #include <mpc/NLMPC/Constraints.hpp>
 #include <mpc/NLMPC/Objective.hpp>
+
+#include <mpc/NLMPC/NLOptimizerBase.hpp>
 #include <mpc/NLMPC/NLOptimizer.hpp>
+#include <mpc/NLMPC/MPPIOptimizer.hpp>
 
 namespace mpc
 {
@@ -51,16 +54,59 @@ namespace mpc
         using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::isPredictionHorizonSliceValid;
         using IMPC<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>::isControlHorizonSliceValid;
 
-        NLMPC()
+        /**
+         * @brief Construct a new NLMPC object using default parameters and optimizer type
+         */
+        NLMPC() : NLMPC(OptimizerType::Standard) {}
+
+        /**
+         * @brief Construct a new NLMPC object for dynamic dimensions and standard optimizer type
+         *
+         * @param nx dimension of the state space
+         * @param nu dimension of the input space
+         * @param ny dimension of the output space
+         * @param ph length of the prediction horizon
+         * @param ch length of the control horizon
+         * @param ineq number of the user inequality constraints
+         * @param eq number of the user equality constraints
+         */
+        NLMPC(
+            const int &nx, const int &nu, const int &ny,
+            const int &ph, const int &ch, const int &ineq, const int &eq)
+            : NLMPC(nx, nu, ny, ph, ch, ineq, eq, OptimizerType::Standard) {}
+
+        /**
+         * @brief Construct a new NLMPC object for dynamic dimensions
+         *
+         * @param type optimizer type to use
+         */
+        NLMPC(OptimizerType type)
         {
+            optType = type;
+
             buildInternalModules();
             setDimension();
         }
 
+        /**
+         * @brief Construct a new NLMPC object for dynamic dimensions and specified optimizer type
+         *
+         * @param nx dimension of the state space
+         * @param nu dimension of the input space
+         * @param ny dimension of the output space
+         * @param ph length of the prediction horizon
+         * @param ch length of the control horizon
+         * @param ineq number of the user inequality constraints
+         * @param eq number of the user equality constraints
+         * @param type optimizer type to use
+         */
         NLMPC(
             const int &nx, const int &nu, const int &ny,
-            const int &ph, const int &ch, const int &ineq, const int &eq)
+            const int &ph, const int &ch, const int &ineq, const int &eq,
+            OptimizerType type)
         {
+            optType = type;
+
             buildInternalModules();
             setDimension(nx, nu, 0, ny, ph, ch, ineq, eq);
         }
@@ -96,7 +142,7 @@ namespace mpc
          */
         void setOptimizerParameters(const Parameters &param) override
         {
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setParameters(param);
+            ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setParameters(param);
         }
 
         /**
@@ -111,7 +157,7 @@ namespace mpc
 
             objF->setModel(model, mapping);
             conF->setModel(model, mapping);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
+            ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
         }
 
         /**
@@ -126,7 +172,7 @@ namespace mpc
 
             objF->setModel(model, mapping);
             conF->setModel(model, mapping);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
+            ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
         }
 
         /**
@@ -148,7 +194,7 @@ namespace mpc
                 << "Binding objective function handle"
                 << std::endl;
 
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindObjective();
+            ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindObjective();
             return res;
         }
 
@@ -181,13 +227,13 @@ namespace mpc
 
             objF->setModel(model, mapping);
             conF->setModel(model, mapping);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
+            ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
 
             Logger::instance().log(Logger::LogType::DETAIL)
                 << "Binding state space constraints"
                 << std::endl;
 
-            res = res & ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindEq(ConstraintsType::EQ, eq_tol_vec * eq_tol);
+            res = res & ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindEq(ConstraintsType::EQ, eq_tol_vec * eq_tol);
 
             return res;
         }
@@ -209,7 +255,7 @@ namespace mpc
 
             objF->setModel(model, mapping);
             conF->setModel(model, mapping);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
+            ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
 
             return res;
         }
@@ -243,7 +289,7 @@ namespace mpc
             tol_vec = cvec<Tineq>::Ones(ineq());
 
             auto res = conF->setIneqConstraints(handle, tol);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserIneq(ConstraintsType::UINEQ, tol_vec * tol);
+            ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserIneq(ConstraintsType::UINEQ, tol_vec * tol);
             return res;
         }
 
@@ -276,7 +322,7 @@ namespace mpc
             tol_vec = cvec<Teq>::Ones(eq());
 
             auto res = conF->setEqConstraints(handle, tol);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserEq(ConstraintsType::UEQ, tol_vec * tol);
+            ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->bindUserEq(ConstraintsType::UEQ, tol_vec * tol);
             return res;
         }
 
@@ -299,7 +345,7 @@ namespace mpc
             {
                 int index = (int)i;
                 HorizonSlice slice = {index, index + 1};
-                res &= ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setStateBounds(XMinMat.col(i), XMaxMat.col(i), slice);
+                res &= ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setStateBounds(XMinMat.col(i), XMaxMat.col(i), slice);
             }
 
             return res;
@@ -324,7 +370,7 @@ namespace mpc
             {
                 int index = (int) i;
                 HorizonSlice slice = {index, index + 1};
-                res &= ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setInputBounds(UMinMat.col(i), UMaxMat.col(i), slice);
+                res &= ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setInputBounds(UMinMat.col(i), UMaxMat.col(i), slice);
             }
 
             return res;
@@ -367,7 +413,7 @@ namespace mpc
             res = isSliceUnset(slice) || isPredictionHorizonSliceValid(slice);
             if (res)
             {
-                res &= ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setStateBounds(XMin, XMax, slice);
+                res &= ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setStateBounds(XMin, XMax, slice);
             }
 
             return res;
@@ -391,7 +437,7 @@ namespace mpc
             res = isSliceUnset(slice) || isControlHorizonSliceValid(slice);
             if (res)
             {
-                res &= ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setInputBounds(UMin, UMax, slice);
+                res &= ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setInputBounds(UMin, UMax, slice);
             }
 
             return res;
@@ -443,7 +489,33 @@ namespace mpc
                 ph(), ch(), ineq(),
                 eq());
 
-            optPtr = new NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>();
+            // check if the optimizer pointer is already allocated
+            if (optPtr != nullptr)
+            {
+                delete optPtr;
+            }
+                
+            switch (optType)
+            {
+            case OptimizerType::Standard:
+                optPtr = new NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>();
+                Logger::instance().log(Logger::LogType::INFO)
+                    << "NLOptimizer selected as internal optimization solver"
+                    << std::endl;
+                break;
+
+            case OptimizerType::MPPI:
+                optPtr = new MPPIOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>();
+                Logger::instance().log(Logger::LogType::INFO)
+                    << "MPPIOptimizer selected as internal optimization solver"
+                    << std::endl;
+                break;
+
+            default:
+                throw std::runtime_error("Unsupported optimizer type selected");
+                break;
+            }
+
             optPtr->initialize(
                 nx(), nu(), 0, ny(),
                 ph(), ch(), ineq(),
@@ -453,10 +525,10 @@ namespace mpc
             // objective function and constraints functions
             objF->setModel(model, mapping);
             conF->setModel(model, mapping);
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
+            ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setModel(model, mapping);
 
             // set the objective function and the constraints functions to the optimizer
-            ((NLOptimizer<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setCostAndConstraints(objF, conF);
+            ((NLOptimizerBase<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)> *)optPtr)->setCostAndConstraints(objF, conF);
 
             Logger::instance().log(Logger::LogType::INFO)
                 << "Mapping assignment done"
@@ -485,6 +557,8 @@ namespace mpc
         std::shared_ptr<Constraints<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>> conF;
         std::shared_ptr<Model<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>> model;
         std::shared_ptr<Mapping<MPCSize(Tnx, Tnu, 0, Tny, Tph, Tch, Tineq, Teq)>> mapping;
+
+        OptimizerType optType;
     };
 
 } // namespace mpc

@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -34,12 +34,14 @@ namespace mpc
          * already performed
          */
         virtual void onInit() override = 0;
+
         /**
          * @brief Abstract setter for the optimizer parameters
          *
          * @param param desired parameters (refers to the optimizer specific for the meaning of the parameters)
          */
         virtual void setParameters(const Parameters &param) = 0;
+        
         /**
          * @brief Abstract caller to perform the optimization
          *

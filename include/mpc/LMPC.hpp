@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -48,11 +48,23 @@ namespace mpc
         using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::isControlHorizonSliceValid;
 
     public:
+        /**
+         * @brief Construct a new Linear MPC object with static dimensions
+         */
         LMPC()
         {
             setDimension();
         }
 
+        /**
+         * @brief Construct a new Linear MPC object with dynamic dimensions
+         * @param nx dimension of the state space
+         * @param nu dimension of the input space
+         * @param ndu dimension of the measured disturbance space
+         * @param ny dimension of the output space
+         * @param ph length of the prediction horizon
+         * @param ch length of the control horizon
+         */
         LMPC(
             const int &nx, const int &nu, const int &ndu,
             const int &ny, const int &ph, const int &ch)

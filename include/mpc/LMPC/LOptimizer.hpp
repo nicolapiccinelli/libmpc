@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -7,7 +7,7 @@
 #include <mpc/IOptimizer.hpp>
 #include <mpc/LMPC/ProblemBuilder.hpp>
 
-#include <osqp/osqp.h>
+#include <osqp.h>
 
 namespace mpc
 {
@@ -217,25 +217,20 @@ namespace mpc
             // clear and create the problem data struct
             initData();
 
-            if (data)
+            // Local CSC matrices for OSQP setup
+            OSQPCscMatrix *P_csc = nullptr;
+            OSQPCscMatrix *A_csc = nullptr;
+
+            // Build P matrix (upper triangular part is expected by OSQP)
+            if (!createOsqpSparseMatrix(P, P_csc))
             {
-                data->n = numVars;
-                data->m = numConstraints;
+                Logger::instance().log(Logger::LogType::ERROR) << "Unable to create the P matrix" << std::endl;
+            }
 
-                if (!createOsqpSparseMatrix(P, data->P))
-                {
-                    Logger::instance().log(Logger::LogType::ERROR) << "Unable to create the P matrix" << std::endl;
-                }
-
-                data->q = (c_float *)mpcProblem.q.data();
-
-                if (!createOsqpSparseMatrix(A, data->A))
-                {
-                    Logger::instance().log(Logger::LogType::ERROR) << "Unable to create the A matrix" << std::endl;
-                }
-
-                data->l = (c_float *)mpcProblem.l.data();
-                data->u = (c_float *)mpcProblem.u.data();
+            // Build A matrix (full matrix)
+            if (!createOsqpSparseMatrix(A, A_csc))
+            {
+                Logger::instance().log(Logger::LogType::ERROR) << "Unable to create the A matrix" << std::endl;
             }
 
             // define solver settings as default
@@ -246,59 +241,88 @@ namespace mpc
                 settings->alpha = lin_params.alpha;
                 settings->verbose = lin_params.verbose ? 1 : 0;
                 settings->rho = lin_params.rho;
-                settings->adaptive_rho = lin_params.adaptive_rho ? 1 : 0;
+
+                // Disable adaptive rho if requested; otherwise keep OSQP default
+                if (!lin_params.adaptive_rho)
+                {
+                    settings->adaptive_rho = OSQP_ADAPTIVE_RHO_UPDATE_DISABLED;
+                }
+                
                 settings->eps_rel = lin_params.eps_rel;
                 settings->eps_abs = lin_params.eps_abs;
                 settings->eps_prim_inf = lin_params.eps_prim_inf;
                 settings->eps_dual_inf = lin_params.eps_dual_inf;
                 settings->max_iter = lin_params.maximum_iteration;
-                settings->polish = lin_params.polish ? 1 : 0;
-                settings->time_limit = lin_params.time_limit;
-                settings->warm_start = lin_params.enable_warm_start ? 1 : 0;
+                settings->polishing = lin_params.polish ? 1 : 0;
+                settings->time_limit = (lin_params.time_limit > 0) ? lin_params.time_limit : OSQP_TIME_LIMIT;
+                settings->warm_starting = lin_params.enable_warm_start ? 1 : 0;
             }
 
             // setup workspace
-            exitflag = osqp_setup(&work, data, settings);
-            if (exitflag > 0)
+            exitflag = osqp_setup(&solver,
+                                  P_csc,
+                                  (const OSQPFloat *)mpcProblem.q.data(),
+                                  A_csc,
+                                  (const OSQPFloat *)mpcProblem.l.data(),
+                                  (const OSQPFloat *)mpcProblem.u.data(),
+                                  (OSQPInt)numConstraints,
+                                  (OSQPInt)numVars,
+                                  settings);
+
+            if (exitflag != 0 || solver == nullptr)
             {
                 Logger::instance().log(Logger::LogType::ERROR) << "Unable to setup " << exitflag << std::endl;
             }
 
-            // warm starting the solver
-            if (settings->warm_start && optimal_prev_x.size() > 0 && optimal_prev_y.size() > 0)
+            // Free temporary CSC matrices (data has been copied internally by OSQP)
+            if (P_csc)
             {
-                exitflag = osqp_warm_start(work, optimal_prev_x.data(), optimal_prev_y.data());
-                if (exitflag > 0)
+                OSQPCscMatrix_free(P_csc);
+                P_csc = nullptr;
+            }
+            if (A_csc)
+            {
+                OSQPCscMatrix_free(A_csc);
+                A_csc = nullptr;
+            }
+
+            // warm starting the solver
+            if (solver && settings->warm_starting && optimal_prev_x.size() > 0 && optimal_prev_y.size() > 0)
+            {
+                exitflag = osqp_warm_start(solver, optimal_prev_x.data(), optimal_prev_y.data());
+                if (exitflag != 0)
                 {
-                    Logger::instance().log(Logger::LogType::ERROR) << "Unable to warm start " << exitflag << std::endl;
+                    Logger::instance().log(Logger::LogType::ERROR) << "Unable to warm start (code " << exitflag << ")" << std::endl;
                 }
             }
             else
             {
-                // if we choose to use the warm start but we don't have a solution yet we cannot use it
-                // we need to wait to have at least a solution
-                osqp_update_warm_start(work, 0);
+                // If warm start is enabled but no previous solution is available, use cold start
+                if (solver)
+                {
+                    osqp_cold_start(solver);
+                }
             }
 
             // solve problem
-            exitflag = osqp_solve(work);
-            if (exitflag > 0)
+            exitflag = osqp_solve(solver);
+            if (exitflag != 0)
             {
-                Logger::instance().log(Logger::LogType::ERROR) << "Unable to solve " << exitflag << std::endl;
+                Logger::instance().log(Logger::LogType::ERROR) << "Unable to solve (code " << exitflag << ")" << std::endl;
             }
 
             // if the solution is valid update the solution otherwise
             // keep the last feasible solution
-            if (work->solution->x != NULL)
+            if (solver->solution && solver->solution->x != NULL)
             {
                 // storing the previous optimal primal and dual solution to warm start
-                optimal_prev_x = std::vector<double>(work->solution->x, work->solution->x + numVars);
-                optimal_prev_y = std::vector<double>(work->solution->y, work->solution->y + numConstraints);
+                optimal_prev_x = std::vector<double>(solver->solution->x, solver->solution->x + numVars);
+                optimal_prev_y = std::vector<double>(solver->solution->y, solver->solution->y + numConstraints);
 
                 Logger::instance().log(Logger::LogType::DETAIL) << "Optimal vector: " << std::endl;
                 for (size_t i = 0; i < (size_t)P.rows(); i++)
                 {
-                    Logger::instance().log(Logger::LogType::DETAIL) << work->solution->x[i] << std::endl;
+                    Logger::instance().log(Logger::LogType::DETAIL) << solver->solution->x[i] << std::endl;
                 }
 
                 // loop over the rows of the optimal sequence
@@ -308,7 +332,7 @@ namespace mpc
                     // to get the optimal sequence of system state
                     for (size_t j = 0; j < nx(); j++)
                     {
-                        sequence.state.row(i)[j] = work->solution->x[i * (nx() + nu()) + j];
+                        sequence.state.row(i)[j] = solver->solution->x[i * (nx() + nu()) + j];
                     }
 
                     // and similarly we take the nu entries to have the optimal sequence of system
@@ -318,11 +342,11 @@ namespace mpc
                         // if we are at the end of the horizon we have to
                         if (i + 1 < ph() + 1)
                         {
-                            sequence.input.row(i)[j - nx()] = work->solution->x[(i + 1) * (nx() + nu()) + j];
+                            sequence.input.row(i)[j - nx()] = solver->solution->x[(i + 1) * (nx() + nu()) + j];
                         }
                         else
                         {
-                            sequence.input.row(i)[j - nx()] = work->solution->x[i * (nx() + nu()) + j];
+                            sequence.input.row(i)[j - nx()] = solver->solution->x[i * (nx() + nu()) + j];
                         }
                     }
 
@@ -339,9 +363,13 @@ namespace mpc
 
                 // the optimal command is the first control input in the sequence
                 r.cmd = sequence.input.row(0);
-                r.solver_status = work->info->status_val;
-                r.cost = work->info->obj_val;
-                r.is_feasible = work->info->status_val == OSQP_SOLVED || work->info->status_val == OSQP_SOLVED_INACCURATE || work->info->status_val == OSQP_MAX_ITER_REACHED;
+                r.solver_status = solver->info->status_val;
+                r.cost = solver->info->obj_val;
+                r.is_feasible = 
+                    solver->info->status_val == OSQP_SOLVED || 
+                    solver->info->status_val == OSQP_SOLVED_INACCURATE || 
+                    solver->info->status_val == OSQP_MAX_ITER_REACHED;
+                
                 // convert the return code from the optimizer to the result status
                 r.status = convertToResultStatus(r.solver_status);
             }
@@ -422,7 +450,7 @@ namespace mpc
          * @return true
          * @return false
          */
-        bool createOsqpSparseMatrix(const smat &eigenSparseMatrix, csc *&osqpSparseMatrix)
+        bool createOsqpSparseMatrix(const smat &eigenSparseMatrix, OSQPCscMatrix *&osqpSparseMatrix)
         {
             // Copying into a new sparse matrix to be sure to use a CSC matrix
             // this may perform memory allocation, but this is already the case
@@ -430,9 +458,9 @@ namespace mpc
             smat colMajorCopy = eigenSparseMatrix;
 
             // get number of row, columns and nonZeros from Eigen SparseMatrix
-            c_int rows = colMajorCopy.rows();
-            c_int cols = colMajorCopy.cols();
-            c_int numberOfNonZeroCoeff = colMajorCopy.nonZeros();
+            OSQPInt rows = colMajorCopy.rows();
+            OSQPInt cols = colMajorCopy.cols();
+            OSQPInt numberOfNonZeroCoeff = colMajorCopy.nonZeros();
 
             // get innerr and outer index
             const int *outerIndexPtr = colMajorCopy.outerIndexPtr();
@@ -443,37 +471,61 @@ namespace mpc
                 return false;
             }
 
-            // instantiate csc matrix
-            osqpSparseMatrix = csc_spalloc(rows, cols, numberOfNonZeroCoeff, 1, 0);
+            // allocate arrays for CSC matrix
+            OSQPInt *p = (OSQPInt *)malloc((cols + 1) * sizeof(OSQPInt));
+            OSQPInt *i = (OSQPInt *)malloc(numberOfNonZeroCoeff * sizeof(OSQPInt));
+            OSQPFloat *x = (OSQPFloat *)malloc(numberOfNonZeroCoeff * sizeof(OSQPFloat));
+
+            if (!p || !i || !x)
+            {
+                if (p)
+                    free(p);
+                if (i)
+                    free(i);
+                if (x)
+                    free(x);
+                return false;
+            }
 
             int innerOsqpPosition = 0;
             for (int k = 0; k < cols; k++)
             {
                 if (colMajorCopy.isCompressed())
                 {
-                    osqpSparseMatrix->p[k] = static_cast<c_int>(outerIndexPtr[k]);
+                    p[k] = static_cast<OSQPInt>(outerIndexPtr[k]);
                 }
                 else
                 {
                     if (k == 0)
                     {
-                        osqpSparseMatrix->p[k] = 0;
+                        p[k] = 0;
                     }
                     else
                     {
-                        osqpSparseMatrix->p[k] = osqpSparseMatrix->p[k - 1] + innerNonZerosPtr[k - 1];
+                        p[k] = p[k - 1] + innerNonZerosPtr[k - 1];
                     }
                 }
                 for (typename smat::InnerIterator it(colMajorCopy, k); it; ++it)
                 {
-                    osqpSparseMatrix->i[innerOsqpPosition] = static_cast<c_int>(it.row());
-                    osqpSparseMatrix->x[innerOsqpPosition] = static_cast<c_float>(it.value());
+                    i[innerOsqpPosition] = static_cast<OSQPInt>(it.row());
+                    x[innerOsqpPosition] = static_cast<OSQPFloat>(it.value());
                     innerOsqpPosition++;
                 }
             }
 
-            osqpSparseMatrix->p[static_cast<int>(cols)] = static_cast<c_int>(innerOsqpPosition);
+            p[static_cast<int>(cols)] = static_cast<OSQPInt>(innerOsqpPosition);
             assert(innerOsqpPosition == numberOfNonZeroCoeff);
+
+            // wrap arrays into OSQP CSC matrix (owned by wrapper for automatic free)
+            osqpSparseMatrix = OSQPCscMatrix_new(rows, cols, numberOfNonZeroCoeff, x, i, p);
+            if (!osqpSparseMatrix)
+            {
+                free(p);
+                free(i);
+                free(x);
+                return false;
+            }
+            osqpSparseMatrix->owned = 1;
             return true;
         }
 
@@ -482,24 +534,12 @@ namespace mpc
          */
         void clearData()
         {
-            osqp_cleanup(work);
-
-            if (data)
-            {
-                if (data->A)
-                {
-                    csc_spfree(data->A);
-                }
-                if (data->P)
-                {
-                    csc_spfree(data->P);
-                }
-                c_free(data);
-            }
+            osqp_cleanup(solver);
 
             if (settings)
             {
-                c_free(settings);
+                OSQPSettings_free(settings);
+                settings = nullptr;
             }
         }
 
@@ -508,17 +548,12 @@ namespace mpc
          */
         void initData()
         {
-            settings = (OSQPSettings *)c_malloc(sizeof(OSQPSettings));
-            data = (OSQPData *)c_malloc(sizeof(OSQPData));
-
-            data->P = nullptr;
-            data->A = nullptr;
+            settings = OSQPSettings_new();
         }
 
-        OSQPWorkspace *work;
+        OSQPSolver *solver;
         OSQPSettings *settings;
-        OSQPData *data;
-        c_int exitflag = 0;
+        OSQPInt exitflag = 0;
 
         mat<sizer.ny, sizer.ph> outSysRef;
         mat<sizer.nu, sizer.ph> cmdSysRef, deltaCmdSysRef;

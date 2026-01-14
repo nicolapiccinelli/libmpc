@@ -57,7 +57,10 @@ void expose_NLMPC(py::module &m)
     };
 
     py::class_<NLMPCType>(m, name.c_str())
+        .def(py::init<>())
+        .def(py::init<mpc::OptimizerType>())
         .def(py::init<const int &, const int &, const int &, const int &, const int &, const int &, const int &>())
+        .def(py::init<const int &, const int &, const int &, const int &, const int &, const int &, const int &, mpc::OptimizerType>())
         // methods from the IMPC class
         .def("setDiscretizationSamplingTime", &NLMPCType::setDiscretizationSamplingTime)
         .def("setInputScale", &NLMPCType::setInputScale)
@@ -153,6 +156,21 @@ PYBIND11_MODULE(pympcxx, m)
         .def_readwrite("absolute_xtol", &mpc::NLParameters::absolute_xtol)
         .def_readwrite("hard_constraints", &mpc::NLParameters::hard_constraints);
 
+    // Expose the derived class 'MPPIParameters' and bind it to 'mpc::Parameters'
+    py::class_<mpc::MPPIParameters, mpc::Parameters, std::shared_ptr<mpc::MPPIParameters>>(m, "MPPIParameters")
+        .def(py::init<>())
+        .def_readwrite("num_rollouts", &mpc::MPPIParameters::num_rollouts)
+        .def_readwrite("lambda", &mpc::MPPIParameters::lambda)
+        .def_readwrite("sigma", &mpc::MPPIParameters::sigma)
+        .def_readwrite("state_bound_penalty", &mpc::MPPIParameters::state_bound_penalty)
+        .def_readwrite("ineq_penalty", &mpc::MPPIParameters::ineq_penalty)
+        .def_readwrite("barrier_steepness", &mpc::MPPIParameters::barrier_steepness)
+        .def_readwrite("eq_penalty", &mpc::MPPIParameters::eq_penalty)
+        .def_readwrite("beta", &mpc::MPPIParameters::beta)
+        .def_readwrite("rho", &mpc::MPPIParameters::rho)
+        .def_readwrite("integration_substeps", &mpc::MPPIParameters::integration_substeps)
+        .def_readwrite("user_seed", &mpc::MPPIParameters::user_seed);
+
     // export the API for the NLMPC class
     expose_NLMPC<Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic>(m);
 
@@ -167,11 +185,18 @@ PYBIND11_MODULE(pympcxx, m)
         .value("NONE", mpc::Logger::LogLevel::NONE)
         .export_values();
 
+    // export the optimizer type enum
+    py::enum_<mpc::OptimizerType>(m, "OptimizerType")
+        .value("Standard", mpc::OptimizerType::Standard)
+        .value("MPPI", mpc::OptimizerType::MPPI)
+        .export_values();
+
     // export the result struct to python
     using ResulType = mpc::Result<Eigen::Dynamic>;
 
     py::class_<ResulType>(m, "Result")
         .def_readonly("solver_status", &ResulType::solver_status)
+        .def_readonly("is_feasible", &ResulType::is_feasible)
         .def_readonly("solver_status_msg", &ResulType::solver_status_msg)
         .def_readonly("cost", &ResulType::cost)
         .def_readonly("cmd", &ResulType::cmd)

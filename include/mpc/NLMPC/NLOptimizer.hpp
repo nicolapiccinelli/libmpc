@@ -1,11 +1,11 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
 
 #include <mpc/NLMPC/Constraints.hpp>
-#include <mpc/IOptimizer.hpp>
+#include <mpc/NLMPC/NLOptimizerBase.hpp>
 #include <mpc/Logger.hpp>
 #include <mpc/NLMPC/Mapping.hpp>
 #include <mpc/NLMPC/Objective.hpp>
@@ -27,7 +27,7 @@ namespace mpc
      * @tparam sizer.eq number of the user equality constraints
      */
     template <MPCSize sizer>
-    class NLOptimizer : public IOptimizer<sizer>
+    class NLOptimizer : public NLOptimizerBase<sizer>
     {
     private:
         using IComponent<sizer>::checkOrQuit;
@@ -40,10 +40,15 @@ namespace mpc
         using IDimensionable<sizer>::ineq;
         using IDimensionable<sizer>::eq;
 
-        using IOptimizer<sizer>::currentSlack;
-        using IOptimizer<sizer>::hard;
-        using IOptimizer<sizer>::result;
-        using IOptimizer<sizer>::sequence;
+        using NLOptimizerBase<sizer>::currentSlack;
+        using NLOptimizerBase<sizer>::hard;
+        using NLOptimizerBase<sizer>::result;
+        using NLOptimizerBase<sizer>::sequence;
+
+        using NLOptimizerBase<sizer>::mapping;
+        using NLOptimizerBase<sizer>::model;
+        using NLOptimizerBase<sizer>::objFunc;
+        using NLOptimizerBase<sizer>::conFunc;
 
     public:
         NLOptimizer() = default;
@@ -89,36 +94,6 @@ namespace mpc
 
             currentSlack = 0;
             is_first_iteration = true;
-        }
-
-        /**
-         * @brief Set the model and the mapping object references
-         *
-         * @param sysModel the model object
-         * @param map the mapping object
-         */
-        void setModel(std::shared_ptr<Model<sizer>> sysModel, std::shared_ptr<Mapping<sizer>> map)
-        {
-            checkOrQuit();
-
-            mapping = map;
-            model = sysModel;
-        }
-
-        /**
-         * @brief Set the Cost And Constraints object
-         *
-         * @param objFunc
-         * @param conFunc
-         */
-        void setCostAndConstraints(
-            std::shared_ptr<Objective<sizer>> objFunc,
-            std::shared_ptr<Constraints<sizer>> conFunc)
-        {
-            checkOrQuit();
-
-            this->objFunc = objFunc;
-            this->conFunc = conFunc;
         }
 
         /**
@@ -201,7 +176,7 @@ namespace mpc
          * @return true
          * @return false
          */
-        bool bindObjective()
+        bool bindObjective() override
         {
             checkOrQuit();
 
@@ -230,7 +205,7 @@ namespace mpc
          */
         bool bindEq(
             ConstraintsType,
-            const cvec<(sizer.ph * sizer.nx)> tol)
+            const cvec<(sizer.ph * sizer.nx)> tol) override
         {
             checkOrQuit();
 
@@ -267,7 +242,7 @@ namespace mpc
          */
         bool bindUserIneq(
             ConstraintsType,
-            const cvec<sizer.ineq> tol)
+            const cvec<sizer.ineq> tol) override
         {
             checkOrQuit();
 
@@ -305,7 +280,7 @@ namespace mpc
          */
         bool bindUserEq(
             ConstraintsType /*type*/,
-            const cvec<sizer.eq> tol)
+            const cvec<sizer.eq> tol) override
         {
             checkOrQuit();
 
@@ -346,7 +321,7 @@ namespace mpc
         bool setStateBounds(
             const cvec<sizer.nx> &lower_bounds,
             const cvec<sizer.nx> &upper_bounds,
-            const HorizonSlice& slice)
+            const HorizonSlice& slice) override
         {
             checkOrQuit();
 
@@ -380,7 +355,7 @@ namespace mpc
         bool setInputBounds(
             const cvec<sizer.nu> &lower_bounds,
             const cvec<sizer.nu> &upper_bounds,
-            const HorizonSlice& slice)
+            const HorizonSlice& slice) override
         {
             checkOrQuit();
 
@@ -706,7 +681,7 @@ namespace mpc
         {
             // check if the optimization vector is feasible against the bounds
             // for each element if it is not within the bounds we set it to the middle point
-            for (size_t i = 0; i < opt_vector.size(); i++)
+            for (size_t i = 0; i < (size_t) opt_vector.size(); i++)
             {
                 if (opt_vector(i) < lb(i) || opt_vector(i) > ub(i))
                 {
@@ -997,11 +972,6 @@ namespace mpc
         }
 
         nlopt::opt *innerOpt;
-
-        std::shared_ptr<Objective<sizer>> objFunc;
-        std::shared_ptr<Constraints<sizer>> conFunc;
-        std::shared_ptr<Mapping<sizer>> mapping;
-        std::shared_ptr<Model<sizer>> model;
 
         mat<(sizer.ph + 1), sizer.nx> Xmat;
         mat<(sizer.ph + 1), sizer.nu> Umat;

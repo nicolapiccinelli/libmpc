@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -82,6 +82,15 @@ namespace mpc
     };
 
     /**
+     * @brief Optimizer type enumeration
+     */
+    enum OptimizerType
+    {
+        Standard = 0,
+        MPPI = 1
+    };
+
+    /**
      * @brief Optimization result status
      */
     enum ResultStatus
@@ -139,6 +148,34 @@ namespace mpc
         bool hard_constraints = true;
     };
 
+    struct MPPIParameters : Parameters
+    {
+        MPPIParameters() = default;
+
+        /// @brief number of sampled trajectories
+        size_t num_rollouts = 512;
+        /// @brief temperature for exponential weights
+        double lambda = 1.0;
+        /// @brief stddev for control noise
+        cvec<> sigma;
+        /// @brief soft penalty weight for state bound violations (>0)
+        double state_bound_penalty = 0.0;
+        /// @brief soft penalty weight for inequality violations (>0)
+        double ineq_penalty = 0.0;
+        /// @brief steepness of the exponential barrier for state bounds
+        double barrier_steepness = 1.0;
+        /// @brief soft penalty weight for equality residuals
+        double eq_penalty = 0.0;
+        /// @brief update smoothing (0..1]
+        double beta = 1.0;
+        /// @brief AR(1) temporal correlation
+        double rho = 0.0;
+        /// @brief CT sub-steps
+        int integration_substeps = 1;
+        /// @brief deterministic runs if set
+        std::optional<uint32_t> user_seed;
+    };
+
     /**
      * @brief Linear optimizer parameters
      * (SEE OSQP DOCUMENTATION FOR MORE DETAILS)
@@ -168,7 +205,7 @@ namespace mpc
     template <int Tnu = Eigen::Dynamic>
     struct Result
     {
-        Result() : solver_status(0), cost(0), status(ResultStatus::UNKNOWN), solver_status_msg(""), is_feasible(false)
+        Result() : solver_status(0), is_feasible(false), solver_status_msg(""), cost(0), status(ResultStatus::UNKNOWN)
         {
             cmd.setZero();
         }

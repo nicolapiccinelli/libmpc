@@ -405,3 +405,113 @@ If your project uses CMake, you can import libmpc++ as a package with the follow
     include_directories(${mpc++_INCLUDE_DIRS})
     add_executable(${PROJECT_NAME} main.cpp)
     target_link_libraries(${PROJECT_NAME} mpc++)
+
+Optimizer selection (Non-linear MPC)
+------------------------------------
+
+`mpc::NLMPC` supports two backends:
+
+- `OptimizerType::Standard`: gradient-based solver using NLopt (e.g., SLSQP)
+- `OptimizerType::MPPI`: sampling-based Model Predictive Path Integral optimizer
+
+Choose the optimizer at construction time:
+
+.. code-block:: c++
+
+    // Static dimensions
+    mpc::NLMPC<Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq> nlmpc_mppi(mpc::OptimizerType::MPPI);
+
+    // Dynamic dimensions
+    mpc::NLMPC<> nlmpc_mppi(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq, mpc::OptimizerType::MPPI);
+
+You can still use the default NLopt-based backend by omitting the optimizer type or by explicitly passing `OptimizerType::Standard`.
+
+MPPI parameters
+---------------
+
+The MPPI backend is configured via `mpc::MPPIParameters`. Key fields include:
+
+- `num_rollouts`: number of sampled trajectories per iteration
+- `lambda`: temperature parameter for exponential weighting
+- `sigma`: control noise standard deviation (vector)
+- `state_bound_penalty`, `ineq_penalty`, `eq_penalty`: soft penalties for violations
+- `barrier_steepness`: barrier steepness for state bounds
+- `beta`: update smoothing factor in `(0, 1]`
+- `rho`: AR(1) temporal correlation for control noise
+- `integration_substeps`: sub-steps for continuous-time integration
+- `user_seed`: optional seed for deterministic runs
+
+Example setup:
+
+.. code-block:: c++
+
+    mpc::MPPIParameters p;
+    p.num_rollouts = 1024;
+    p.lambda = 1.0;
+
+    // Set control noise: one stddev per input channel
+    p.sigma.resize(nlmpc_mppi.nu());
+    p.sigma.setConstant(0.05);
+
+    p.state_bound_penalty = 10.0;
+    p.ineq_penalty = 5.0;
+    p.eq_penalty = 5.0;
+    p.barrier_steepness = 2.0;
+    p.beta = 0.9;
+    p.rho = 0.2;
+    p.integration_substeps = 1;
+    p.user_seed = 42u; // optional
+
+    nlmpc_mppi.setOptimizerParameters(p);
+
+MPPI quick example (Van der Pol)
+---------------------------------
+
+This sketch shows how to regulate the Van der Pol oscillator with MPPI:
+
+.. code-block:: c++
+
+    // Dimensions (dynamic allocation)
+    const int Tnx = 2, Tnu = 1, Tny = 2, Tph = 40, Tch = 20, Tineq = 0, Teq = 0;
+    mpc::NLMPC<> nlmpc(Tnx, Tnu, Tny, Tph, Tch, Tineq, Teq, mpc::OptimizerType::MPPI);
+
+    // Continuous-time model \dot{x} = f(x,u), y = g(x,u)
+    nlmpc.setContinuousModel(
+        [](const mpc::cvec<2> &x, const mpc::cvec<1> &u) {
+            mpc::cvec<2> dx;
+            dx << x(1), (1 - x(0) * x(0)) * x(1) - x(0) + u(0);
+            return dx;
+        },
+        [](const mpc::cvec<2> &x, const mpc::cvec<1> &u) {
+            mpc::cvec<2> y;
+            y << x(0), x(1);
+            return y;
+        },
+        0.02 // sampling time
+    );
+
+    // Objective (tracking to zero)
+    mpc::cvec<2> y_ref; y_ref.setZero();
+    nlmpc.setObjective([&](int k, const mpc::cvec<2> &x, const mpc::cvec<1> &u, const mpc::cvec<2> &y) {
+        (void)k;
+        return (y - y_ref).squaredNorm() + 0.01 * u.squaredNorm();
+    });
+
+    // MPPI parameters
+    mpc::MPPIParameters p;
+    p.num_rollouts = 512;
+    p.sigma.resize(nlmpc.nu());
+    p.sigma.setConstant(0.05);
+    nlmpc.setOptimizerParameters(p);
+
+    // Optimize
+    auto res = nlmpc.optimize(mpc::cvec<2>::Zero(), mpc::cvec<1>::Zero());
+    std::cout << "Control input: " << res.cmd.transpose() << std::endl;
+
+Notes and best practices
+------------------------
+
+- Use MPPI for non-smooth objectives or when derivatives are hard to obtain.
+- Increase `num_rollouts` and tune `sigma` for better exploration; balance with runtime.
+- For continuous-time models, consider `integration_substeps > 1` for stiff dynamics.
+- Set `user_seed` for reproducible benchmarking and tests.

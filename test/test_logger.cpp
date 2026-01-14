@@ -1,16 +1,30 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #include "basic.hpp"
 #include <catch2/catch_test_macros.hpp>
+#include <iostream>
+
+namespace {
+struct LoggerResetGuard {
+    ~LoggerResetGuard() {
+        auto &logger = mpc::Logger::instance();
+        logger.setStream(&std::cout);
+        logger.reset();
+    }
+};
+}
 
 TEST_CASE("Logger outputs log messages based on log level", "[Logger]")
 {
+    LoggerResetGuard guard;
+    
     // Set up the logger
     mpc::Logger &logger = mpc::Logger::instance();
     std::ostringstream oss;
     logger.setStream(&oss);
+    logger.setPrefix("");
 
     SECTION("Log level set to NONE")
     {
@@ -71,6 +85,8 @@ TEST_CASE("Logger outputs log messages based on log level", "[Logger]")
 
 TEST_CASE("Logger sets prefix for log messages", "[Logger]")
 {
+    LoggerResetGuard guard;
+
     // Set up the logger
     mpc::Logger &logger = mpc::Logger::instance();
     std::ostringstream oss;
@@ -104,6 +120,8 @@ TEST_CASE("Logger sets prefix for log messages", "[Logger]")
 
 TEST_CASE("Logger reset function", "[Logger]")
 {
+    LoggerResetGuard guard;
+
     // Set up the logger
     mpc::Logger &logger = mpc::Logger::instance();
     std::ostringstream oss;

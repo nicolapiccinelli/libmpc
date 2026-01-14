@@ -15,12 +15,16 @@ Linux, MacOs and Windows and comes with a limited set of dependecies. It provide
 * Automatic Jacobian approximation (using the trapezoidal rule) for non-linear MPC
 * Header-only implementation
 * Free/open-source software
+* Sampling-based MPPI optimizer for non-linear MPC
+* Optional multi-threading via OpenMP for faster sampling
 
 The library depends on the following external libraries which must be installed on the machine before using libmpc++
 
 * *Eigen3* header-only linear algebra library (https://eigen.tuxfamily.org/index.php?title=Main_Page)
 * *NLopt* set of solvers for nonlinear programming (https://nlopt.readthedocs.io/en/latest/)
 * *OSQP* solver for convex quadratic programming (https://osqp.org)
+
+Note: The MPPI optimizer does not require external nonlinear solvers and runs entirely within libmpc++, optionally leveraging OpenMP for parallel rollouts.
 
 Download and installation
 =========================
