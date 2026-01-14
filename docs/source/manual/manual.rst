@@ -1,6 +1,6 @@
-***************
-libmpc++ manual
-***************
+************************
+User Manual and Tutorial
+************************
 
 Welcome to the manual for libmpc++, the manual is organized as follows:
 
@@ -33,10 +33,10 @@ The problem is solved repeatedly for varying initial state :math:`\bar{x} \in \m
 The underlying linear system used within the MPC is defined as
 
 .. math::
-    \begin{align}
+    \begin{aligned}
         x_{k+1} &= A x_k + B u_k + B^{d} d_k\\
         y_k &= C x_k + D^{d} d_k
-    \end{align}
+    \end{aligned}
 
 where :math:`d_k \in \mathbf{R}^{n_{du}}` is an additional exogenous input.
 
@@ -61,10 +61,10 @@ objective function :math:`\mathcal{C}(x_k, u_k)`.
 The underlying non-linear system used within the MPC is defined as
 
 .. math::
-    \begin{align}
+    \begin{aligned}
         x_{k+1} &= f(x_k, u_k)\\
         y_k &= g(x_k, u_k)
-    \end{align}
+    \end{aligned}
 
 in case of continuous time system the function :math:`\dot x = f(x, u)` should be interpreted as the vector field of the desired dynamical system. 
 The dynamical system is transformed into discrete-time using the trapezoidal rule internally.
