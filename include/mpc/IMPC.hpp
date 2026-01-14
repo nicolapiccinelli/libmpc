@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -292,7 +292,7 @@ namespace mpc
          */
         virtual void onModelUpdate(const cvec<sizer.nx>) = 0;
 
-        IOptimizer<sizer> *optPtr;
+        IOptimizer<sizer> *optPtr = nullptr;
         Profiler profiler;
     };
 }

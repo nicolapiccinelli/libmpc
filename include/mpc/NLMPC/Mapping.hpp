@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -163,6 +163,59 @@ namespace mpc
         }
 
         /**
+         * @brief Convert from state, input and slackness sub-vectors to the optimal vector
+         *
+         * @param Xmat state vector along the prediction horizon (size ph+1 x nx)
+         * @param Umat input vector along the prediction horizon (size ph+1 x nu)
+         * @param slack slackness value
+         * @return cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> optimal vector z
+         */
+        cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>
+        wrapVector(
+            const mat<(sizer.ph + 1), sizer.nx> &Xmat,
+            const mat<(sizer.ph + 1), sizer.nu> &Umat,
+            double slack)
+        {
+            checkOrQuit();
+
+            cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> z;
+            COND_RESIZE_CVEC(sizer,z,((ph() * nx()) + (nu() * ch()) + 1));
+            
+            size_t p = 0;
+
+            // --- 1. Apply State Scaling (Inverse of unwrapVector) ---
+            // Note: Xmat(0,j) is x0, but it is not packed, so scaling it is harmless.
+            mat<(sizer.ph + 1), sizer.nx> X_scaled = Xmat.array().rowwise() * state_scaling.transpose().array();
+
+            // --- 2. Pack States (x_1 to x_ph) ---
+            // This loop packs X_scaled.row(1) through X_scaled.row(ph)
+            for (size_t t = 1; t < ph() + 1; ++t)
+            {
+                for (size_t j = 0; j < nx(); ++j)
+                {
+                    z(p++) = X_scaled(t, j);
+                }
+            }
+            // 'p' is now at (ph * nx)
+
+            // --- 3. Vectorize and Pack Controls (u_0 to u_ph-1) ---
+            cvec<(sizer.ph * sizer.nu)> Umv_vec = vectorizeU(Umat);
+
+            // Apply control mapping using the class member matrix
+            cvec<(sizer.nu * sizer.ch)> z_ctrl = Iu2zMat * Umv_vec;
+            for (int i = 0; i < z_ctrl.size(); ++i)
+            {
+                z(p++) = z_ctrl(i);
+            }
+            // 'p' is now at (ph * nx) + (nu * ch)
+
+            // --- 4. Pack Slack ---
+            z(p++) = slack;
+
+            return z;
+        }
+
+        /**
          * @brief Convert from optimal vector to the state, input and slackness sub-vectors
          *
          * @param x current optimal vector
@@ -215,6 +268,28 @@ namespace mpc
         cvec<sizer.nx> state_scaling, inverse_state_scaling;
 
     private:
+        /**
+         * @brief Helper to flatten the control matrix Umat (rows 0 to ph-1)
+         */
+        cvec<(sizer.ph * sizer.nu)>
+        vectorizeU(const mat<(sizer.ph + 1), sizer.nu>& U) const
+        {
+            cvec<(sizer.ph * sizer.nu)> v;
+            COND_RESIZE_CVEC(sizer,v,(ph() * nu()));
+
+            size_t idx = 0;
+
+            // Only pack the first 'ph' controls (u_0 to u_ph-1)
+            for (size_t t = 0; t < ph(); ++t)
+            {
+                for (size_t j = 0; j < nu(); ++j)
+                {
+                    v(idx++) = U(t, j);
+                }
+            }
+            return v;
+        }
+
         /**
          * @brief Utility function to compute the mapping matrices
          */

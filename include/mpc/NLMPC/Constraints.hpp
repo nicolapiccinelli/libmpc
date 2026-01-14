@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -202,6 +202,81 @@ namespace mpc
         }
 
         /**
+         * @brief A thread-safe evaluation for inequality constraints.
+         *
+         * @param x internal optimization vector
+         * @param hasJacobian request the computation of the jacobian
+         * @return Cost<sizer.ineq> associated cost
+         */
+        Cost<sizer.ineq> evaluateIneqThreadSafe(cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> x)
+        {
+            checkOrQuit();
+
+            Cost<sizer.ineq> c_ineq_local;
+            mat<(sizer.ph + 1), sizer.nx> Xmat_local;
+            mat<(sizer.ph + 1), sizer.nu> Umat_local;
+            double e_local;
+
+            COND_RESIZE_CVEC(sizer, c_ineq_local.value, ineq());
+            COND_RESIZE_MAT(sizer, c_ineq_local.jacobian, ineq(), ((ph() * nx()) + (nu() * ch()) + 1));
+            COND_RESIZE_MAT(sizer, Xmat_local, (ph() + 1), nx());
+            COND_RESIZE_MAT(sizer, Umat_local, (ph() + 1), nu());
+
+            c_ineq_local.value.setZero();
+            c_ineq_local.jacobian.setZero();
+
+            // We assume mapping->unwrapVector is thread-safe and
+            // we are also assuming no one will write on x0 concurrently
+            // (it should be safe since the initial condition is set before optimization)
+            mapping->unwrapVector(x, x0, Xmat_local, Umat_local, e_local);
+
+            if (hasIneqConstraints())
+            {
+                mat<(sizer.ph + 1), sizer.ny> Ymat_local = model->getOutput(Xmat_local, Umat_local);
+                ieqUser(c_ineq_local.value, Xmat_local, Ymat_local, Umat_local, e_local);
+            }
+
+            return c_ineq_local;
+        }
+
+        /**
+         * @brief A thread-safe evaluation for equality constraints.
+         *
+         * @param x internal optimization vector
+         * @param hasJacobian request the computation of the jacobian
+         * @return Cost<sizer.eq> associated cost
+         */
+        Cost<sizer.eq> evaluateEqThreadSafe(cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)> x)
+        {
+            checkOrQuit();
+
+            Cost<sizer.eq> c_eq_local;
+            mat<(sizer.ph + 1), sizer.nx> Xmat_local;
+            mat<(sizer.ph + 1), sizer.nu> Umat_local;
+            double e_local;
+
+            COND_RESIZE_CVEC(sizer, c_eq_local.value, eq());
+            COND_RESIZE_MAT(sizer, c_eq_local.jacobian, eq(), ((ph() * nx()) + (nu() * ch()) + 1));
+            COND_RESIZE_MAT(sizer, Xmat_local, (ph() + 1), nx());
+            COND_RESIZE_MAT(sizer, Umat_local, (ph() + 1), nu());
+
+            c_eq_local.value.setZero();
+            c_eq_local.jacobian.setZero();
+
+            // We assume mapping->unwrapVector is thread-safe and
+            // we are also assuming no one will write on x0 concurrently
+            // (it should be safe since the initial condition is set before optimization)
+            mapping->unwrapVector(x, x0, Xmat_local, Umat_local, e_local);
+
+            if (hasEqConstraints())
+            {
+                eqUser(c_eq_local.value, Xmat_local, Umat_local);
+            }
+
+            return c_eq_local;
+        }
+
+        /**
          * @brief Evaluate the user defined inequality constraints
          *
          * @param x internal optimization vector
@@ -225,63 +300,70 @@ namespace mpc
                 mat<(sizer.ph + 1), sizer.ny> Ymat = model->getOutput(Xmat, Umat);
                 ieqUser(c_ineq_user_def.value, Xmat, Ymat, Umat, e);
 
-                mat<sizer.ineq, (sizer.ph * sizer.nx)> Jieqx;
-                COND_RESIZE_MAT(sizer, Jieqx, ineq(), (ph() * nx()));
-
-                mat<sizer.ineq, (sizer.ph * sizer.nu)> Jieqmv;
-                COND_RESIZE_MAT(sizer, Jieqmv, ineq(), (ph() * nu()));
-
-                cvec<sizer.ineq> Jie;
-                COND_RESIZE_CVEC(sizer, Jie, ineq());
-
-                computeIneqJacobian(
-                    Jieqx,
-                    Jieqmv,
-                    Jie,
-                    Xmat,
-                    Umat,
-                    e);
-
-                Logger::instance().log(Logger::LogType::DETAIL)
-                    << "User inequality state constraints jacobian:\n"
-                    << std::setprecision(10)
-                    << Jieqx
-                    << std::endl;
-
-                Logger::instance().log(Logger::LogType::DETAIL)
-                    << "User inequality inputs constraints jacobian:\n"
-                    << std::setprecision(10)
-                    << Jieqmv
-                    << std::endl;
-
-                Logger::instance().log(Logger::LogType::DETAIL)
-                    << "User inequality slack constraints jacobian:\n"
-                    << std::setprecision(10)
-                    << Jie
-                    << std::endl;
-
-                glueJacobian<sizer.ineq>(
-                    c_ineq_user_def.jacobian,
-                    Jieqx,
-                    Jieqmv,
-                    Jie);
-
-                auto scaled_Jcineq_user = c_ineq_user_def.jacobian;
-                for (int j = 0; j < c_ineq_user_def.jacobian.rows(); j++)
+                if(hasJacobian)
                 {
-                    int ioff = 0;
-                    for (size_t k = 0; k < ph(); k++)
+                    mat<sizer.ineq, (sizer.ph * sizer.nx)> Jieqx;
+                    COND_RESIZE_MAT(sizer, Jieqx, ineq(), (ph() * nx()));
+    
+                    mat<sizer.ineq, (sizer.ph * sizer.nu)> Jieqmv;
+                    COND_RESIZE_MAT(sizer, Jieqmv, ineq(), (ph() * nu()));
+    
+                    cvec<sizer.ineq> Jie;
+                    COND_RESIZE_CVEC(sizer, Jie, ineq());
+    
+                    computeIneqJacobian(
+                        Jieqx,
+                        Jieqmv,
+                        Jie,
+                        Xmat,
+                        Umat,
+                        e);
+    
+                    Logger::instance().log(Logger::LogType::DETAIL)
+                        << "User inequality state constraints jacobian:\n"
+                        << std::setprecision(10)
+                        << Jieqx
+                        << std::endl;
+    
+                    Logger::instance().log(Logger::LogType::DETAIL)
+                        << "User inequality inputs constraints jacobian:\n"
+                        << std::setprecision(10)
+                        << Jieqmv
+                        << std::endl;
+    
+                    Logger::instance().log(Logger::LogType::DETAIL)
+                        << "User inequality slack constraints jacobian:\n"
+                        << std::setprecision(10)
+                        << Jie
+                        << std::endl;
+    
+                    glueJacobian<sizer.ineq>(
+                        c_ineq_user_def.jacobian,
+                        Jieqx,
+                        Jieqmv,
+                        Jie);
+    
+                    auto scaled_Jcineq_user = c_ineq_user_def.jacobian;
+                    for (int j = 0; j < c_ineq_user_def.jacobian.rows(); j++)
                     {
-                        for (size_t ix = 0; ix < nx(); ix++)
+                        int ioff = 0;
+                        for (size_t k = 0; k < ph(); k++)
                         {
-                            scaled_Jcineq_user(j,ioff + ix) = scaled_Jcineq_user(j,ioff + ix) * mapping->StateScaling()(ix);
+                            for (size_t ix = 0; ix < nx(); ix++)
+                            {
+                                scaled_Jcineq_user(j,ioff + ix) = scaled_Jcineq_user(j,ioff + ix) * mapping->StateScaling()(ix);
+                            }
+    
+                            ioff = ioff + nx();
                         }
-
-                        ioff = ioff + nx();
                     }
+    
+                    c_ineq_user_def.jacobian = scaled_Jcineq_user;
                 }
-
-                c_ineq_user_def.jacobian = scaled_Jcineq_user;
+                else
+                {
+                    c_ineq_user_def.jacobian.setZero();
+                }
             }
             else
             {
@@ -337,6 +419,7 @@ namespace mpc
                 << std::setprecision(10)
                 << c_eq_sys.value
                 << std::endl;
+
             if (!hasJacobian)
             {
                 Logger::instance().log(Logger::LogType::DETAIL)
@@ -376,39 +459,46 @@ namespace mpc
 
                 eqUser(c_eq_user_def.value, Xmat, Umat);
 
-                mat<sizer.eq, (sizer.ph * sizer.nx)> Jeqx;
-                COND_RESIZE_MAT(sizer, Jeqx, eq(), (ph() * nx()));
-
-                mat<sizer.eq, (sizer.ph * sizer.nu)> Jeqmv;
-                COND_RESIZE_MAT(sizer, Jeqmv, eq(), (ph() * nu()));
-
-                computeEqJacobian(
-                    Jeqx,
-                    Jeqmv,
-                    Xmat,
-                    Umat);
-
-                glueJacobian<sizer.eq>(
-                    c_eq_user_def.jacobian,
-                    Jeqx,
-                    Jeqmv,
-                    cvec<sizer.eq>::Zero(eq()));
-
-                auto scaled_Jceq_user = c_eq_user_def.jacobian;
-                for (int j = 0; j < c_eq_user_def.jacobian.rows(); j++)
+                if(hasJacobian)
                 {
-                    int ioff = 0;
-                    for (size_t k = 0; k < ph(); k++)
+                    mat<sizer.eq, (sizer.ph * sizer.nx)> Jeqx;
+                    COND_RESIZE_MAT(sizer, Jeqx, eq(), (ph() * nx()));
+    
+                    mat<sizer.eq, (sizer.ph * sizer.nu)> Jeqmv;
+                    COND_RESIZE_MAT(sizer, Jeqmv, eq(), (ph() * nu()));
+    
+                    computeEqJacobian(
+                        Jeqx,
+                        Jeqmv,
+                        Xmat,
+                        Umat);
+    
+                    glueJacobian<sizer.eq>(
+                        c_eq_user_def.jacobian,
+                        Jeqx,
+                        Jeqmv,
+                        cvec<sizer.eq>::Zero(eq()));
+    
+                    auto scaled_Jceq_user = c_eq_user_def.jacobian;
+                    for (int j = 0; j < c_eq_user_def.jacobian.rows(); j++)
                     {
-                        for (size_t ix = 0; ix < nx(); ix++)
+                        int ioff = 0;
+                        for (size_t k = 0; k < ph(); k++)
                         {
-                            scaled_Jceq_user(j,ioff + ix) = scaled_Jceq_user(j,ioff + ix) * mapping->StateScaling()(ix);
+                            for (size_t ix = 0; ix < nx(); ix++)
+                            {
+                                scaled_Jceq_user(j,ioff + ix) = scaled_Jceq_user(j,ioff + ix) * mapping->StateScaling()(ix);
+                            }
+                            ioff = ioff + nx();
                         }
-                        ioff = ioff + nx();
                     }
+    
+                    c_eq_user_def.jacobian = scaled_Jceq_user;
                 }
-
-                c_eq_user_def.jacobian = scaled_Jceq_user;
+                else
+                {
+                    c_eq_user_def.jacobian.setZero();
+                }
             }
             else
             {
@@ -423,6 +513,7 @@ namespace mpc
                 << std::setprecision(10)
                 << c_eq_user_def.value
                 << std::endl;
+                
             if (!hasJacobian)
             {
                 Logger::instance().log(Logger::LogType::DETAIL)
@@ -459,26 +550,36 @@ namespace mpc
             const mat<Tnc, (sizer.ph * sizer.nu)> &Jmanvar,
             const cvec<Tnc> &Jcon)
         {
-            // #pragma omp parallel for
-            for (size_t i = 0; i < ph(); i++)
+            if constexpr (Tnc == 0)
             {
-                Jres.middleCols(i * nx(), nx()) = Jstate.middleCols(i * nx(), nx());
+                // Nothing to do here since we don't have constraints!
+                // note that this is for make Eigen happy about zero-sized
+                // matrix allocation. The actual check is done at a higher level at runtime
+                return;
             }
-
-            mat<Tnc, sizer.ph * sizer.nu> Jmanvar_mat;
-            COND_RESIZE_MAT(sizer, Jmanvar_mat, Jres.rows(), ph() * nu());
-
-            // Fill the manipulated variable part
-            // #pragma omp parallel for
-            for (size_t i = 0; i < ph(); i++)
+            else
             {
-                Jmanvar_mat.block(0, i * nu(), Jres.rows(), nu()) = Jmanvar.middleCols(i * nu(), nu());
+                // #pragma omp parallel for
+                for (size_t i = 0; i < ph(); i++)
+                {
+                    Jres.middleCols(i * nx(), nx()) = Jstate.middleCols(i * nx(), nx());
+                }
+    
+                mat<Tnc, sizer.ph * sizer.nu> Jmanvar_mat;
+                COND_RESIZE_MAT(sizer, Jmanvar_mat, Jres.rows(), ph() * nu());
+    
+                // Fill the manipulated variable part
+                // #pragma omp parallel for
+                for (size_t i = 0; i < ph(); i++)
+                {
+                    Jmanvar_mat.block(0, i * nu(), Jres.rows(), nu()) = Jmanvar.middleCols(i * nu(), nu());
+                }
+    
+                Jres.middleCols(ph() * nx(), nu() * ch()) = (Jmanvar_mat * mapping->Iz2u());
+    
+                // Fill the constraints part (last column)
+                Jres.middleCols((ph() * nx()) + (nu() * ch()), 1) = Jcon;
             }
-
-            Jres.middleCols(ph() * nx(), nu() * ch()) = (Jmanvar_mat * mapping->Iz2u());
-
-            // Fill the constraints part (last column)
-            Jres.middleCols((ph() * nx()) + (nu() * ch()), 1) = Jcon;
         }
 
         /**

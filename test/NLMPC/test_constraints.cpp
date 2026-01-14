@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #include "basic.hpp"
@@ -83,7 +83,7 @@ TEMPLATE_TEST_CASE_SIG(
                             mpc::cvec<TVAR(Tnx)> &dx,
                             const mpc::cvec<TVAR(Tnx)> &x,
                             const mpc::cvec<TVAR(Tnu)> &u,
-                            const unsigned int& p)
+                            const unsigned int&)
                         {
             dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
             dx[1] = x[0]; });
@@ -167,7 +167,7 @@ TEMPLATE_TEST_CASE_SIG(
                             mpc::cvec<TVAR(Tnx)> &dx,
                             const mpc::cvec<TVAR(Tnx)>& x,
                             const mpc::cvec<TVAR(Tnu)>& u,
-                            const unsigned int& p)
+                            const unsigned int&)
                         {
         dx[0] = ((1.0 - (x[1] * x[1])) * x[0]) - x[1] + u[0];
         dx[1] = x[0]; });

@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -9,7 +9,6 @@
 
 namespace mpc
 {
-
     /**
      * @brief Abstract class for the explicit initializable classes
      *

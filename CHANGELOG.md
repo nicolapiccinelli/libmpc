@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0] - 2026-01-14
+### Added
+- Added support for MPPI optimizer in the non-linear mpc class. The user can now choose between NLopt and MPPI optimizers
+- Added new example for the MPPI optimizer using the Van der Pol oscillator and Variable Impedance Control
+- Added new unit tests for the MPPI optimizer in the non-linear mpc class
+- Added new python bindings for the MPPI optimizer in the non-linear mpc class
+- Added new python example for the MPPI optimizer using the Van der Pol oscillator and Variable Impedance Control
+- Updated documentation to include the new MPPI optimizer features
+
+### Changed
+- The NLMPC class now has a constructor that accepts the optimizer type as a parameter
+- OSQP dependency updated to version 1.0.0
+
 ## [0.7.1] - 2025-05-15
 
 ### Changed

@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -80,6 +80,37 @@ namespace mpc
             checkOrQuit();
             return fuser = handle, true;
         }
+
+        /**
+         * @brief A thread-safe evaluation that only computes the scalar cost.
+         * This is used for gradient-free optimization like MPPI.
+         * 
+         * @param x internal optimal vector
+         * @return double associated cost
+         */
+        double evaluateCostThreadSafe(const cvec<((sizer.ph * sizer.nx) + (sizer.nu * sizer.ch) + 1)>& x)
+        {
+            checkOrQuit();
+
+            mat<(sizer.ph + 1), sizer.nx> Xmat_local;
+            mat<(sizer.ph + 1), sizer.nu> Umat_local;
+            COND_RESIZE_MAT(sizer, Xmat_local, (ph() + 1), nx());
+            COND_RESIZE_MAT(sizer, Umat_local, (ph() + 1), nu());
+
+            double e_local;
+            
+            // We assume mapping->unwrapVector is thread-safe and
+            // we are also assuming no one will write on x0 concurrently
+            // (it should be safe since the initial condition is set before optimization)
+            mapping->unwrapVector(x, x0, Xmat_local, Umat_local, e_local);
+
+            // We assume the fuser and the output function are thread-safe as well
+            double cost = fuser(Xmat_local, 
+                                model->getOutput(Xmat_local, Umat_local), 
+                                Umat_local, 
+                                e_local); 
+            return cost;
+        }        
 
         /**
          * @brief Evaluate the objective function at the desired optimal vector

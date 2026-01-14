@@ -78,7 +78,7 @@ RUN git clone https://github.com/stevengj/nlopt /tmp/nlopt \
 ##############################
 # OSQP Solver
 ##############################
-RUN git clone --depth 1 --branch v0.6.3 --recursive https://github.com/osqp/osqp /tmp/osqp \
+RUN git clone --depth 1 --branch v1.0.0 --recursive https://github.com/osqp/osqp /tmp/osqp \
     && cd /tmp/osqp \
     && mkdir build \
     && cd build \

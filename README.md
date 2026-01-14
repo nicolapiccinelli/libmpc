@@ -16,7 +16,7 @@ The library depends on the following external libraries which must be installed 
 
 * *Eigen3* header-only linear algebra library (https://eigen.tuxfamily.org/index.php?title=Main_Page)
 * *NLopt* set of solvers for nonlinear programming (https://nlopt.readthedocs.io/en/latest/)
-* *OSQP* solver for convex quadratic programming (https://osqp.org)
+* *OSQP* solver for convex quadratic programming (https://osqp.org) (version >= 1.0.0)
 
 If you are a developer, to setup the debug environment you also need to install:
 - `boost` for stacktrace debug (https://www.boost.org)
@@ -30,6 +30,7 @@ There is also a collection of examples that guide you through the most important
 * `ugv_ex.cpp`: example of a non-linear MPC for a UGV tracking problem with obstacles
 * `vanderpol_ex.cpp`: example of a non-linear MPC for a Van der Pol oscillator regulation problem
 * `networked_oscillator_ex.cpp`: example of a non-linear MPC for a set of coupled Van der Pol oscillator regulation problem
+* `vic_6dof_ex.cpp`: example of a non-linear MPC for a 6DOF variabile impedance controller for a robotic arm
 
 The examples are written in C++ and can be compiled using CMake:
 

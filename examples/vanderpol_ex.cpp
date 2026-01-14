@@ -1,8 +1,10 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #include <mpc/NLMPC.hpp>
+
+#define MPPI_ENABLED
 
 int main()
 {
@@ -10,25 +12,49 @@ int main()
     constexpr int num_output = 2;
     constexpr int num_inputs = 1;
     constexpr int pred_hor = 10;
-    constexpr int ctrl_hor = 5;
+    constexpr int ctrl_hor = 10;
     constexpr int ineq_c = pred_hor + 1;
     constexpr int eq_c = 0;
 
     double ts = 0.1;
 
+#ifdef MPPI_ENABLED
+    mpc::NLMPC<
+        num_states, num_inputs, num_output,
+        pred_hor, ctrl_hor,
+        ineq_c, eq_c>
+        controller(mpc::OptimizerType::MPPI);
+
+    mpc::MPPIParameters params;
+    params.maximum_iteration = 1;
+    params.num_rollouts = 512;
+    params.sigma = mpc::cvec<num_inputs>();
+    params.sigma.setConstant(3.0);
+    params.lambda = 20.0;
+    params.enable_warm_start = true;
+    params.state_bound_penalty = 1.0;
+    params.ineq_penalty = 1.0;
+    params.barrier_steepness = 1.0;
+    params.eq_penalty = 0;
+    params.beta = 1.0;
+    params.rho = 0.4;
+    params.integration_substeps = 1;
+    controller.setOptimizerParameters(params);
+#else
     mpc::NLMPC<
         num_states, num_inputs, num_output,
         pred_hor, ctrl_hor,
         ineq_c, eq_c>
         controller;
-
-    controller.setLoggerLevel(mpc::Logger::LogLevel::NONE);
-    controller.setDiscretizationSamplingTime(ts);
-
+        
     mpc::NLParameters params;
     params.maximum_iteration = 1000;
 
     controller.setOptimizerParameters(params);
+#endif
+
+    controller.setLoggerLevel(mpc::Logger::LogLevel::NORMAL);
+    controller.setDiscretizationSamplingTime(ts);
 
     auto stateEq = [&](
                        mpc::cvec<num_states> &dx,

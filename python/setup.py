@@ -50,7 +50,7 @@ class BuildCMakeExt(build_ext):
 
 setuptools.setup(
     name="pympcxx",
-    version="0.7.1",
+    version="1.0.0",
     description="MPC++ bindings for Python",
     ext_modules=[CMakeExtension(name="pympcxx", sourcedir=".")],
     cmdclass={"build_ext": BuildCMakeExt},

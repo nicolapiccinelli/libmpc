@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2023-2025 Nicola Piccinelli
+ *   Copyright (c) 2023-2026 Nicola Piccinelli
  *   All rights reserved.
  */
 #pragma once
@@ -59,6 +59,7 @@ namespace mpc
          */
         Logger &reset()
         {
+            os = &std::cout;
             prefix.clear();
             thresholdLevel = LogLevel::NORMAL;
             verboseOverride = false;
