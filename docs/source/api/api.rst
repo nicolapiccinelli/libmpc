@@ -49,14 +49,14 @@ The `mpc::NLMPC` interface supports multiple internal optimization backends. In 
 
 Linear MPC parameters
 ----------------------
-.. doxygenstruct:: mpc::LMPCParameters
+.. doxygenstruct:: mpc::LParameters
     :project: libmpc++
     :path: ../web/doxygen-build/xml
     :members:
 
 Non-linear MPC parameters
 -------------------------
-.. doxygenstruct:: mpc::NLMPCParameters
+.. doxygenstruct:: mpc::NLParameters
     :project: libmpc++
     :path: ../web/doxygen-build/xml
     :members:
